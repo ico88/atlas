@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import json
 import logging
+import secrets
 import signal
 import sys
 
@@ -20,6 +21,7 @@ from agent.client import (
 from agent.config import AgentConfig
 from agent.executor import execute_task
 from agent.hardware import collect_hardware, collect_health
+from agent.setup_ui import start_setup_ui
 
 logger = logging.getLogger("node-agent")
 
@@ -66,6 +68,22 @@ async def _wait(seconds: float) -> None:
         await asyncio.wait_for(_shutdown.wait(), timeout=seconds)
 
 
+def _start_setup_ui(config: AgentConfig) -> None:
+    """Start the local setup/diagnostics UI, printing a one-time bootstrap code."""
+
+    if not config.setup_ui_enabled:
+        return
+    token = config.bootstrap_token or secrets.token_hex(4)
+    with contextlib.suppress(OSError):  # never let the UI stop the agent
+        start_setup_ui(config, token)
+        logger.info(
+            "setup UI ready at http://%s:%s — bootstrap code: %s",
+            config.setup_ui_host,
+            config.setup_ui_port,
+            token,
+        )
+
+
 async def run(config: AgentConfig | None = None) -> None:
     config = config or AgentConfig.from_env()
     logger.info(
@@ -75,6 +93,8 @@ async def run(config: AgentConfig | None = None) -> None:
         config.control_plane_url,
         ",".join(config.capabilities) or "-",
     )
+
+    _start_setup_ui(config)
 
     client = ControlPlaneClient(config)
     try:

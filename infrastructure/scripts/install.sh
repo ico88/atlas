@@ -27,6 +27,11 @@
 #   --allow-experimental-gpu      allow auto-selecting the Vulkan backend
 #   --allow-cpu-fallback          allow CPU when a requested GPU is unavailable
 #
+# Node networking options (ROADMAP PR 5):
+#   --network-provider none|zerotier|existing   overlay network for the node
+#   --zerotier-network-id <16-hex>              ZeroTier network to join
+#   --await-enrollment                          wait for control-plane enrollment
+#
 # By default the installer also builds and starts the stack (delivering a
 # ready-to-use system). Pass --no-start to only install prerequisites + config.
 #
@@ -50,6 +55,8 @@ source "${SCRIPT_DIR}/lib/atlas-lib.sh"
 source "${SCRIPT_DIR}/lib/gpu.sh"
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}/lib/ollama.sh"
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/lib/network.sh"
 
 # --- defaults / CLI args --------------------------------------------------
 ROLE=""
@@ -68,6 +75,10 @@ EMBEDDING_MODEL="nomic-embed-text"
 GPU_MODE="auto"           # auto|nvidia|rocm|vulkan|cpu
 ALLOW_EXPERIMENTAL_GPU=0
 ALLOW_CPU_FALLBACK=0
+# Node networking (ROADMAP PR 5)
+NETWORK_PROVIDER=""       # none|zerotier|existing (unset => ask for nodes)
+ZEROTIER_NETWORK_ID=""
+AWAIT_ENROLLMENT=0
 
 usage() {
   sed -n '2,/^# ===/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
@@ -90,6 +101,9 @@ while [ $# -gt 0 ]; do
     --gpu) GPU_MODE="${2:-auto}"; shift 2 ;;
     --allow-experimental-gpu) ALLOW_EXPERIMENTAL_GPU=1; shift ;;
     --allow-cpu-fallback) ALLOW_CPU_FALLBACK=1; shift ;;
+    --network-provider) NETWORK_PROVIDER="${2:-none}"; shift 2 ;;
+    --zerotier-network-id) ZEROTIER_NETWORK_ID="${2:-}"; NETWORK_PROVIDER="zerotier"; shift 2 ;;
+    --await-enrollment) AWAIT_ENROLLMENT=1; shift ;;
     -y|--yes) ASSUME_YES=1; shift ;;
     --no-start) NO_START=1; shift ;;
     -h|--help) usage 0 ;;
@@ -404,6 +418,47 @@ configure_node() {
   set_env_var "ATLAS_NODE_CAPABILITIES" "$NODE_CAPS"
   log "Wrote node configuration to .env."
   [ -z "$NODE_TOKEN" ] && warn "No token set — the node will only be accepted if the control plane runs open (dev)."
+
+  configure_node_network
+  # A fresh bootstrap token for the local Setup UI so its guarded actions
+  # (re-enroll) require a code shown at agent startup.
+  if [ -z "$(get_env_var ATLAS_NODE_BOOTSTRAP_TOKEN "$ENV_FILE")" ]; then
+    set_env_var "ATLAS_NODE_BOOTSTRAP_TOKEN" "$(openssl rand -hex 4)"
+  fi
+  [ "$AWAIT_ENROLLMENT" = "1" ] && set_env_var "ATLAS_NODE_AWAIT_ENROLLMENT" "true"
+}
+
+# Configure the node's overlay network (ROADMAP PR 5).
+configure_node_network() {
+  if [ -z "$NETWORK_PROVIDER" ]; then
+    local ans="none"
+    prompt ans "Overlay network for this node? (none/zerotier)" "none"
+    NETWORK_PROVIDER="$ans"
+  fi
+  case "$NETWORK_PROVIDER" in
+    zerotier)
+      set_env_var "ATLAS_NETWORK_PROVIDER" "zerotier"
+      if [ -z "$ZEROTIER_NETWORK_ID" ]; then
+        prompt ZEROTIER_NETWORK_ID "ZeroTier network id (16 hex chars)" ""
+      fi
+      if ! valid_zerotier_network_id "$ZEROTIER_NETWORK_ID"; then
+        warn "No valid ZeroTier network id given — skipping ZeroTier setup."
+        set_env_var "ATLAS_NETWORK_PROVIDER" "none"
+        return
+      fi
+      set_env_var "ATLAS_ZEROTIER_NETWORK_ID" "$ZEROTIER_NETWORK_ID"
+      if install_zerotier && zerotier_join "$ZEROTIER_NETWORK_ID"; then
+        print_zerotier_status "$ZEROTIER_NETWORK_ID"
+      fi
+      ;;
+    existing)
+      set_env_var "ATLAS_NETWORK_PROVIDER" "existing"
+      log "Using the existing network — reach the control plane at ${MANAGER_URL}."
+      ;;
+    *)
+      set_env_var "ATLAS_NETWORK_PROVIDER" "none"
+      ;;
+  esac
 }
 
 verify() {
@@ -450,12 +505,20 @@ print_next_steps() {
   ip="$(server_ip)"
   ipbase="http://${ip}${suffix}"
   if [ "$ROLE" = "node" ]; then
+    local setup_port
+    setup_port="$(get_env_var ATLAS_NODE_SETUP_UI_PORT "$ENV_FILE")"
+    setup_port="${setup_port:-8971}"
     if [ "$started" = "1" ]; then
       cat <<EOF
 
   The node agent is running and registering with ${MANAGER_URL}.
   Check it on the manager: GET /api/v1/nodes  or the UI "Nodes" page.
-  Logs:  cd ${REPO_ROOT} && docker compose -f docker-compose.node.yml logs -f
+
+  Node Setup UI (local status & diagnostics, no secrets):
+      http://127.0.0.1:${setup_port}/
+      (remote? tunnel it: ssh -L ${setup_port}:127.0.0.1:${setup_port} ${TARGET_USER}@$(server_ip))
+  The one-time bootstrap code for guarded actions is printed in the agent log:
+      cd ${REPO_ROOT} && docker compose -f docker-compose.node.yml logs -f
 EOF
     else
       cat <<EOF

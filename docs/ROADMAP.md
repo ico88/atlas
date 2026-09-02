@@ -144,7 +144,13 @@ Stato: ✅ = consegnata.
    Updater unificato base: `./atlas update` (backup + rebuild + migrazioni +
    health check, preserva `.env` e volumi).
 4. **PR 4 — Operations:** pruning protetto, Makefile, logging e documentazione.
-5. **PR 5 — Node Setup UI:** installazione dipendenze, ZeroTier, Network ID e recovery.
+5. ✅ **PR 5 — Node Setup UI:** UI locale di stato/diagnostica servita dal node
+   agent (identità, hardware, capabilities, rete/ZeroTier, raggiungibilità del
+   control plane) su `127.0.0.1:8971`, con codice bootstrap monouso per le
+   azioni protette (`/api/reenroll`). Installer node con
+   `--network-provider zerotier --zerotier-network-id <16-hex>` (installa
+   ZeroTier sull'host, join alla rete, stampa node id + IP gestito) e
+   `--await-enrollment`. Parser ZeroTier puri e testabili.
 6. **PR 6 — Node enrollment:** inviti UI, mTLS, approvazione, rotazione e revoca.
 7. **PR 7 — ZeroTier integration:** stato, policy, API controller opzionale e audit.
 8. **PR 8 — Resilient scheduler:** lease, checkpoint, failover, fencing e task tardivi.

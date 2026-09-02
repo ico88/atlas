@@ -31,11 +31,23 @@ class AgentConfig:
     poll_interval: float = 3.0  # how often to poll for claimable tasks
     register_max_retries: int = 0  # 0 = retry forever
     request_timeout: float = 10.0
+    # Node Setup UI (ROADMAP PR 5) — local status/diagnostics before enrollment.
+    setup_ui_enabled: bool = True
+    setup_ui_host: str = "0.0.0.0"  # published to 127.0.0.1 on the host by compose
+    setup_ui_port: int = 8971
+    bootstrap_token: str = ""  # generated at startup if empty
+    network_provider: str = "none"  # none | zerotier | existing
+    zerotier_network_id: str = ""
+    await_enrollment: bool = False
 
     @classmethod
     def from_env(cls, environ: dict[str, str] | None = None) -> AgentConfig:
         env = environ if environ is not None else dict(os.environ)
         hostname = socket.gethostname()
+
+        def _bool(key: str, default: str = "false") -> bool:
+            return env.get(key, default).strip().lower() in ("1", "true", "yes", "on")
+
         return cls(
             control_plane_url=env.get("ATLAS_CONTROL_PLANE_URL", "http://localhost:8000").rstrip(
                 "/"
@@ -49,4 +61,11 @@ class AgentConfig:
             poll_interval=float(env.get("ATLAS_NODE_POLL_INTERVAL", "3")),
             register_max_retries=int(env.get("ATLAS_NODE_REGISTER_MAX_RETRIES", "0")),
             request_timeout=float(env.get("ATLAS_NODE_REQUEST_TIMEOUT", "10")),
+            setup_ui_enabled=_bool("ATLAS_NODE_SETUP_UI", "true"),
+            setup_ui_host=env.get("ATLAS_NODE_SETUP_UI_HOST", "0.0.0.0"),
+            setup_ui_port=int(env.get("ATLAS_NODE_SETUP_UI_PORT", "8971")),
+            bootstrap_token=env.get("ATLAS_NODE_BOOTSTRAP_TOKEN", ""),
+            network_provider=env.get("ATLAS_NETWORK_PROVIDER", "none"),
+            zerotier_network_id=env.get("ATLAS_ZEROTIER_NETWORK_ID", ""),
+            await_enrollment=_bool("ATLAS_NODE_AWAIT_ENROLLMENT", "false"),
         )

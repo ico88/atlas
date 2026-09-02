@@ -21,6 +21,16 @@ services:
       ATLAS_NODE_VERSION: ${ATLAS_NODE_VERSION:-0.1.0}
       ATLAS_NODE_CAPABILITIES: ${ATLAS_NODE_CAPABILITIES:-}
       ATLAS_NODE_HEARTBEAT_INTERVAL: ${ATLAS_NODE_HEARTBEAT_INTERVAL:-15}
+      # Node Setup UI (ROADMAP PR 5) — local status/diagnostics before enrollment.
+      ATLAS_NODE_SETUP_UI: ${ATLAS_NODE_SETUP_UI:-true}
+      ATLAS_NODE_SETUP_UI_PORT: ${ATLAS_NODE_SETUP_UI_PORT:-8971}
+      ATLAS_NODE_BOOTSTRAP_TOKEN: ${ATLAS_NODE_BOOTSTRAP_TOKEN:-}
+      ATLAS_NETWORK_PROVIDER: ${ATLAS_NETWORK_PROVIDER:-none}
+      ATLAS_ZEROTIER_NETWORK_ID: ${ATLAS_ZEROTIER_NETWORK_ID:-}
+      ATLAS_NODE_AWAIT_ENROLLMENT: ${ATLAS_NODE_AWAIT_ENROLLMENT:-false}
+    ports:
+      # Setup UI is bound to loopback only — reach it via an SSH tunnel if remote.
+      - "127.0.0.1:${ATLAS_NODE_SETUP_UI_PORT:-8971}:${ATLAS_NODE_SETUP_UI_PORT:-8971}"
     extra_hosts:
       # Lets the container reach a control plane running on the host in simple setups.
       - "host.docker.internal:host-gateway"
