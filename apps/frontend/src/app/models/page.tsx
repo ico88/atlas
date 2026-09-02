@@ -44,6 +44,15 @@ export default function ModelsPage() {
 
   const hw = hardware ?? {};
 
+  function gpuSummary(gpu: unknown): string {
+    if (!gpu || typeof gpu !== "object") return "none";
+    const g = gpu as { count?: number; devices?: Array<{ name?: string; vendor?: string }> };
+    if (!g.count) return "none";
+    const first = g.devices?.[0];
+    const label = first?.name || first?.vendor || "GPU";
+    return g.count > 1 ? `${label} (+${g.count - 1})` : label;
+  }
+
   return (
     <div>
       <h1 className="page-title">Models</h1>
@@ -74,7 +83,11 @@ export default function ModelsPage() {
           </div>
           <div className="status-row">
             <span className="muted">GPU</span>
-            <span>{hw.gpu ? "detected" : "none"}</span>
+            <span>{gpuSummary(hw.gpu)}</span>
+          </div>
+          <div className="status-row">
+            <span className="muted">Ollama backend</span>
+            <span className="pill">{String(hw.recommended_ollama_backend ?? "—")}</span>
           </div>
         </div>
       </div>

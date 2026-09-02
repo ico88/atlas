@@ -128,7 +128,12 @@ essere affrontato dopo avere stabilizzato protocolli, database e recovery.
 
 ## Suddivisione consigliata del lavoro (PR)
 
-1. **PR 1 — Hardware discovery:** scanner NVIDIA/AMD/Vulkan/ROCm, permessi e API.
+Stato: ✅ = consegnata.
+
+1. ✅ **PR 1 — Hardware discovery:** scanner NVIDIA/AMD/Vulkan/ROCm/DRM in
+   `apps/backend/app/core/hardware.py`, parser puri e testati, `GET
+   /api/v1/system/hardware` con struttura `gpu.devices[]` + `recommended_ollama_backend`,
+   esclusione dei software renderer (`llvmpipe`). UI Models mostra GPU e backend.
 2. **PR 2 — Installer:** opzioni CLI, profilo `ai`, override GPU, configurazione `.env`, pull e readiness.
 3. **PR 3 — Model lifecycle:** libreria condivisa, update atomico, smoke test GPU e rollback.
 4. **PR 4 — Operations:** pruning protetto, Makefile, logging e documentazione.
