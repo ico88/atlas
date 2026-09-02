@@ -65,6 +65,10 @@ sudo ./infrastructure/scripts/install.sh   # or: make install  (interactive)
 When it finishes, ATLAS is already running at http://localhost/system. Pass
 `--no-start` to only install prerequisites and write config without starting.
 
+> **Port already in use?** If host port 80 (or 443) is taken, set
+> `ATLAS_HTTP_PORT` / `ATLAS_HTTPS_PORT` in `.env` (e.g. `ATLAS_HTTP_PORT=8080`)
+> and re-run `docker compose up -d` — then open `http://localhost:8080/system`.
+
 Non-interactive examples:
 
 ```bash
