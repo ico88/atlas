@@ -1,7 +1,12 @@
 # ATLAS reverse proxy.
-# Only HTTPS/HTTP is exposed publicly; the backend, database and Redis stay on
+# Only this proxy is exposed publicly; the backend, database and Redis stay on
 # the internal Docker network (spec §13).
-{$ATLAS_SITE_ADDRESS::80} {
+#
+# Caddy always listens on :80 INSIDE the container. The port you reach it on is
+# the HOST port, set by ATLAS_HTTP_PORT in docker-compose (default 80).
+# For a public domain with automatic HTTPS, replace ":80" below with your domain
+# (e.g. atlas.example.com) and publish container port 443 as well.
+:80 {
 	encode gzip
 
 	# API and health probe are served by the backend.

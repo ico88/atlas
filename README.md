@@ -147,7 +147,7 @@ prefix. **No secret is ever committed** — `.env` is git-ignored.
 | `ATLAS_DATABASE_URL` | Async SQLAlchemy DSN (asyncpg) |
 | `ATLAS_REDIS_URL` | Redis connection URL |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Postgres credentials |
-| `ATLAS_SITE_ADDRESS` | Caddy site address (`:80` dev, domain for auto-HTTPS) |
+| `ATLAS_HTTP_PORT` / `ATLAS_HTTPS_PORT` | Host ports mapped to the reverse proxy (default 80 / 443) |
 
 ## API (Sprint 1 subset)
 
