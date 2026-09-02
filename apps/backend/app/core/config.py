@@ -48,6 +48,10 @@ class Settings(BaseSettings):
     max_concurrent_per_type: int = 0
     concurrency_retry_delay: float = 0.5  # requeue delay when a slot is unavailable
 
+    # Conversation queue (ROADMAP PR 11). Each conversation processes one turn at
+    # a time; this caps how many *different* conversations run in parallel.
+    conversation_max_parallel: int = 4  # 0 == unlimited
+
     # Retry policy (spec §7: exponential backoff + jitter, no infinite loops).
     task_max_retries: int = 3
     retry_backoff_base: float = 0.5  # seconds; delay = base * 2**(attempt-1) + jitter

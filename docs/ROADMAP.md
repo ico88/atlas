@@ -163,7 +163,14 @@ Stato: ✅ = consegnata.
     `POST/GET /api/v1/queries`, `GET /api/v1/queries/{id}` (con eventi),
     `POST /api/v1/queries/{id}/cancel`. Vedi
     [QUERY_LIFECYCLE.md](QUERY_LIFECYCLE.md).
-11. **PR 11 — Conversation queue:** invio immediato, accodamento, merge e parallelismo.
+11. ✅ **PR 11 — Conversation queue:** coda messaggi per-conversazione in Redis —
+    invio immediato quando idle, accodamento FIFO quando occupata, merge dei
+    messaggi utente consecutivi in coda (`merged_count`), lock per-conversazione
+    (un turno alla volta) e parallelismo globale limitato
+    (`ATLAS_CONVERSATION_MAX_PARALLEL`). API
+    `POST /api/v1/conversations/{id}/messages`,
+    `GET …/queue`, `POST …/queue/complete`. Vedi
+    [CONVERSATION_QUEUE.md](CONVERSATION_QUEUE.md).
 12. **PR 12 — Resource telemetry:** metriche nodi, performance Ollama e storage storico.
 13. **PR 13 — Environments:** modello dati, manifest, isolamento, snapshot e restore.
 14. **PR 14 — Memory lifecycle:** acquisizione, retrieval, provenienza e retention.
