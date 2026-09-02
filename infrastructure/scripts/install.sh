@@ -1,43 +1,89 @@
 #!/usr/bin/env bash
 # ===========================================================================
-# ATLAS prerequisites installer.
+# ATLAS installer (role-aware).
 #
 # Target host: Ubuntu Server 24.04 LTS (spec §4).
-# Installs: Docker Engine + Compose plugin, git, make, curl, ca-certificates.
-# Prepares: a .env file from .env.example (if missing).
+# Installs Docker Engine + Compose plugin, git, make, curl, then configures the
+# host for one of two ROLES:
 #
-# Usage (from the repository root):
-#     sudo ./infrastructure/scripts/install.sh
-#     # or: make install
+#   control-plane  the manager: runs the full stack (frontend, backend, worker,
+#                  PostgreSQL, Redis, Caddy). Run this on the primary server.
+#   node           a worker: runs only the node agent, which registers with the
+#                  control plane and sends heartbeats (spec §8, M4).
+#
+# Usage:
+#   sudo ./infrastructure/scripts/install.sh                 # interactive
+#   sudo ./infrastructure/scripts/install.sh --role node \
+#        --manager-url http://10.0.0.1:80 --token <TOKEN> \
+#        --capabilities llm,build --label gpu-1 [--yes]
 #
 # The script is idempotent: re-running it is safe.
 # ===========================================================================
 set -euo pipefail
 
-# --- pretty logging -------------------------------------------------------
 log()  { printf '\033[1;34m[atlas]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[atlas][warn]\033[0m %s\n' "$*" >&2; }
 err()  { printf '\033[1;31m[atlas][error]\033[0m %s\n' "$*" >&2; }
 
-# Resolve the repository root (two levels up from this script).
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+ENV_FILE="${REPO_ROOT}/.env"
+
+# --- defaults / CLI args --------------------------------------------------
+ROLE=""
+ASSUME_YES=0
+MANAGER_URL=""
+NODE_TOKEN=""
+NODE_ID=""
+NODE_LABEL=""
+NODE_CAPS=""
+
+usage() {
+  sed -n '2,30p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  exit "${1:-0}"
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --role) ROLE="${2:-}"; shift 2 ;;
+    --manager-url) MANAGER_URL="${2:-}"; shift 2 ;;
+    --token) NODE_TOKEN="${2:-}"; shift 2 ;;
+    --node-id) NODE_ID="${2:-}"; shift 2 ;;
+    --label) NODE_LABEL="${2:-}"; shift 2 ;;
+    --capabilities) NODE_CAPS="${2:-}"; shift 2 ;;
+    -y|--yes) ASSUME_YES=1; shift ;;
+    -h|--help) usage 0 ;;
+    *) err "Unknown argument: $1"; usage 1 ;;
+  esac
+done
 
 # --- privilege handling ---------------------------------------------------
-# We need root for apt/systemctl. Use sudo transparently when not root.
 if [ "$(id -u)" -eq 0 ]; then
   SUDO=""
-  # The user who invoked sudo (so we add the right account to the docker group).
   TARGET_USER="${SUDO_USER:-root}"
 else
   if ! command -v sudo >/dev/null 2>&1; then
-    err "This script needs root privileges (apt/systemctl) and 'sudo' is not available."
-    err "Re-run as root: su -c '${BASH_SOURCE[0]}'"
+    err "This script needs root privileges and 'sudo' is not available."
     exit 1
   fi
   SUDO="sudo"
   TARGET_USER="$(id -un)"
 fi
+
+prompt() {
+  # prompt <var_name> <question> <default>
+  local __var="$1" __q="$2" __def="${3:-}" __ans=""
+  if [ "$ASSUME_YES" -eq 1 ] || [ ! -t 0 ]; then
+    printf -v "$__var" '%s' "$__def"
+    return
+  fi
+  if [ -n "$__def" ]; then
+    read -rp "$__q [$__def]: " __ans || true
+  else
+    read -rp "$__q: " __ans || true
+  fi
+  printf -v "$__var" '%s' "${__ans:-$__def}"
+}
 
 # --- OS detection ---------------------------------------------------------
 check_os() {
@@ -49,7 +95,6 @@ check_os() {
   . /etc/os-release
   if [ "${ID:-}" != "ubuntu" ]; then
     warn "Detected '${PRETTY_NAME:-unknown}'. ATLAS targets Ubuntu Server 24.04 LTS (spec §4)."
-    warn "The installer may still work on other Debian-based systems, but is untested."
   elif [ "${VERSION_ID:-}" != "24.04" ]; then
     warn "Detected Ubuntu ${VERSION_ID:-?}. The recommended version is 24.04 LTS."
   else
@@ -57,29 +102,24 @@ check_os() {
   fi
 }
 
-# --- base packages --------------------------------------------------------
 install_base_packages() {
   log "Updating apt package index..."
   $SUDO apt-get update -y
-  log "Installing base packages (ca-certificates, curl, git, make, gnupg)..."
-  $SUDO apt-get install -y ca-certificates curl git make gnupg
+  log "Installing base packages (ca-certificates, curl, git, make, gnupg, openssl)..."
+  $SUDO apt-get install -y ca-certificates curl git make gnupg openssl
 }
 
-# --- Docker Engine + Compose plugin (official repository) -----------------
 install_docker() {
   if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
     log "Docker Engine and Compose plugin already installed ($(docker --version))."
     return
   fi
-
   log "Setting up Docker's official apt repository..."
   $SUDO install -m 0755 -d /etc/apt/keyrings
   if [ ! -f /etc/apt/keyrings/docker.asc ]; then
-    $SUDO curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
-      -o /etc/apt/keyrings/docker.asc
+    $SUDO curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
     $SUDO chmod a+r /etc/apt/keyrings/docker.asc
   fi
-
   # shellcheck disable=SC1091
   . /etc/os-release
   local codename="${VERSION_CODENAME:-noble}"
@@ -87,69 +127,150 @@ install_docker() {
     "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] \
 https://download.docker.com/linux/ubuntu ${codename} stable" \
     | $SUDO tee /etc/apt/sources.list.d/docker.list >/dev/null
-
   log "Installing Docker Engine, CLI, containerd, buildx and the Compose plugin..."
   $SUDO apt-get update -y
   $SUDO apt-get install -y \
     docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
   log "Enabling and starting the Docker service..."
   $SUDO systemctl enable --now docker || warn "Could not enable docker via systemctl (no systemd?)."
 }
 
-# --- allow the invoking user to run docker without sudo -------------------
 configure_docker_group() {
-  if [ "$TARGET_USER" = "root" ]; then
-    return
-  fi
+  [ "$TARGET_USER" = "root" ] && return
   if id -nG "$TARGET_USER" | tr ' ' '\n' | grep -qx docker; then
     log "User '$TARGET_USER' is already in the 'docker' group."
   else
     log "Adding user '$TARGET_USER' to the 'docker' group..."
     $SUDO usermod -aG docker "$TARGET_USER"
-    warn "Log out and back in (or run 'newgrp docker') for group membership to take effect."
+    warn "Log out and back in (or run 'newgrp docker') for this to take effect."
   fi
 }
 
-# --- environment file -----------------------------------------------------
-prepare_env() {
-  if [ -f "${REPO_ROOT}/.env" ]; then
-    log ".env already exists — leaving it unchanged."
-  else
+ensure_env_file() {
+  if [ ! -f "$ENV_FILE" ]; then
     log "Creating .env from .env.example..."
-    cp "${REPO_ROOT}/.env.example" "${REPO_ROOT}/.env"
-    warn "Edit ${REPO_ROOT}/.env and set a strong POSTGRES_PASSWORD before production use."
+    cp "${REPO_ROOT}/.env.example" "$ENV_FILE"
   fi
 }
 
-# --- verification ---------------------------------------------------------
+set_env_var() {
+  # set_env_var KEY VALUE  (updates or appends KEY=VALUE in .env)
+  local key="$1" val="$2"
+  if grep -qE "^${key}=" "$ENV_FILE" 2>/dev/null; then
+    sed -i "s|^${key}=.*|${key}=${val}|" "$ENV_FILE"
+  else
+    printf '%s=%s\n' "$key" "$val" >> "$ENV_FILE"
+  fi
+}
+
+# --- role selection -------------------------------------------------------
+select_role() {
+  [ -n "$ROLE" ] && return
+  if [ "$ASSUME_YES" -eq 1 ] || [ ! -t 0 ]; then
+    ROLE="control-plane"
+    return
+  fi
+  echo
+  echo "Select installation role:"
+  echo "  1) control-plane  (manager — runs the full stack)   [default]"
+  echo "  2) node           (worker  — runs only the node agent)"
+  local choice=""
+  read -rp "Role [1]: " choice || true
+  case "${choice:-1}" in
+    2|node) ROLE="node" ;;
+    *) ROLE="control-plane" ;;
+  esac
+}
+
+configure_control_plane() {
+  ensure_env_file
+  log "Configuring host as CONTROL PLANE (manager)."
+  local existing
+  existing="$(grep -E '^ATLAS_NODE_JOIN_TOKEN=' "$ENV_FILE" | cut -d= -f2-)"
+  if [ -z "$existing" ]; then
+    local gen="yes"
+    prompt gen "Generate a node join token now? (recommended)" "yes"
+    if [ "$gen" = "yes" ] || [ "$gen" = "y" ]; then
+      local token
+      token="$(openssl rand -hex 32)"
+      set_env_var "ATLAS_NODE_JOIN_TOKEN" "$token"
+      log "Generated ATLAS_NODE_JOIN_TOKEN and wrote it to .env."
+      warn "Share this token with each node (as ATLAS_NODE_TOKEN):"
+      echo "    $token"
+    fi
+  else
+    log "ATLAS_NODE_JOIN_TOKEN already set in .env — leaving it unchanged."
+  fi
+  warn "Set a strong POSTGRES_PASSWORD in .env before production use."
+}
+
+configure_node() {
+  ensure_env_file
+  log "Configuring host as NODE (worker)."
+  prompt MANAGER_URL "Control plane URL" "${MANAGER_URL:-http://host.docker.internal:80}"
+  prompt NODE_TOKEN  "Node join token (must match the manager)" "${NODE_TOKEN:-}"
+  prompt NODE_ID     "Node id" "${NODE_ID:-$(hostname)}"
+  prompt NODE_LABEL  "Node label" "${NODE_LABEL:-worker}"
+  prompt NODE_CAPS   "Capabilities (comma separated)" "${NODE_CAPS:-build,test}"
+
+  set_env_var "ATLAS_CONTROL_PLANE_URL" "$MANAGER_URL"
+  set_env_var "ATLAS_NODE_TOKEN" "$NODE_TOKEN"
+  set_env_var "ATLAS_NODE_ID" "$NODE_ID"
+  set_env_var "ATLAS_NODE_LABEL" "$NODE_LABEL"
+  set_env_var "ATLAS_NODE_CAPABILITIES" "$NODE_CAPS"
+  log "Wrote node configuration to .env."
+  [ -z "$NODE_TOKEN" ] && warn "No token set — the node will only be accepted if the control plane runs open (dev)."
+}
+
 verify() {
   log "Verifying installation..."
   docker --version || true
   docker compose version || true
 }
 
+print_next_steps() {
+  log "Done (role: ${ROLE}). Next steps:"
+  if [ "$ROLE" = "node" ]; then
+    cat <<EOF
+
+  cd ${REPO_ROOT}
+  docker compose -f docker-compose.node.yml up --build -d
+
+  The node will register with ${MANAGER_URL} and start sending heartbeats.
+  Check it on the manager: GET /api/v1/nodes  or the UI "Nodes" page.
+EOF
+  else
+    cat <<EOF
+
+  cd ${REPO_ROOT}
+  docker compose up --build          # or: make up
+
+  Open:  http://localhost/system  (System Status)   http://localhost/health
+
+  To add a worker node later, run this installer on that machine with:
+    sudo ./infrastructure/scripts/install.sh --role node \\
+         --manager-url http://<this-host>:80 --token <ATLAS_NODE_JOIN_TOKEN>
+EOF
+  fi
+  if [ "$TARGET_USER" != "root" ] && ! id -nG "$TARGET_USER" | tr ' ' '\n' | grep -qx docker; then
+    echo "  (Run 'newgrp docker' or re-login so docker works without sudo.)"
+  fi
+}
+
 main() {
-  log "Starting ATLAS prerequisites installation."
+  log "Starting ATLAS installation."
+  select_role
   check_os
   install_base_packages
   install_docker
   configure_docker_group
-  prepare_env
+  case "$ROLE" in
+    control-plane) configure_control_plane ;;
+    node) configure_node ;;
+    *) err "Invalid role: '$ROLE' (expected 'control-plane' or 'node')"; exit 1 ;;
+  esac
   verify
-  log "Done. Next steps:"
-  cat <<EOF
-
-  cd ${REPO_ROOT}
-  docker compose up --build        # or: make up
-
-  Then open:
-    - App / System Status : http://localhost/system
-    - Backend health      : http://localhost/health
-
-  If you were just added to the 'docker' group, run 'newgrp docker'
-  (or re-login) first so 'docker' works without sudo.
-EOF
+  print_next_steps
 }
 
 main "$@"

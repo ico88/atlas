@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app import __version__
-from app.api import system, tasks
+from app.api import nodes, system, tasks
 from app.api.middleware import RequestContextMiddleware
 from app.core.config import get_settings
 from app.core.logging import configure_logging
@@ -40,6 +40,7 @@ def create_app() -> FastAPI:
 
     app.include_router(system.router)
     app.include_router(tasks.router)
+    app.include_router(nodes.router)
 
     return app
 

@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     worker_poll_timeout: int = 5  # seconds for blocking pop
     worker_dummy_duration: float = 0.2  # simulated work time for dummy tasks
 
+    # Node federation (spec §8). A shared join token authenticates nodes against
+    # the control plane (least privilege, §13). Empty => open (development only).
+    node_join_token: str = ""
+    node_offline_after_seconds: int = 60  # a node is "online" if seen within this
+
     @property
     def is_test(self) -> bool:
         return self.env.lower() in {"test", "testing"}

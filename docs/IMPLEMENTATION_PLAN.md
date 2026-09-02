@@ -9,7 +9,7 @@ is built incrementally; each milestone keeps the application runnable and tested
 | **M1 — Foundation** | Docker Compose, Postgres, Redis, FastAPI, Next.js, healthcheck, structured logging | ✅ partial (Sprint 1) |
 | **M2 — Local AI** | Ollama, hardware scan, Model Registry, local streaming chat, history | ⬜ planned |
 | **M3 — Task Engine** | Persistent tasks, queue, concurrency limits, base scheduler, event stream | ✅ core in Sprint 1 |
-| **M4 — Node Federation** | Node Agent, register/heartbeat, capability discovery, remote execution | ⬜ planned |
+| **M4 — Node Federation** | Node Agent, register/heartbeat, capability discovery, remote execution | 🟡 minimal (register/heartbeat + node agent + liveness done; scheduling & remote exec pending) |
 | **M5 — ALMA** | Task decomposition, DAG, parallel subtasks, retry, result aggregation | ⬜ planned |
 | **M6 — Maintenance Core** | Log fingerprint, issue, branch, patch, tests, PR, approval gate | ⬜ planned |
 | **M7 — Manual Escalation** | ChatGPT/Claude package prep + import + validation | ⬜ planned |

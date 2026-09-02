@@ -1,0 +1,19 @@
+[project]
+name = "atlas-node-agent"
+version = "0.1.0"
+description = "ATLAS node agent — registers a node and sends heartbeats (spec §8, M4)"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["agent", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+pythonpath = ["."]

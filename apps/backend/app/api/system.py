@@ -12,7 +12,6 @@ from app import __version__, redis_client
 from app.core.config import get_settings
 from app.db import get_session
 from app.models.approval import Approval, ApprovalStatus
-from app.models.node import Node
 from app.models.task import Task
 from app.schemas.system import (
     ComponentStatus,
@@ -20,6 +19,7 @@ from app.schemas.system import (
     SystemMetricsResponse,
     SystemStatusResponse,
 )
+from app.services import node_service
 
 router = APIRouter(tags=["system"])
 
@@ -76,13 +76,9 @@ async def system_metrics(
     rows = await session.execute(select(Task.status, func.count()).group_by(Task.status))
     tasks_by_status = {status: int(count) for status, count in rows.all()}
 
-    nodes_online = int(
-        (
-            await session.execute(
-                select(func.count()).select_from(Node).where(Node.status == "online")
-            )
-        ).scalar_one()
-    )
+    nodes = await node_service.list_nodes(session)
+    nodes_online = sum(1 for n in nodes if node_service.is_online(n))
+
     approvals_pending = int(
         (
             await session.execute(
@@ -94,6 +90,7 @@ async def system_metrics(
     )
     return SystemMetricsResponse(
         tasks_by_status=tasks_by_status,
+        nodes_total=len(nodes),
         nodes_online=nodes_online,
         approvals_pending=approvals_pending,
     )

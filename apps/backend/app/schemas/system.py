@@ -26,5 +26,6 @@ class SystemStatusResponse(BaseModel):
 
 class SystemMetricsResponse(BaseModel):
     tasks_by_status: dict[str, int]
+    nodes_total: int
     nodes_online: int
     approvals_pending: int

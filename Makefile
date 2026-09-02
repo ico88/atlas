@@ -24,6 +24,10 @@ up: env ## Start the full stack
 dev: env ## Start the stack with development overrides
 	$(COMPOSE_DEV) up --build
 
+.PHONY: node-up
+node-up: env ## Start a worker node agent (run on a node host)
+	$(COMPOSE) -f docker-compose.node.yml up --build -d
+
 .PHONY: down
 down: ## Stop the stack
 	$(COMPOSE) down

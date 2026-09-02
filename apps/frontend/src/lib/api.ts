@@ -14,8 +14,29 @@ export interface SystemStatus {
 
 export interface SystemMetrics {
   tasks_by_status: Record<string, number>;
+  nodes_total: number;
   nodes_online: number;
   approvals_pending: number;
+}
+
+export interface Node {
+  id: string;
+  node_id: string;
+  hostname?: string | null;
+  label?: string | null;
+  version?: string | null;
+  status: string;
+  online: boolean;
+  capabilities?: Record<string, unknown> | null;
+  hardware?: Record<string, unknown> | null;
+  last_heartbeat?: string | null;
+  created_at: string;
+}
+
+export interface NodeList {
+  items: Node[];
+  total: number;
+  online: number;
 }
 
 async function getJson<T>(path: string): Promise<T> {
@@ -31,3 +52,5 @@ export const fetchSystemStatus = () =>
 
 export const fetchSystemMetrics = () =>
   getJson<SystemMetrics>("/api/v1/system/metrics");
+
+export const fetchNodes = () => getJson<NodeList>("/api/v1/nodes");

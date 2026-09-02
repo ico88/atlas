@@ -1,0 +1,26 @@
+# ATLAS worker node.
+#
+# Run this on a SECONDARY machine (a worker node), not the control-plane host:
+#
+#   docker compose -f docker-compose.node.yml up --build -d
+#
+# It runs only the node agent, which registers with the control plane and sends
+# heartbeats. Point ATLAS_CONTROL_PLANE_URL at the manager (e.g. its overlay
+# network address) and set ATLAS_NODE_TOKEN to match the control plane's
+# ATLAS_NODE_JOIN_TOKEN. Values are read from .env (see .env.example).
+services:
+  node-agent:
+    build:
+      context: ./services/node-agent
+    restart: unless-stopped
+    environment:
+      ATLAS_CONTROL_PLANE_URL: ${ATLAS_CONTROL_PLANE_URL:-http://host.docker.internal:80}
+      ATLAS_NODE_TOKEN: ${ATLAS_NODE_TOKEN:-}
+      ATLAS_NODE_ID: ${ATLAS_NODE_ID:-}
+      ATLAS_NODE_LABEL: ${ATLAS_NODE_LABEL:-}
+      ATLAS_NODE_VERSION: ${ATLAS_NODE_VERSION:-0.1.0}
+      ATLAS_NODE_CAPABILITIES: ${ATLAS_NODE_CAPABILITIES:-}
+      ATLAS_NODE_HEARTBEAT_INTERVAL: ${ATLAS_NODE_HEARTBEAT_INTERVAL:-15}
+    extra_hosts:
+      # Lets the container reach a control plane running on the host in simple setups.
+      - "host.docker.internal:host-gateway"

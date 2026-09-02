@@ -66,6 +66,26 @@ jobs:
           ATLAS_DATABASE_URL: postgresql+asyncpg://atlas:atlas@localhost:5432/atlas
         run: alembic upgrade head
 
+  node-agent:
+    name: Node agent (lint, tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/node-agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: services/node-agent/requirements-dev.txt
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Ruff
+        run: ruff check agent tests
+      - name: Pytest
+        run: pytest -q
+
   frontend:
     name: Frontend (typecheck, lint, build)
     runs-on: ubuntu-latest
@@ -97,6 +117,8 @@ jobs:
         run: docker build -t atlas-backend:ci ./apps/backend
       - name: Build frontend image
         run: docker build -t atlas-frontend:ci ./apps/frontend
+      - name: Build node-agent image
+        run: docker build -t atlas-node-agent:ci ./services/node-agent
 
   secret-scan:
     name: Secret scan

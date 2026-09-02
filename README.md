@@ -53,13 +53,29 @@ container base images do not need to match.
 
 ### Automated install (Ubuntu)
 
-An idempotent installer sets up all prerequisites and prepares `.env`:
+An idempotent, **role-aware** installer sets up all prerequisites and prepares
+`.env`. It asks whether this host is the **control plane** (manager, runs the
+full stack) or a **node** (worker, runs only the node agent):
 
 ```bash
-sudo ./infrastructure/scripts/install.sh   # or: make install
+sudo ./infrastructure/scripts/install.sh   # or: make install  (interactive)
 # then, if you were just added to the docker group:
 newgrp docker
 ```
+
+Non-interactive examples:
+
+```bash
+# Manager (control plane) — generates a node join token into .env
+sudo ./infrastructure/scripts/install.sh --role control-plane --yes
+
+# Worker node — points at the manager and joins with the shared token
+sudo ./infrastructure/scripts/install.sh --role node \
+     --manager-url http://<manager-host>:80 --token <JOIN_TOKEN> \
+     --capabilities llm,build --label gpu-1 --yes
+```
+
+See [Multi-node federation](#multi-node-federation-m4) below for the full flow.
 
 ## Quick start
 
@@ -139,6 +155,46 @@ prefix. **No secret is ever committed** — `.env` is git-ignored.
 | GET | `/api/v1/tasks/{id}` | Get a task |
 | POST | `/api/v1/tasks/{id}/cancel` | Logically cancel a task |
 | GET | `/api/v1/tasks/{id}/events` | Task event history |
+| GET | `/api/v1/nodes` | List registered nodes (with online status) |
+| GET | `/api/v1/nodes/{id}` | Get a node (by db id or logical `node_id`) |
+| POST | `/api/v1/nodes/register` | Register/upsert a node (node token) |
+| POST | `/api/v1/nodes/{id}/heartbeat` | Node heartbeat (node token) |
+
+## Multi-node federation (M4)
+
+ATLAS is distributed by design. One host runs the **control plane** (manager);
+additional hosts run a lightweight **node agent** that registers and sends
+heartbeats. Nodes appear live on the **Nodes** page and in `GET /api/v1/nodes`.
+
+```
+   Manager (control plane)                 Worker node(s)
+   full stack + REST API      <── register/heartbeat ──   node-agent
+   ATLAS_NODE_JOIN_TOKEN                                  ATLAS_NODE_TOKEN
+```
+
+**On the manager:** set `ATLAS_NODE_JOIN_TOKEN` in `.env` (the installer can
+generate one), then `docker compose up -d`.
+
+**On each worker node** (a second machine):
+
+```bash
+# 1) install prerequisites + write node config (interactive role picker)
+sudo ./infrastructure/scripts/install.sh --role node \
+     --manager-url http://<manager-host>:80 --token <JOIN_TOKEN> \
+     --capabilities llm,build --label gpu-1 --yes
+
+# 2) start the node agent
+docker compose -f docker-compose.node.yml up --build -d
+```
+
+The manager and nodes typically communicate over an encrypted overlay network
+(Tailscale / ZeroTier, spec §3) — use the manager's overlay address as
+`--manager-url`. Authentication uses the shared join token (least privilege,
+§13); rotate it by changing `ATLAS_NODE_JOIN_TOKEN` on the manager.
+
+> Scope note: this is the **minimal** M4 slice — registration, heartbeat and
+> liveness. Capability-based scheduling and remote task execution on nodes come
+> in later M4 work.
 
 ## Security
 
