@@ -28,6 +28,26 @@ dev: env ## Start the stack with development overrides
 node-up: env ## Start a worker node agent (run on a node host)
 	$(COMPOSE) -f docker-compose.node.yml up --build -d
 
+.PHONY: update
+update: ## Update the whole stack safely (backup first; keeps settings & data)
+	./atlas update
+
+.PHONY: ai-up
+ai-up: env ## Start the stack including local AI (Ollama, profile 'ai')
+	$(COMPOSE) --profile ai up --build -d
+
+.PHONY: model-update
+model-update: ## Pull + activate a model: make model-update MODEL=llama3.3
+	./atlas model-update $(MODEL)
+
+.PHONY: model-rollback
+model-rollback: ## Roll back to the previous model
+	./atlas model-rollback
+
+.PHONY: model-list
+model-list: ## List installed models and the active one
+	./atlas model-list
+
 .PHONY: down
 down: ## Stop the stack
 	$(COMPOSE) down

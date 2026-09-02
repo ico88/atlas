@@ -134,8 +134,15 @@ Stato: ✅ = consegnata.
    `apps/backend/app/core/hardware.py`, parser puri e testati, `GET
    /api/v1/system/hardware` con struttura `gpu.devices[]` + `recommended_ollama_backend`,
    esclusione dei software renderer (`llvmpipe`). UI Models mostra GPU e backend.
-2. **PR 2 — Installer:** opzioni CLI, profilo `ai`, override GPU, configurazione `.env`, pull e readiness.
-3. **PR 3 — Model lifecycle:** libreria condivisa, update atomico, smoke test GPU e rollback.
+2. ✅ **PR 2 — Installer:** opzioni CLI (`--with-ollama`, `--ollama-model`,
+   `--gpu ...`), profilo `ai`, override GPU generato (`.atlas/docker-compose.gpu.yml`),
+   configurazione `.env`, pull + readiness + smoke test. Libreria shell condivisa
+   (`infrastructure/scripts/lib/`). Vedi [MODEL_OPERATIONS.md](MODEL_OPERATIONS.md).
+3. 🟡 **PR 3 — Model lifecycle:** `./atlas model-update`/`model-rollback` atomici
+   con smoke test e stato in `.atlas/state/models.env` (fatto); restano
+   `model-prune` protetto e la verifica accelerazione GPU (`ollama ps`).
+   Updater unificato base: `./atlas update` (backup + rebuild + migrazioni +
+   health check, preserva `.env` e volumi).
 4. **PR 4 — Operations:** pruning protetto, Makefile, logging e documentazione.
 5. **PR 5 — Node Setup UI:** installazione dipendenze, ZeroTier, Network ID e recovery.
 6. **PR 6 — Node enrollment:** inviti UI, mTLS, approvazione, rotazione e revoca.

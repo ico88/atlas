@@ -18,6 +18,9 @@ out/
 .env.*
 !.env.example
 
+# Local generated state (GPU override, model state, backups) — never committed
+.atlas/
+
 # OS / editor
 .DS_Store
 *.swp

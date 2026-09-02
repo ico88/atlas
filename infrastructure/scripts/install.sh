@@ -17,6 +17,16 @@
 #        --manager-url http://10.0.0.1:80 --token <TOKEN> \
 #        --capabilities llm,build --label gpu-1 [--yes]
 #
+# Control-plane AI options (ROADMAP PR 2):
+#   --with-ollama                 enable local AI (Ollama) + 'ai' compose profile
+#   --without-ollama              install without local inference (echo fallback)
+#   --ollama-model <name:tag>     chat model to install (default llama3.2)
+#   --with-ollama-embeddings      use Ollama embeddings for RAG
+#   --embedding-model <name:tag>  embedding model (default nomic-embed-text)
+#   --gpu auto|nvidia|rocm|vulkan|cpu   acceleration backend (default auto)
+#   --allow-experimental-gpu      allow auto-selecting the Vulkan backend
+#   --allow-cpu-fallback          allow CPU when a requested GPU is unavailable
+#
 # By default the installer also builds and starts the stack (delivering a
 # ready-to-use system). Pass --no-start to only install prerequisites + config.
 #
@@ -32,6 +42,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 ENV_FILE="${REPO_ROOT}/.env"
 
+# Shared libraries (log/set_env_var already defined above are kept; libs add
+# GPU + Ollama helpers).
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/lib/atlas-lib.sh"
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/lib/gpu.sh"
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/lib/ollama.sh"
+
 # --- defaults / CLI args --------------------------------------------------
 ROLE=""
 ASSUME_YES=0
@@ -41,9 +60,17 @@ NODE_TOKEN=""
 NODE_ID=""
 NODE_LABEL=""
 NODE_CAPS=""
+# Ollama / GPU (control-plane)
+WITH_OLLAMA=""            # "", "1" or "0" (unset => ask/interactive default yes)
+OLLAMA_MODEL="llama3.2"
+WITH_OLLAMA_EMB=0
+EMBEDDING_MODEL="nomic-embed-text"
+GPU_MODE="auto"           # auto|nvidia|rocm|vulkan|cpu
+ALLOW_EXPERIMENTAL_GPU=0
+ALLOW_CPU_FALLBACK=0
 
 usage() {
-  sed -n '2,30p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,/^# ===/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit "${1:-0}"
 }
 
@@ -55,6 +82,14 @@ while [ $# -gt 0 ]; do
     --node-id) NODE_ID="${2:-}"; shift 2 ;;
     --label) NODE_LABEL="${2:-}"; shift 2 ;;
     --capabilities) NODE_CAPS="${2:-}"; shift 2 ;;
+    --with-ollama) WITH_OLLAMA=1; shift ;;
+    --without-ollama) WITH_OLLAMA=0; shift ;;
+    --ollama-model) OLLAMA_MODEL="${2:-}"; WITH_OLLAMA=1; shift 2 ;;
+    --with-ollama-embeddings) WITH_OLLAMA_EMB=1; WITH_OLLAMA=1; shift ;;
+    --embedding-model) EMBEDDING_MODEL="${2:-}"; shift 2 ;;
+    --gpu) GPU_MODE="${2:-auto}"; shift 2 ;;
+    --allow-experimental-gpu) ALLOW_EXPERIMENTAL_GPU=1; shift ;;
+    --allow-cpu-fallback) ALLOW_CPU_FALLBACK=1; shift ;;
     -y|--yes) ASSUME_YES=1; shift ;;
     --no-start) NO_START=1; shift ;;
     -h|--help) usage 0 ;;
@@ -207,7 +242,100 @@ configure_control_plane() {
     log "ATLAS_NODE_JOIN_TOKEN already set in .env — leaving it unchanged."
   fi
   ensure_http_port
+  configure_ollama
   warn "Set a strong POSTGRES_PASSWORD in .env before production use."
+}
+
+# Configure local AI (Ollama) + GPU acceleration for the control plane.
+configure_ollama() {
+  # Decide whether to enable Ollama (interactive default: yes).
+  if [ -z "$WITH_OLLAMA" ]; then
+    local ans="yes"
+    prompt ans "Enable local AI with Ollama? (downloads a model)" "yes"
+    case "$ans" in y|yes|Y|YES) WITH_OLLAMA=1 ;; *) WITH_OLLAMA=0 ;; esac
+  fi
+
+  mkdir -p "${REPO_ROOT}/.atlas/state"
+
+  if [ "$WITH_OLLAMA" != "1" ]; then
+    log "Local AI disabled — using the built-in echo provider."
+    set_env_var "ATLAS_OLLAMA_URL" "" "$ENV_FILE"
+    set_env_var "ATLAS_DEFAULT_MODEL" "" "$ENV_FILE"
+    set_env_var "ATLAS_USE_OLLAMA_EMBEDDINGS" "false" "$ENV_FILE"
+    rm -f "${REPO_ROOT}/.atlas/state/ollama.enabled"
+    generate_gpu_override "$REPO_ROOT" cpu
+    return
+  fi
+
+  prompt OLLAMA_MODEL "Chat model to install" "${OLLAMA_MODEL}"
+  if ! validate_model_name "$OLLAMA_MODEL"; then
+    err "Invalid model name '$OLLAMA_MODEL'"; exit 1
+  fi
+  set_env_var "ATLAS_OLLAMA_URL" "http://ollama:11434" "$ENV_FILE"
+  set_env_var "ATLAS_DEFAULT_MODEL" "$OLLAMA_MODEL" "$ENV_FILE"
+
+  if [ "$WITH_OLLAMA_EMB" = "1" ]; then
+    prompt EMBEDDING_MODEL "Embedding model" "${EMBEDDING_MODEL}"
+    set_env_var "ATLAS_USE_OLLAMA_EMBEDDINGS" "true" "$ENV_FILE"
+    set_env_var "ATLAS_EMBEDDING_MODEL" "$EMBEDDING_MODEL" "$ENV_FILE"
+  else
+    set_env_var "ATLAS_USE_OLLAMA_EMBEDDINGS" "false" "$ENV_FILE"
+  fi
+
+  touch "${REPO_ROOT}/.atlas/state/ollama.enabled"
+  resolve_and_write_gpu
+}
+
+# Resolve the GPU backend (respecting --gpu) and generate the Compose override.
+resolve_and_write_gpu() {
+  local backend="$GPU_MODE"
+  if [ "$GPU_MODE" = "auto" ]; then
+    backend="$(detect_gpu_backend)"
+    if [ "$backend" = "vulkan" ] && [ "$ALLOW_EXPERIMENTAL_GPU" != "1" ]; then
+      warn "Detected an AMD/Vulkan GPU (experimental Ollama backend)."
+      local ans="yes"
+      prompt ans "Enable experimental Vulkan acceleration? (else CPU)" "yes"
+      case "$ans" in y|yes|Y|YES) : ;; *) backend="cpu" ;; esac
+    fi
+    log "GPU auto-detection selected backend: ${backend}"
+  else
+    # Explicit backend requested: in non-interactive mode a mismatch is an error.
+    local detected
+    detected="$(detect_gpu_backend)"
+    if [ "$backend" != "cpu" ] && [ "$detected" = "cpu" ] && [ "$ALLOW_CPU_FALLBACK" != "1" ]; then
+      if [ "$ASSUME_YES" = "1" ]; then
+        err "Requested --gpu $backend but no GPU detected (use --allow-cpu-fallback)."
+        exit 1
+      fi
+      warn "Requested --gpu $backend but no GPU detected; continuing (may fall back to CPU)."
+    fi
+  fi
+  generate_gpu_override "$REPO_ROOT" "$backend"
+  check_render_permissions "$TARGET_USER" || true
+}
+
+# After the stack is up, pull the model and verify (control plane + Ollama).
+post_start_ollama() {
+  [ "${WITH_OLLAMA:-0}" = "1" ] || return 0
+  [ "${STACK_STARTED:-0}" = "1" ] || return 0
+  export SUDO
+  ATLAS_COMPOSE="$(atlas_compose_cmd "$REPO_ROOT")"
+  export ATLAS_COMPOSE
+  log "Waiting for Ollama to become ready..."
+  if ! wait_for_ollama 180; then
+    warn "Ollama did not become ready in time; pull the model later with: make model-pull MODEL=$OLLAMA_MODEL"
+    return 0
+  fi
+  if pull_model "$OLLAMA_MODEL"; then
+    if [ "$WITH_OLLAMA_EMB" = "1" ]; then
+      pull_model "$EMBEDDING_MODEL" || warn "Embedding model pull failed."
+    fi
+    smoke_test_model "$OLLAMA_MODEL" && log "Model '$OLLAMA_MODEL' responded." \
+      || warn "Smoke test did not confirm a response (model may still be loading)."
+    refresh_atlas_models || warn "Could not refresh the model registry (backend starting?)."
+  else
+    warn "Model pull failed; the app runs with the echo provider until a model is available."
+  fi
 }
 
 port_in_use() {
@@ -295,7 +423,8 @@ start_stack() {
     compose_args="-f docker-compose.node.yml"
     log "Building and starting the node agent (this can take a while)..."
   else
-    compose_args=""
+    # Base + optional GPU override + optional 'ai' profile (Ollama).
+    compose_args="$(compose_files "$REPO_ROOT") $(ollama_profile "$REPO_ROOT")"
     log "Building and starting the full stack (this can take a while)..."
   fi
   # shellcheck disable=SC2086
@@ -381,6 +510,7 @@ main() {
   esac
   verify
   start_stack
+  [ "$ROLE" = "control-plane" ] && post_start_ollama
   print_next_steps
 }
 

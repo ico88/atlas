@@ -1,0 +1,203 @@
+#!/usr/bin/env bash
+# ===========================================================================
+# atlas — one-command operations for ATLAS.
+#
+#   ./atlas update            Update the whole stack (code, images, migrations)
+#                             WITHOUT losing settings (.env) or data (volumes).
+#                             Takes a backup first; never runs `down -v`.
+#   ./atlas update-status     Show the last update log.
+#   ./atlas backup            Back up .env + a PostgreSQL dump to .atlas/backups.
+#   ./atlas status            docker compose ps
+#   ./atlas logs [service]    Tail logs
+#   ./atlas model-update M    Pull model M, smoke-test it, then activate it
+#                             (keeps the previous model for rollback).
+#   ./atlas model-rollback    Re-activate the previous model.
+#   ./atlas model-list        Show installed models and the active one.
+#
+# Settings and memory are safe across updates: `.env` is git-ignored (never
+# overwritten by `git pull`) and PostgreSQL/Redis/Ollama data live in named
+# Docker volumes that `up` preserves. A DB dump is taken before every update.
+# ===========================================================================
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="${ROOT}/.env"
+STATE_DIR="${ROOT}/.atlas/state"
+BACKUP_DIR="${ROOT}/.atlas/backups"
+LOCK_DIR="${ROOT}/.atlas/update.lock"
+UPDATE_LOG="${STATE_DIR}/update.log"
+
+# shellcheck source=/dev/null
+source "${ROOT}/infrastructure/scripts/lib/atlas-lib.sh"
+# shellcheck source=/dev/null
+source "${ROOT}/infrastructure/scripts/lib/ollama.sh"
+
+mkdir -p "$STATE_DIR" "$BACKUP_DIR"
+
+# Use sudo for docker only if the current user can't reach the daemon directly.
+SUDO=""
+if ! docker info >/dev/null 2>&1; then
+  if command -v sudo >/dev/null 2>&1 && sudo -n docker info >/dev/null 2>&1; then
+    SUDO="sudo"
+  fi
+fi
+export SUDO
+ATLAS_COMPOSE="$(atlas_compose_cmd "$ROOT")"
+export ATLAS_COMPOSE
+
+_compose() {
+  # shellcheck disable=SC2086
+  (cd "$ROOT" && $ATLAS_COMPOSE "$@")
+}
+
+http_port() { local p; p="$(get_env_var ATLAS_HTTP_PORT)"; echo "${p:-80}"; }
+
+health_ok() {
+  local port; port="$(http_port)"
+  curl -fsS -o /dev/null "http://localhost:${port}/health" 2>/dev/null
+}
+
+wait_healthy() {
+  local timeout="${1:-120}" waited=0
+  until health_ok; do
+    sleep 3; waited=$((waited + 3))
+    [ "$waited" -ge "$timeout" ] && return 1
+  done
+  return 0
+}
+
+# --- backup ---------------------------------------------------------------
+cmd_backup() {
+  local ts stamp dir
+  ts="$(date -u +%Y%m%dT%H%M%SZ)"
+  dir="${BACKUP_DIR}/${ts}"
+  mkdir -p "$dir"
+  [ -f "$ENV_FILE" ] && cp "$ENV_FILE" "${dir}/env.bak"
+  local pguser pgdb
+  pguser="$(get_env_var POSTGRES_USER)"; pguser="${pguser:-atlas}"
+  pgdb="$(get_env_var POSTGRES_DB)"; pgdb="${pgdb:-atlas}"
+  if _compose exec -T postgres pg_dump -U "$pguser" "$pgdb" > "${dir}/atlas-db.sql" 2>/dev/null; then
+    log "Database dump saved to ${dir}/atlas-db.sql"
+  else
+    warn "Could not dump the database (is it running?). Continuing."
+  fi
+  log "Backup at ${dir} (settings + DB). Data volumes are preserved by Docker."
+  echo "$dir"
+}
+
+# --- update ---------------------------------------------------------------
+cmd_update() {
+  if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+    err "Another update is in progress (lock: $LOCK_DIR). Use './atlas update-status'."
+    exit 1
+  fi
+  trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
+  : > "$UPDATE_LOG"
+  {
+    log "ATLAS update starting ($(date -u +%FT%TZ))."
+    log "Backing up settings and database first..."
+    cmd_backup >/dev/null
+
+    if [ -d "${ROOT}/.git" ]; then
+      log "Fetching latest code (fast-forward only; .env is never touched)..."
+      if ! (cd "$ROOT" && git pull --ff-only); then
+        warn "git pull --ff-only failed (local commits or conflicts). Keeping current code."
+      fi
+    fi
+
+    log "Rebuilding and restarting services (data volumes preserved)..."
+    # NEVER use 'down -v'; 'up -d --build' recreates only changed services and
+    # keeps pgdata/redisdata/ollamadata. Migrations run via the backend entrypoint.
+    _compose up -d --build
+
+    log "Waiting for the backend to become healthy..."
+    if wait_healthy 180; then
+      log "Health check OK."
+    else
+      warn "Backend did not report healthy in time; check './atlas logs backend'."
+    fi
+
+    if [ -f "${STATE_DIR}/ollama.enabled" ]; then
+      refresh_atlas_models && log "Model registry refreshed." || warn "Registry refresh skipped."
+    fi
+    log "ATLAS update complete — operational."
+  } 2>&1 | tee -a "$UPDATE_LOG"
+}
+
+cmd_update_status() {
+  [ -f "$UPDATE_LOG" ] && cat "$UPDATE_LOG" || echo "No update has been run yet."
+}
+
+# --- model lifecycle (partial PR 3) --------------------------------------
+cmd_model_update() {
+  local model="${1:-}"
+  [ -n "$model" ] || { err "Usage: ./atlas model-update <name:tag>"; exit 1; }
+  validate_model_name "$model" || { err "Invalid model name '$model'"; exit 1; }
+
+  local previous; previous="$(get_env_var ATLAS_DEFAULT_MODEL)"
+  log "Active model: ${previous:-none}; requested: $model"
+
+  if [ ! -f "${STATE_DIR}/ollama.enabled" ]; then
+    err "Local AI (Ollama) is not enabled. Re-run the installer with --with-ollama."
+    exit 1
+  fi
+
+  wait_for_ollama 60 || { err "Ollama is not reachable."; exit 1; }
+  pull_model "$model" || { err "Pull failed; keeping '$previous' active."; exit 1; }
+  if ! smoke_test_model "$model"; then
+    err "Smoke test failed; keeping '$previous' active."
+    exit 1
+  fi
+
+  # Activate only after a successful pull + smoke test.
+  set_env_var ATLAS_DEFAULT_MODEL "$model" "$ENV_FILE"
+  {
+    echo "ACTIVE_MODEL=$model"
+    echo "PREVIOUS_MODEL=$previous"
+    echo "UPDATED_AT=$(date -u +%FT%TZ)"
+  } > "${STATE_DIR}/models.env.tmp"
+  mv "${STATE_DIR}/models.env.tmp" "${STATE_DIR}/models.env"
+
+  log "Recreating backend to pick up ATLAS_DEFAULT_MODEL..."
+  _compose up -d --no-deps backend worker
+
+  if wait_healthy 120; then
+    refresh_atlas_models || true
+    log "Model '$model' is now active (previous: ${previous:-none}, kept for rollback)."
+  else
+    warn "Backend unhealthy after switch; rolling back to '${previous}'."
+    set_env_var ATLAS_DEFAULT_MODEL "$previous" "$ENV_FILE"
+    _compose up -d --no-deps backend worker
+    exit 1
+  fi
+}
+
+cmd_model_rollback() {
+  local prev
+  prev="$(get_env_var PREVIOUS_MODEL "${STATE_DIR}/models.env" 2>/dev/null || true)"
+  [ -n "$prev" ] || { err "No previous model recorded in ${STATE_DIR}/models.env."; exit 1; }
+  log "Rolling back to '$prev'..."
+  set_env_var ATLAS_DEFAULT_MODEL "$prev" "$ENV_FILE"
+  _compose up -d --no-deps backend worker
+  wait_healthy 120 && log "Rolled back to '$prev'." || warn "Backend not healthy after rollback."
+}
+
+cmd_model_list() {
+  echo "Active model: $(get_env_var ATLAS_DEFAULT_MODEL)"
+  _compose exec -T ollama ollama list 2>/dev/null || warn "Ollama not running."
+}
+
+usage() { sed -n '2,/^# ===/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+
+case "${1:-help}" in
+  update) cmd_update ;;
+  update-status) cmd_update_status ;;
+  backup) cmd_backup >/dev/null ;;
+  status) _compose ps ;;
+  logs) shift; _compose logs -f "$@" ;;
+  model-update) shift; cmd_model_update "${1:-}" ;;
+  model-rollback) cmd_model_rollback ;;
+  model-list) cmd_model_list ;;
+  help|-h|--help) usage ;;
+  *) err "Unknown command: $1"; usage; exit 1 ;;
+esac

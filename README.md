@@ -375,10 +375,41 @@ reachable — so chat, streaming and history work out of the box, even without a
 GPU or any model pulled.
 
 ```bash
-# Start the stack with local LLM support and pull a model
+# Easiest: the installer enables Ollama, picks a GPU backend and pulls the model
+sudo ./infrastructure/scripts/install.sh --with-ollama --ollama-model llama3.2 --yes
+
+# Or manually:
 docker compose --profile ai up --build -d
 docker compose exec ollama ollama pull llama3.2
 ```
+
+**GPU acceleration** is auto-detected (NVIDIA → ROCm → Vulkan → CPU). On AMD
+cards not covered by ROCm (e.g. Radeon R9) the installer selects the experimental
+**Vulkan** backend and generates `.atlas/docker-compose.gpu.yml` (mapping
+`/dev/dri`, `/dev/kfd`, the `video`/`render` groups and `OLLAMA_VULKAN=1`). Force
+a backend with `--gpu nvidia|rocm|vulkan|cpu`.
+
+**Change the model** (safe: pulls + smoke-tests before activating, keeps the old
+one for rollback):
+
+```bash
+./atlas model-update llama3.3     # or: make model-update MODEL=llama3.3
+./atlas model-rollback            # revert to the previous model
+./atlas model-list
+```
+
+### Updating ATLAS (without losing settings or memory)
+
+```bash
+./atlas update            # or: make update
+```
+
+This backs up `.env` and a PostgreSQL dump, pulls the latest code
+(`git pull --ff-only` — your git-ignored `.env` is never touched), rebuilds and
+restarts services, runs migrations and health-checks the result. **Your data is
+preserved**: PostgreSQL/Redis/Ollama live in named Docker volumes that `up` keeps
+(the updater never runs `down -v`). Watch progress with `./atlas update-status`;
+back up on demand with `./atlas backup`.
 
 Then open the **Chat** page. Replies stream token-by-token (Server-Sent Events);
 every turn is persisted (**cronologia**) and listed in the sidebar. The
