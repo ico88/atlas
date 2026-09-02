@@ -80,6 +80,64 @@ export const fetchTasks = () => getJson<TaskList>("/api/v1/tasks");
 export const fetchSubtasks = (id: string) =>
   getJson<Task[]>(`/api/v1/tasks/${id}/subtasks`);
 
+// --- Knowledge / RAG (M8) ---
+
+export interface DocumentRead {
+  id: string;
+  kb_id?: string | null;
+  title: string;
+  source?: string | null;
+  content_type: string;
+  created_at: string;
+}
+
+export interface DocumentList {
+  items: DocumentRead[];
+  total: number;
+}
+
+export interface Citation {
+  chunk_id: string;
+  document_id: string;
+  document_title: string;
+  source?: string | null;
+  chunk_index: number;
+  content: string;
+  score: number;
+}
+
+export interface RagResult {
+  query: string;
+  hits: Citation[];
+}
+
+export const fetchDocuments = () =>
+  getJson<DocumentList>("/api/v1/documents");
+
+export async function ingestDocument(body: {
+  title: string;
+  content: string;
+  source?: string;
+}): Promise<DocumentRead> {
+  const res = await fetch("/api/v1/documents", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`ingest failed (${res.status})`);
+  return (await res.json()) as DocumentRead;
+}
+
+export async function ragQuery(query: string): Promise<RagResult> {
+  const res = await fetch("/api/v1/rag/query", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query }),
+  });
+  if (!res.ok) throw new Error(`query failed (${res.status})`);
+  return (await res.json()) as RagResult;
+}
+
 // --- Maintenance / approvals (M6) ---
 
 export interface MaintenanceRun {

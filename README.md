@@ -169,6 +169,12 @@ prefix. **No secret is ever committed** — `.env` is git-ignored.
 | GET | `/api/v1/approvals` | List approval gates |
 | POST | `/api/v1/approvals/{id}/approve` | Approve a gate |
 | POST | `/api/v1/approvals/{id}/reject` | Reject a gate |
+| POST | `/api/v1/documents` | Ingest + index a document |
+| GET | `/api/v1/documents` | List documents |
+| POST | `/api/v1/rag/query` | Retrieve relevant chunks with citations |
+| POST | `/api/v1/knowledge-bases` | Create a knowledge base |
+| POST | `/api/v1/memories` · `/api/v1/memories/search` | Store / semantically search memory |
+| POST | `/api/v1/feedback` | Capture feedback (rating/comment) |
 | GET | `/health` | Liveness probe |
 | GET | `/api/v1/system/status` | Backend / DB / Redis health |
 | GET | `/api/v1/system/metrics` | Task counts, nodes online, pending approvals |
@@ -217,6 +223,29 @@ The manager and nodes typically communicate over an encrypted overlay network
 > Scope note: this is the **minimal** M4 slice — registration, heartbeat and
 > liveness. Capability-based scheduling and remote task execution on nodes come
 > in later M4 work.
+
+## RAG & Memory (M8)
+
+Documents are chunked, **embedded** and stored so relevant passages can be
+retrieved with **citations** (spec §6). Embeddings use a deterministic local
+hashing embedder by default (offline, no model needed); set
+`ATLAS_USE_OLLAMA_EMBEDDINGS=true` to use real embeddings from Ollama. Vectors
+are stored as JSON and similarity is computed with cosine — portable across
+PostgreSQL and SQLite; a pgvector-accelerated path can be added later without
+changing callers.
+
+```bash
+# Index a document, then ask a question — answers cite the source
+curl -s -XPOST http://localhost/api/v1/documents -H 'Content-Type: application/json' \
+  -d '{"title":"DB guide","content":"Set ATLAS_DATABASE_URL to configure PostgreSQL...","source":"db.md"}'
+curl -s -XPOST http://localhost/api/v1/rag/query -H 'Content-Type: application/json' \
+  -d '{"query":"how do I configure the database"}'
+```
+
+**Memory** (`/api/v1/memories`) stores user/project notes and retrieves them by
+semantic search; **feedback** (`/api/v1/feedback`) captures ratings/corrections.
+The **Knowledge** page in the UI indexes documents and runs queries with
+citations.
 
 ## Maintenance Agent (M6)
 

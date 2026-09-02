@@ -13,6 +13,13 @@ from app.models.maintenance import (
 )
 from app.models.node import Node
 from app.models.provider import LLMModel, Provider
+from app.models.rag import (
+    Document,
+    DocumentChunk,
+    Feedback,
+    KnowledgeBase,
+    Memory,
+)
 from app.models.task import Task, TaskDependency, TaskEvent, TaskStatus
 from app.models.user import User
 
@@ -38,4 +45,9 @@ __all__ = [
     "IssueStatus",
     "RunStatus",
     "Severity",
+    "KnowledgeBase",
+    "Document",
+    "DocumentChunk",
+    "Memory",
+    "Feedback",
 ]

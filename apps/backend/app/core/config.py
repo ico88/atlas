@@ -74,6 +74,14 @@ class Settings(BaseSettings):
     default_model: str = ""  # empty => auto-pick the first available model
     chat_stream_delay: float = 0.02  # seconds between echo tokens (0 in tests)
 
+    # RAG / Memory (spec §6, §8, M8).
+    embedding_dim: int = 256  # dimension of the local hashing embedder
+    embedding_model: str = "nomic-embed-text"  # Ollama model when available
+    use_ollama_embeddings: bool = False  # opt-in; default = deterministic local
+    rag_chunk_size: int = 800  # characters per chunk
+    rag_chunk_overlap: int = 100
+    rag_top_k: int = 5
+
     @property
     def is_test(self) -> bool:
         return self.env.lower() in {"test", "testing"}

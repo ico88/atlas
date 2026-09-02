@@ -16,6 +16,7 @@ from app.api import (
     maintenance,
     models,
     nodes,
+    rag,
     system,
     tasks,
 )
@@ -81,6 +82,7 @@ def create_app() -> FastAPI:
     app.include_router(models.router)
     app.include_router(maintenance.router)
     app.include_router(approvals.router)
+    app.include_router(rag.router)
 
     return app
 
