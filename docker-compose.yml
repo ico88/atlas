@@ -79,6 +79,10 @@ services:
       ATLAS_LOG_LEVEL: ${ATLAS_LOG_LEVEL:-INFO}
       ATLAS_DATABASE_URL: ${ATLAS_DATABASE_URL:-postgresql+asyncpg://atlas:atlas@postgres:5432/atlas}
       ATLAS_REDIS_URL: ${ATLAS_REDIS_URL:-redis://redis:6379/0}
+      ATLAS_MAX_CONCURRENT_GLOBAL: ${ATLAS_MAX_CONCURRENT_GLOBAL:-0}
+      ATLAS_MAX_CONCURRENT_PER_USER: ${ATLAS_MAX_CONCURRENT_PER_USER:-0}
+      ATLAS_MAX_CONCURRENT_PER_TYPE: ${ATLAS_MAX_CONCURRENT_PER_TYPE:-0}
+      ATLAS_TASK_MAX_RETRIES: ${ATLAS_TASK_MAX_RETRIES:-3}
     depends_on:
       postgres:
         condition: service_healthy

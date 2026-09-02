@@ -8,6 +8,7 @@ priority/stream implementation later without changing callers.
 
 from __future__ import annotations
 
+import time
 from collections.abc import Awaitable
 from typing import cast
 
@@ -51,3 +52,44 @@ async def queue_depth() -> int:
     settings = get_settings()
     redis = redis_client.get_redis()
     return int(await cast(Awaitable[int], redis.llen(settings.task_queue_key)))
+
+
+async def enqueue_delayed(task_id: str, delay: float) -> None:
+    """Schedule a task to become ready after ``delay`` seconds (retry/backoff).
+
+    Backed by a Redis sorted set scored by the ready-at timestamp; the scheduler
+    promotes due entries into the main queue.
+    """
+
+    settings = get_settings()
+    redis = redis_client.get_redis()
+    ready_at = time.time() + max(0.0, delay)
+    await cast(Awaitable[int], redis.zadd(settings.delayed_queue_key, {task_id: ready_at}))
+
+
+async def promote_due(now: float | None = None) -> int:
+    """Move all due delayed tasks into the main queue. Returns how many moved."""
+
+    settings = get_settings()
+    redis = redis_client.get_redis()
+    cutoff = time.time() if now is None else now
+    due = await cast(
+        Awaitable[list[str]],
+        redis.zrangebyscore(settings.delayed_queue_key, "-inf", cutoff),
+    )
+    moved = 0
+    for task_id in due:
+        # ZREM acts as the claim: only the caller that removes it enqueues it.
+        removed = int(
+            await cast(Awaitable[int], redis.zrem(settings.delayed_queue_key, task_id))
+        )
+        if removed:
+            await cast(Awaitable[int], redis.rpush(settings.task_queue_key, task_id))
+            moved += 1
+    return moved
+
+
+async def delayed_depth() -> int:
+    settings = get_settings()
+    redis = redis_client.get_redis()
+    return int(await cast(Awaitable[int], redis.zcard(settings.delayed_queue_key)))

@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.context import set_task_id
 from app.db import get_session
+from app.models.task import TaskStatus
 from app.schemas.task import TaskCreate, TaskEventRead, TaskList, TaskRead
 from app.services import queue, task_service
 
@@ -20,9 +21,11 @@ async def create_task(
 ) -> TaskRead:
     task = await task_service.create_task(session, payload)
     set_task_id(task.id)
-    # Enqueue for the worker to pick up. Persistence already happened, so a
-    # transient enqueue failure does not lose the task -- it stays QUEUED.
-    await queue.enqueue(task.id)
+    # Enqueue only when actually runnable. Tasks waiting on dependencies are
+    # enqueued later, when their dependencies complete. Persistence already
+    # happened, so a transient enqueue failure does not lose the task.
+    if task.status == TaskStatus.QUEUED.value:
+        await queue.enqueue(task.id)
     return TaskRead.model_validate(task)
 
 

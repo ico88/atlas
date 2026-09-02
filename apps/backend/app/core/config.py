@@ -38,8 +38,21 @@ class Settings(BaseSettings):
 
     # Task engine
     task_queue_key: str = "atlas:queue:tasks"
+    delayed_queue_key: str = "atlas:queue:delayed"
     worker_poll_timeout: int = 5  # seconds for blocking pop
     worker_dummy_duration: float = 0.2  # simulated work time for dummy tasks
+
+    # Concurrency limits (spec §7). 0 == unlimited for that scope.
+    max_concurrent_global: int = 0
+    max_concurrent_per_user: int = 0
+    max_concurrent_per_type: int = 0
+    concurrency_retry_delay: float = 0.5  # requeue delay when a slot is unavailable
+
+    # Retry policy (spec §7: exponential backoff + jitter, no infinite loops).
+    task_max_retries: int = 3
+    retry_backoff_base: float = 0.5  # seconds; delay = base * 2**(attempt-1) + jitter
+    retry_backoff_max: float = 30.0
+    retry_jitter: float = 0.2
 
     # Node federation (spec §8). A shared join token authenticates nodes against
     # the control plane (least privilege, §13). Empty => open (development only).

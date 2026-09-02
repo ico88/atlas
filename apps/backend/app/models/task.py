@@ -47,6 +47,11 @@ class Task(Base):
     payload: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     result: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retries: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    max_retries: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    idempotency_key: Mapped[str | None] = mapped_column(
+        String(128), nullable=True, index=True
+    )
     parent_task_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True
     )
@@ -88,3 +93,20 @@ class TaskEvent(Base):
     )
 
     task: Mapped[Task] = relationship(back_populates="events")
+
+
+class TaskDependency(Base):
+    """Edge of the task DAG: ``task_id`` depends on ``depends_on_task_id`` (spec §7, §14)."""
+
+    __tablename__ = "task_dependencies"
+
+    id: Mapped[str] = pk_column()
+    task_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    depends_on_task_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )

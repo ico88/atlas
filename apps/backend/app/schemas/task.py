@@ -19,6 +19,9 @@ class TaskCreate(BaseModel):
     owner_id: str | None = None
     parent_task_id: str | None = None
     correlation_id: str | None = None
+    idempotency_key: str | None = Field(default=None, max_length=128)
+    max_retries: int | None = Field(default=None, ge=0, le=20)
+    depends_on: list[str] | None = None
 
 
 class TaskEventRead(BaseModel):
@@ -46,6 +49,9 @@ class TaskRead(BaseModel):
     payload: dict[str, Any] | None
     result: dict[str, Any] | None
     error: str | None
+    retries: int
+    max_retries: int
+    idempotency_key: str | None
     parent_task_id: str | None
     correlation_id: str
     deadline: datetime | None

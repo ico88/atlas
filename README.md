@@ -204,6 +204,30 @@ The manager and nodes typically communicate over an encrypted overlay network
 > liveness. Capability-based scheduling and remote task execution on nodes come
 > in later M4 work.
 
+## Task engine (M3)
+
+Tasks are persistent and drive a state machine (spec §7). The worker also acts as
+a base **scheduler**:
+
+- **Concurrency limits** — global / per-user / per-type, enforced via Redis
+  counters; over-limit tasks are requeued with a short delay
+  (`ATLAS_MAX_CONCURRENT_*`).
+- **Retries** — exponential backoff **+ jitter**, capped by `max_retries` (no
+  infinite loops). Failed attempts move to `RETRYING` on a delayed queue.
+- **Delayed queue / scheduler** — a Redis sorted set of not-yet-ready tasks,
+  promoted into the work queue each loop.
+- **Dependencies (DAG-ready)** — a task with `depends_on` starts in
+  `WAITING_DEPENDENCY` and is queued automatically once every dependency
+  completes. This is the foundation ALMA (M5) builds on.
+- **Idempotency** — repeating a create with the same `idempotency_key` returns
+  the existing task instead of duplicating it.
+
+```bash
+# A task that depends on another; it runs only after the parent completes
+curl -s -XPOST http://localhost/api/v1/tasks -H 'Content-Type: application/json' \
+  -d '{"title":"child","depends_on":["<parent_task_id>"]}'
+```
+
 ## Local AI (M2)
 
 Chat is **provider-agnostic** (spec §9). The AI Router prefers **local** Ollama

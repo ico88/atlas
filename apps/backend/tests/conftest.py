@@ -14,6 +14,9 @@ os.environ.setdefault("ATLAS_ENV", "test")
 os.environ.setdefault("ATLAS_DATABASE_URL", "sqlite+aiosqlite:///./test_atlas.db")
 os.environ.setdefault("ATLAS_REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("ATLAS_WORKER_DUMMY_DURATION", "0.0")
+# Deterministic, fast retries in tests.
+os.environ.setdefault("ATLAS_RETRY_BACKOFF_BASE", "0")
+os.environ.setdefault("ATLAS_RETRY_JITTER", "0")
 # Deterministic, offline AI: no Ollama, no inter-token delay -> echo provider.
 os.environ.setdefault("ATLAS_OLLAMA_URL", "")
 os.environ.setdefault("ATLAS_CHAT_STREAM_DELAY", "0")

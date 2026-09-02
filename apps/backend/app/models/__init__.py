@@ -5,7 +5,7 @@ from app.models.base import Base
 from app.models.conversation import ChatMode, Conversation, Message, MessageRole
 from app.models.node import Node
 from app.models.provider import LLMModel, Provider
-from app.models.task import Task, TaskEvent, TaskStatus
+from app.models.task import Task, TaskDependency, TaskEvent, TaskStatus
 from app.models.user import User
 
 __all__ = [
@@ -14,6 +14,7 @@ __all__ = [
     "Task",
     "TaskEvent",
     "TaskStatus",
+    "TaskDependency",
     "Node",
     "Approval",
     "ApprovalStatus",
