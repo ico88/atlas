@@ -204,6 +204,28 @@ The manager and nodes typically communicate over an encrypted overlay network
 > liveness. Capability-based scheduling and remote task execution on nodes come
 > in later M4 work.
 
+## ALMA orchestrator (M5)
+
+ALMA turns a high-level objective into a plan and runs it (spec §6, §7). Create a
+task of type `alma`; the orchestrator:
+
+1. **decomposes** the objective into a DAG of subtasks (a default
+   Analyze → Execute → Summarize plan, or an explicit `payload.plan`),
+2. runs the subtasks through the M3 task engine — independent ones in parallel,
+   each with its own retry/backoff,
+3. **aggregates** the subtask results into the parent when they all complete,
+   and **fails** the parent if a subtask fails.
+
+```bash
+curl -s -XPOST http://localhost/api/v1/tasks -H 'Content-Type: application/json' \
+  -d '{"title":"Prepare release notes","type":"alma"}'
+# then inspect the plan:
+curl -s http://localhost/api/v1/tasks/<alma_id>/subtasks
+```
+
+The **Tasks** page in the UI submits objectives to ALMA and shows the subtask
+DAG live.
+
 ## Task engine (M3)
 
 Tasks are persistent and drive a state machine (spec §7). The worker also acts as

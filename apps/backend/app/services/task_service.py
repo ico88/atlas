@@ -203,6 +203,15 @@ async def list_tasks(
     return items, total
 
 
+async def list_subtasks(session: AsyncSession, parent_task_id: str) -> list[Task]:
+    result = await session.execute(
+        select(Task)
+        .where(Task.parent_task_id == parent_task_id)
+        .order_by(Task.created_at.asc())
+    )
+    return list(result.scalars().all())
+
+
 async def list_events(session: AsyncSession, task_id: str) -> list[TaskEvent]:
     query = (
         select(TaskEvent)

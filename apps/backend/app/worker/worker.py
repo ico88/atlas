@@ -26,7 +26,7 @@ from app.core.context import set_request_id, set_task_id
 from app.core.logging import configure_logging
 from app.db import get_sessionmaker
 from app.models.task import Task, TaskStatus
-from app.services import concurrency, queue, task_service
+from app.services import alma_service, concurrency, queue, task_service
 
 logger = logging.getLogger("app.worker")
 
@@ -87,6 +87,15 @@ async def process_task(task_id: str) -> None:
             )
             return
 
+        # ALMA orchestration (decompose / aggregate) is lightweight and manages
+        # its own state transitions; it does not go through the dummy executor.
+        if task.type == alma_service.ALMA_TASK_TYPE:
+            try:
+                await alma_service.step(session, task)
+            finally:
+                set_task_id(None)
+            return
+
         # Reserve concurrency slots; if unavailable, requeue with a small delay.
         scopes = concurrency.build_scopes(
             owner_id=task.owner_id, task_type=task.type, limits=_concurrency_limits()
@@ -117,6 +126,7 @@ async def process_task(task_id: str) -> None:
                     )
                 else:
                     await task_service.mark_failed(session, task, error=str(exc))
+                    await alma_service.on_subtask_failed(session, task)
                     logger.warning("task failed", extra={"event": "worker_failed"})
                 return
 

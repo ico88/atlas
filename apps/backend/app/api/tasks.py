@@ -66,6 +66,18 @@ async def cancel_task(
     return TaskRead.model_validate(task)
 
 
+@router.get("/{task_id}/subtasks", response_model=list[TaskRead])
+async def get_subtasks(
+    task_id: str,
+    session: AsyncSession = Depends(get_session),
+) -> list[TaskRead]:
+    task = await task_service.get_task(session, task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    subtasks = await task_service.list_subtasks(session, task_id)
+    return [TaskRead.model_validate(t) for t in subtasks]
+
+
 @router.get("/{task_id}/events", response_model=list[TaskEventRead])
 async def get_task_events(
     task_id: str,

@@ -55,6 +55,46 @@ export const fetchSystemMetrics = () =>
 
 export const fetchNodes = () => getJson<NodeList>("/api/v1/nodes");
 
+// --- Tasks / ALMA (M3 / M5) ---
+
+export interface Task {
+  id: string;
+  title?: string | null;
+  type: string;
+  status: string;
+  priority: number;
+  retries: number;
+  max_retries: number;
+  parent_task_id?: string | null;
+  result?: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface TaskList {
+  items: Task[];
+  total: number;
+}
+
+export const fetchTasks = () => getJson<TaskList>("/api/v1/tasks");
+
+export const fetchSubtasks = (id: string) =>
+  getJson<Task[]>(`/api/v1/tasks/${id}/subtasks`);
+
+export async function createTask(body: {
+  title: string;
+  type?: string;
+  objective?: string;
+  payload?: Record<string, unknown>;
+}): Promise<Task> {
+  const res = await fetch("/api/v1/tasks", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`create task failed (${res.status})`);
+  return (await res.json()) as Task;
+}
+
 // --- Chat / conversations (M2) ---
 
 export interface Message {
