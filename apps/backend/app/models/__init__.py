@@ -3,6 +3,14 @@
 from app.models.approval import Approval, ApprovalStatus
 from app.models.base import Base
 from app.models.conversation import ChatMode, Conversation, Message, MessageRole
+from app.models.maintenance import (
+    GitAction,
+    IssueStatus,
+    MaintenanceIssue,
+    MaintenanceRun,
+    RunStatus,
+    Severity,
+)
 from app.models.node import Node
 from app.models.provider import LLMModel, Provider
 from app.models.task import Task, TaskDependency, TaskEvent, TaskStatus
@@ -24,4 +32,10 @@ __all__ = [
     "MessageRole",
     "Provider",
     "LLMModel",
+    "MaintenanceIssue",
+    "MaintenanceRun",
+    "GitAction",
+    "IssueStatus",
+    "RunStatus",
+    "Severity",
 ]

@@ -24,6 +24,10 @@ class Approval(Base):
     task_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=True, index=True
     )
+    # Generic subject reference so approvals can gate things other than tasks
+    # (e.g. subject_type="maintenance_run", spec §11 step 12).
+    subject_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    subject_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     action: Mapped[str] = mapped_column(String(128), nullable=False)
     status: Mapped[str] = mapped_column(
         String(32), nullable=False, default=ApprovalStatus.PENDING.value, index=True

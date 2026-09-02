@@ -161,6 +161,14 @@ prefix. **No secret is ever committed** — `.env` is git-ignored.
 | GET | `/api/v1/models` | Model registry |
 | POST | `/api/v1/models/refresh` | Discover models from providers |
 | GET | `/api/v1/system/hardware` | Host hardware scan |
+| POST | `/api/v1/maintenance/logs` | Ingest a log event (fingerprint → issue) |
+| GET | `/api/v1/maintenance/issues` | List maintenance issues |
+| GET | `/api/v1/maintenance/issues/{id}` | Issue with runs |
+| POST | `/api/v1/maintenance/issues/{id}/analyze` | Analyze an issue |
+| POST | `/api/v1/maintenance/issues/{id}/create-fix` | Propose a fix (opens approval gate) |
+| GET | `/api/v1/approvals` | List approval gates |
+| POST | `/api/v1/approvals/{id}/approve` | Approve a gate |
+| POST | `/api/v1/approvals/{id}/reject` | Reject a gate |
 | GET | `/health` | Liveness probe |
 | GET | `/api/v1/system/status` | Backend / DB / Redis health |
 | GET | `/api/v1/system/metrics` | Task counts, nodes online, pending approvals |
@@ -209,6 +217,35 @@ The manager and nodes typically communicate over an encrypted overlay network
 > Scope note: this is the **minimal** M4 slice — registration, heartbeat and
 > liveness. Capability-based scheduling and remote task execution on nodes come
 > in later M4 work.
+
+## Maintenance Agent (M6)
+
+The Maintenance Agent turns operational noise into governed fixes (spec §11):
+
+1. **Ingest + fingerprint** — structured log events are normalized (numbers,
+   ids, timestamps stripped) and deduplicated into `maintenance_issues`.
+2. **Analyze** — creates a `maintenance_run` with an analysis and reads the repo.
+3. **Create-fix** — prepares branch → patch → tests → PR through a
+   **guard-railed** Git provider and opens a **human approval gate**.
+4. **Approve / reject** — a person decides; only then is the fix accepted.
+
+**Guardrails (spec §11.2), enforced in code:** never push to or merge `main`,
+never force-push, never touch secrets/permissions, never delete the repo. Every
+Git operation is recorded in `git_actions` for audit. In this milestone Git
+operations run in **dry-run** (no real repository mutation) behind an interface a
+real GitHub provider can later implement — the agent stays human-governed.
+
+```bash
+# Feed a log, propose a fix, then approve it
+curl -s -XPOST http://localhost/api/v1/maintenance/logs -H 'Content-Type: application/json' \
+  -d '{"message":"ollama_timeout after 30s","service":"backend","level":"ERROR"}'
+curl -s -XPOST http://localhost/api/v1/maintenance/issues/<id>/create-fix
+curl -s http://localhost/api/v1/approvals
+curl -s -XPOST http://localhost/api/v1/approvals/<approval_id>/approve
+```
+
+The **Maintenance** page in the UI shows issues, proposed fixes and the approval
+buttons.
 
 ## ALMA orchestrator (M5)
 

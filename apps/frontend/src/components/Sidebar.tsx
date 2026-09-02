@@ -10,6 +10,7 @@ const NAV = [
   { href: "/system", label: "System Status" },
   { href: "/nodes", label: "Nodes" },
   { href: "/models", label: "Models" },
+  { href: "/maintenance", label: "Maintenance" },
 ];
 
 export default function Sidebar() {

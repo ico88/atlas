@@ -11,7 +11,7 @@ is built incrementally; each milestone keeps the application runnable and tested
 | **M3 — Task Engine** | Persistent tasks, queue, concurrency limits, base scheduler, event stream | ✅ done (concurrency limits, retry+backoff, delayed-queue scheduler, DAG dependencies, idempotency) |
 | **M4 — Node Federation** | Node Agent, register/heartbeat, capability discovery, remote execution | 🟡 minimal (register/heartbeat + node agent + liveness done; scheduling & remote exec pending) |
 | **M5 — ALMA** | Task decomposition, DAG, parallel subtasks, retry, result aggregation | ✅ done (objective → DAG decomposition, parallel subtasks, retry, aggregation, failure propagation) |
-| **M6 — Maintenance Core** | Log fingerprint, issue, branch, patch, tests, PR, approval gate | ⬜ planned |
+| **M6 — Maintenance Core** | Log fingerprint, issue, branch, patch, tests, PR, approval gate | ✅ done (fingerprint→issue dedup, analyze, guard-railed branch/patch/tests/PR dry-run, git_actions audit, human approval gate) |
 | **M7 — Manual Escalation** | ChatGPT/Claude package prep + import + validation | ⬜ planned |
 | **M8 — RAG/Memory** | Documents, pgvector, retrieval, citations, memory | ⬜ planned |
 | **M9 — Optional Cloud** | LiteLLM, OpenAI/Anthropic APIs, budget & fallback | ⬜ planned |

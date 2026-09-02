@@ -9,7 +9,16 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app import __version__
-from app.api import auth, chat, models, nodes, system, tasks
+from app.api import (
+    approvals,
+    auth,
+    chat,
+    maintenance,
+    models,
+    nodes,
+    system,
+    tasks,
+)
 from app.api.middleware import RequestContextMiddleware
 from app.core.config import get_settings
 from app.core.logging import configure_logging
@@ -70,6 +79,8 @@ def create_app() -> FastAPI:
     app.include_router(nodes.router)
     app.include_router(chat.router)
     app.include_router(models.router)
+    app.include_router(maintenance.router)
+    app.include_router(approvals.router)
 
     return app
 

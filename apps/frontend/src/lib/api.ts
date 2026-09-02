@@ -80,6 +80,86 @@ export const fetchTasks = () => getJson<TaskList>("/api/v1/tasks");
 export const fetchSubtasks = (id: string) =>
   getJson<Task[]>(`/api/v1/tasks/${id}/subtasks`);
 
+// --- Maintenance / approvals (M6) ---
+
+export interface MaintenanceRun {
+  id: string;
+  issue_id: string;
+  status: string;
+  branch?: string | null;
+  analysis?: string | null;
+  patch?: string | null;
+  tests_summary?: string | null;
+  pr_url?: string | null;
+  risk?: string | null;
+  attempts: number;
+}
+
+export interface MaintenanceIssue {
+  id: string;
+  fingerprint: string;
+  title: string;
+  service?: string | null;
+  severity: string;
+  status: string;
+  occurrences: number;
+  first_seen: string;
+  last_seen: string;
+  runs?: MaintenanceRun[];
+}
+
+export interface IssueList {
+  items: MaintenanceIssue[];
+  total: number;
+}
+
+export interface Approval {
+  id: string;
+  subject_type?: string | null;
+  subject_id?: string | null;
+  action: string;
+  status: string;
+  requested_by?: string | null;
+  decided_by?: string | null;
+  reason?: string | null;
+}
+
+export interface ApprovalList {
+  items: Approval[];
+  total: number;
+}
+
+export const fetchIssues = () =>
+  getJson<IssueList>("/api/v1/maintenance/issues");
+
+export const fetchIssue = (id: string) =>
+  getJson<MaintenanceIssue>(`/api/v1/maintenance/issues/${id}`);
+
+export const fetchApprovals = () =>
+  getJson<ApprovalList>("/api/v1/approvals");
+
+async function postJson<T>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) throw new Error(`${path} failed (${res.status})`);
+  return (await res.json()) as T;
+}
+
+export const analyzeIssue = (id: string) =>
+  postJson<MaintenanceRun>(`/api/v1/maintenance/issues/${id}/analyze`);
+
+export const createFix = (id: string) =>
+  postJson<MaintenanceRun>(`/api/v1/maintenance/issues/${id}/create-fix`);
+
+export const approveApproval = (id: string) =>
+  postJson<Approval>(`/api/v1/approvals/${id}/approve`, { decided_by: "operator" });
+
+export const rejectApproval = (id: string) =>
+  postJson<Approval>(`/api/v1/approvals/${id}/reject`, { decided_by: "operator" });
+
 export async function createTask(body: {
   title: string;
   type?: string;
