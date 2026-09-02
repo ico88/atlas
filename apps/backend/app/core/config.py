@@ -56,6 +56,11 @@ class Settings(BaseSettings):
     admin_email: str = ""
     admin_password: str = ""
 
+    # Local AI (spec §4, §9, M2). Empty ollama_url disables Ollama (echo only).
+    ollama_url: str = "http://ollama:11434"
+    default_model: str = ""  # empty => auto-pick the first available model
+    chat_stream_delay: float = 0.02  # seconds between echo tokens (0 in tests)
+
     @property
     def is_test(self) -> bool:
         return self.env.lower() in {"test", "testing"}

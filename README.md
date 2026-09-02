@@ -149,6 +149,12 @@ prefix. **No secret is ever committed** — `.env` is git-ignored.
 |--------|------|-------------|
 | POST | `/api/v1/auth/login` | Email + password → JWT access token |
 | GET | `/api/v1/auth/me` | Current user (Bearer token) |
+| POST | `/api/v1/chat/stream` | Streaming chat reply (SSE), persists history |
+| GET | `/api/v1/conversations` | List conversations |
+| GET | `/api/v1/conversations/{id}` | Conversation with messages |
+| GET | `/api/v1/models` | Model registry |
+| POST | `/api/v1/models/refresh` | Discover models from providers |
+| GET | `/api/v1/system/hardware` | Host hardware scan |
 | GET | `/health` | Liveness probe |
 | GET | `/api/v1/system/status` | Backend / DB / Redis health |
 | GET | `/api/v1/system/metrics` | Task counts, nodes online, pending approvals |
@@ -197,6 +203,27 @@ The manager and nodes typically communicate over an encrypted overlay network
 > Scope note: this is the **minimal** M4 slice — registration, heartbeat and
 > liveness. Capability-based scheduling and remote task execution on nodes come
 > in later M4 work.
+
+## Local AI (M2)
+
+Chat is **provider-agnostic** (spec §9). The AI Router prefers **local** Ollama
+inference and falls back to a built-in **echo** provider when no model is
+reachable — so chat, streaming and history work out of the box, even without a
+GPU or any model pulled.
+
+```bash
+# Start the stack with local LLM support and pull a model
+docker compose --profile ai up --build -d
+docker compose exec ollama ollama pull llama3.2
+```
+
+Then open the **Chat** page. Replies stream token-by-token (Server-Sent Events);
+every turn is persisted (**cronologia**) and listed in the sidebar. The
+**Models** page shows the registry and a host hardware scan (CPU/RAM/GPU) used to
+inform local model selection.
+
+> External/manual modes (ChatGPT/Claude) and cloud APIs are later milestones
+> (M7/M9). Set `ATLAS_OLLAMA_URL=` (empty) to force the echo provider.
 
 ## Authentication (M1)
 

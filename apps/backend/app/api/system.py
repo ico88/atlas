@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import __version__, redis_client
 from app.core.config import get_settings
+from app.core.hardware import scan_hardware
 from app.db import get_session
 from app.models.approval import Approval, ApprovalStatus
 from app.models.task import Task
@@ -67,6 +68,13 @@ async def system_status(
         environment=settings.env,
         components=components,
     )
+
+
+@router.get("/api/v1/system/hardware")
+async def system_hardware() -> dict:
+    """Host hardware scan used to inform local model selection (spec §16 M2)."""
+
+    return scan_hardware()
 
 
 @router.get("/api/v1/system/metrics", response_model=SystemMetricsResponse)

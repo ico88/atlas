@@ -52,6 +52,8 @@ services:
       ATLAS_ADMIN_PASSWORD: ${ATLAS_ADMIN_PASSWORD:-}
       ATLAS_NODE_JOIN_TOKEN: ${ATLAS_NODE_JOIN_TOKEN:-}
       ATLAS_NODE_OFFLINE_AFTER_SECONDS: ${ATLAS_NODE_OFFLINE_AFTER_SECONDS:-60}
+      ATLAS_OLLAMA_URL: ${ATLAS_OLLAMA_URL:-http://ollama:11434}
+      ATLAS_DEFAULT_MODEL: ${ATLAS_DEFAULT_MODEL:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -100,6 +102,18 @@ services:
     networks:
       - atlas
 
+  # Local LLM inference (spec §4). Optional: enable with `--profile ai`.
+  # The backend falls back to the echo provider when Ollama is not running.
+  # Pull a model after start:  docker compose exec ollama ollama pull llama3.2
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ai"]
+    restart: unless-stopped
+    volumes:
+      - ollamadata:/root/.ollama
+    networks:
+      - atlas
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
@@ -127,3 +141,4 @@ volumes:
   redisdata:
   caddy_data:
   caddy_config:
+  ollamadata:
