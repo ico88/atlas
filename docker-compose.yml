@@ -1,0 +1,123 @@
+# ATLAS full stack.
+#
+#   docker compose up --build
+#
+# Only the reverse proxy publishes a port to the host. PostgreSQL and Redis are
+# reachable only on the internal network (spec §13: never expose them publicly).
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-atlas}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-atlas}
+      POSTGRES_DB: ${POSTGRES_DB:-atlas}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-atlas} -d ${POSTGRES_DB:-atlas}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - atlas
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - atlas
+
+  backend:
+    build:
+      context: ./apps/backend
+    restart: unless-stopped
+    command: ["api"]
+    environment:
+      ATLAS_ENV: ${ATLAS_ENV:-development}
+      ATLAS_LOG_LEVEL: ${ATLAS_LOG_LEVEL:-INFO}
+      ATLAS_DATABASE_URL: ${ATLAS_DATABASE_URL:-postgresql+asyncpg://atlas:atlas@postgres:5432/atlas}
+      ATLAS_REDIS_URL: ${ATLAS_REDIS_URL:-redis://redis:6379/0}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - atlas
+
+  worker:
+    build:
+      context: ./apps/backend
+    restart: unless-stopped
+    command: ["worker"]
+    environment:
+      ATLAS_ENV: ${ATLAS_ENV:-development}
+      ATLAS_LOG_LEVEL: ${ATLAS_LOG_LEVEL:-INFO}
+      ATLAS_DATABASE_URL: ${ATLAS_DATABASE_URL:-postgresql+asyncpg://atlas:atlas@postgres:5432/atlas}
+      ATLAS_REDIS_URL: ${ATLAS_REDIS_URL:-redis://redis:6379/0}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    networks:
+      - atlas
+
+  frontend:
+    build:
+      context: ./apps/frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      BACKEND_URL: http://backend:8000
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - atlas
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      ATLAS_SITE_ADDRESS: ${ATLAS_SITE_ADDRESS::80}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infrastructure/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - atlas
+
+networks:
+  atlas:
+    driver: bridge
+
+volumes:
+  pgdata:
+  redisdata:
+  caddy_data:
+  caddy_config:

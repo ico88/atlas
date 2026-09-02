@@ -1,0 +1,31 @@
+# Development overrides.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#
+# Publishes service ports to the LOOPBACK interface only (127.0.0.1) for local
+# debugging -- never to 0.0.0.0, so PostgreSQL and Redis remain unreachable from
+# outside the host.
+services:
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  redis:
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  backend:
+    environment:
+      ATLAS_ENV: development
+      ATLAS_LOG_LEVEL: DEBUG
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  worker:
+    environment:
+      ATLAS_ENV: development
+      ATLAS_LOG_LEVEL: DEBUG
+
+  frontend:
+    ports:
+      - "127.0.0.1:3000:3000"

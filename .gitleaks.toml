@@ -1,0 +1,18 @@
+# Gitleaks configuration for ATLAS.
+# Extends the default ruleset and allowlists documented, non-secret local
+# development defaults and placeholders. Real secrets must never be committed
+# (see SECURITY.md); they live only in the environment / secret store.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documented non-secret defaults and placeholders"
+paths = [
+  '''\.env\.example$''',
+  '''docker-compose\.ya?ml$''',
+  '''docker-compose\.dev\.ya?ml$''',
+]
+regexes = [
+  '''change-me-in-production''',
+  '''atlas:atlas@''',
+]
