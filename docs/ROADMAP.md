@@ -160,7 +160,13 @@ Stato: ✅ = consegnata.
 12. **PR 12 — Resource telemetry:** metriche nodi, performance Ollama e storage storico.
 13. **PR 13 — Environments:** modello dati, manifest, isolamento, snapshot e restore.
 14. **PR 14 — Memory lifecycle:** acquisizione, retrieval, provenienza e retention.
-15. **PR 15 — Web tools:** ricerca, fetch sicuro, ranking, citazioni e policy.
+15. ✅ **PR 15 — Web tools:** ricerca + fetch sicuri con SSRF guard (schemi
+    http/https, blocco IP privati/loopback/link-local pre- e post-DNS contro il
+    DNS-rebinding, redirect ri-validati, cap dimensione/tempo), ranking BM25,
+    citazioni (titolo/url/snippet/score) e allow/deny list per dominio. Off di
+    default (local-first). Provider di ricerca pluggable (`none`/SearXNG). API
+    `GET /api/v1/web/policy`, `POST /api/v1/web/search|fetch`. Parser puri e
+    testati. Vedi [WEB_TOOLS.md](WEB_TOOLS.md).
 16. **PR 16 — Evals:** dataset, baseline e metriche di qualità, sicurezza e prestazioni.
 17. **PR 17 — Self-healing reale:** sandbox, GitHub, patch, test e PR governate.
 18. **PR 18 — Continuous Improvement:** proposte, esperimenti, confronto e approvazioni.

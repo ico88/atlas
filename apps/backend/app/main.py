@@ -20,6 +20,7 @@ from app.api import (
     rag,
     system,
     tasks,
+    webtools,
 )
 from app.api.middleware import RequestContextMiddleware
 from app.core.config import get_settings
@@ -85,6 +86,7 @@ def create_app() -> FastAPI:
     app.include_router(approvals.router)
     app.include_router(rag.router)
     app.include_router(escalation.router)
+    app.include_router(webtools.router)
 
     return app
 

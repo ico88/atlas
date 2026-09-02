@@ -82,6 +82,29 @@ class Settings(BaseSettings):
     rag_chunk_overlap: int = 100
     rag_top_k: int = 5
 
+    # Web tools (spec §6 web; ROADMAP PR 15). Disabled by default: the platform
+    # is local-first and must not reach the internet unless the operator opts in.
+    web_tools_enabled: bool = False
+    web_search_provider: str = "none"  # none | searxng | json
+    web_search_url: str = ""  # e.g. http://searxng:8080/search
+    web_search_api_key: str = ""
+    web_max_results: int = 5
+    web_fetch_timeout: float = 10.0  # seconds per request
+    web_fetch_max_bytes: int = 2_000_000  # hard cap on a fetched body (SSRF/DoS guard)
+    web_allow_private_ips: bool = False  # allow RFC1918/loopback targets (dev only)
+    # Comma-separated host suffixes. Allowlist (if set) wins; denylist always blocks.
+    web_domain_allowlist: str = ""
+    web_domain_denylist: str = ""
+    web_user_agent: str = "ATLAS-WebTools/1.0 (+local-first)"
+
+    @property
+    def web_allowlist(self) -> list[str]:
+        return [h.strip().lower() for h in self.web_domain_allowlist.split(",") if h.strip()]
+
+    @property
+    def web_denylist(self) -> list[str]:
+        return [h.strip().lower() for h in self.web_domain_denylist.split(",") if h.strip()]
+
     @property
     def is_test(self) -> bool:
         return self.env.lower() in {"test", "testing"}
