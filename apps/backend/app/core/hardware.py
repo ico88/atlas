@@ -198,13 +198,18 @@ def _driver_label(driver_id: str) -> str | None:
 
 
 def recommended_backend(devices: list[GpuDevice], rocm_available: bool) -> str:
-    """Pick the Ollama backend: nvidia > rocm > vulkan > cpu."""
+    """Pick the candidate Ollama backend: nvidia > rocm > vulkan > cpu.
+
+    An AMD card without ROCm is recommended the experimental **vulkan** backend
+    (per the roadmap for legacy Radeon), even if the Vulkan userspace could not
+    be probed from inside the container — the installer validates it on the host.
+    """
 
     if any(d.vendor == "nvidia" for d in devices):
         return "nvidia"
     if rocm_available and any(d.vendor == "amd" for d in devices):
         return "rocm"
-    if any(d.vulkan for d in devices):
+    if any(d.vulkan for d in devices) or any(d.vendor == "amd" for d in devices):
         return "vulkan"
     return "cpu"
 
@@ -214,6 +219,25 @@ def recommended_backend(devices: list[GpuDevice], rocm_available: bool) -> str:
 # --------------------------------------------------------------------------- #
 def enumerate_render_devices() -> list[str]:
     return sorted(glob.glob("/dev/dri/renderD*"))
+
+
+def detect_drm_sysfs() -> list[GpuDevice]:
+    """Detect GPUs from Linux sysfs (works inside containers; /sys is mounted).
+
+    Reads ``/sys/class/drm/card*/device/vendor`` (PCI vendor id) so the card is
+    found even without ``lspci``/``vulkaninfo`` or a mapped ``/dev/dri``.
+    """
+
+    devices: list[GpuDevice] = []
+    for vendor_path in sorted(glob.glob("/sys/class/drm/card*/device/vendor")):
+        try:
+            with open(vendor_path, encoding="utf-8") as fh:
+                vid = fh.read().strip().lower()
+        except OSError:
+            continue
+        vendor = _VENDOR_BY_ID.get(vid, "unknown")
+        devices.append(GpuDevice(vendor=vendor, name=f"{vendor.upper()} GPU (DRM)", driver="drm"))
+    return devices
 
 
 def detect_rocm() -> bool:
@@ -245,9 +269,12 @@ def scan_gpus() -> tuple[list[GpuDevice], bool]:
             continue
         devices.append(vk)
 
-    # If nothing yet, fall back to lspci so we at least report the GPU exists.
+    # If nothing yet, fall back to lspci, then to sysfs, so we at least report
+    # the GPU exists even without vulkaninfo/lspci or a mapped /dev/dri.
     if not devices:
         devices = parse_lspci(_run(["lspci", "-nn"]) or "")
+    if not devices:
+        devices = detect_drm_sysfs()
 
     # Annotate AMD devices with ROCm availability and attach a render node.
     renders = enumerate_render_devices()

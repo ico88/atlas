@@ -6,7 +6,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# System deps kept minimal; asyncpg ships wheels so no build toolchain needed.
+# pciutils lets the hardware scanner detect GPUs via `lspci` from inside the
+# container (asyncpg ships wheels, so no build toolchain is needed).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends pciutils \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
