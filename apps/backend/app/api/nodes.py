@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.db import get_session
 from app.schemas.node import NodeHeartbeat, NodeList, NodeRead, NodeRegister
+from app.schemas.task import TaskRead
 from app.services import node_service
 
 router = APIRouter(prefix="/api/v1/nodes", tags=["nodes"])
@@ -64,6 +65,21 @@ async def get_node(
     if node is None:
         raise HTTPException(status_code=404, detail="Node not found")
     return _to_read(node)
+
+
+@router.post("/{ref}/claim-task", response_model=TaskRead | None)
+async def claim_task(
+    ref: str,
+    session: AsyncSession = Depends(get_session),
+    _: None = Depends(require_node_token),
+) -> TaskRead | None:
+    """A node claims the next task matching its capabilities (spec §6, §8)."""
+
+    node = await node_service.get_node_by_ref(session, ref)
+    if node is None:
+        raise HTTPException(status_code=404, detail="Node not found; register first")
+    task = await node_service.claim_task(session, node)
+    return TaskRead.model_validate(task) if task is not None else None
 
 
 @router.post("/{ref}/heartbeat", response_model=NodeRead)

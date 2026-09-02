@@ -65,6 +65,8 @@ export interface Task {
   priority: number;
   retries: number;
   max_retries: number;
+  required_capability?: string | null;
+  assigned_node_id?: string | null;
   parent_task_id?: string | null;
   result?: Record<string, unknown> | null;
   created_at: string;

@@ -84,6 +84,7 @@ async def create_task(session: AsyncSession, data: TaskCreate) -> Task:
         parent_task_id=data.parent_task_id,
         idempotency_key=data.idempotency_key,
         max_retries=max_retries,
+        required_capability=data.required_capability,
         status=TaskStatus.QUEUED.value,
     )
     if data.correlation_id:
@@ -178,6 +179,13 @@ async def ready_dependents(session: AsyncSession, completed_task_id: str) -> lis
         for task in promoted:
             await session.refresh(task)
     return promoted
+
+
+def runs_locally(task: Task) -> bool:
+    """A task without a required capability runs on the local worker; one with a
+    capability is executed remotely by a node that provides it (spec §6, §8)."""
+
+    return not task.required_capability
 
 
 async def get_task(session: AsyncSession, task_id: str) -> Task | None:
@@ -285,6 +293,26 @@ async def mark_failed(session: AsyncSession, task: Task, error: str) -> Task:
         "status_changed",
         status=TaskStatus.FAILED,
         message="Task failed",
+        data={"error": error},
+    )
+    await session.commit()
+    await session.refresh(task)
+    return task
+
+
+async def requeue_remote_retry(session: AsyncSession, task: Task, error: str) -> Task:
+    """Return a failed remote task to the QUEUED pool for re-claim by a node."""
+
+    task.retries += 1
+    task.status = TaskStatus.QUEUED.value
+    task.assigned_node_id = None
+    task.error = error
+    await record_event(
+        session,
+        task,
+        "status_changed",
+        status=TaskStatus.QUEUED,
+        message=f"Remote retry {task.retries}/{task.max_retries} (re-queued)",
         data={"error": error},
     )
     await session.commit()

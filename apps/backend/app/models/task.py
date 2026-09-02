@@ -52,6 +52,12 @@ class Task(Base):
     idempotency_key: Mapped[str | None] = mapped_column(
         String(128), nullable=True, index=True
     )
+    # Node federation (spec §6 scheduler, §8): a task that requires a capability
+    # is executed remotely by a node that provides it, not the local worker.
+    required_capability: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, index=True
+    )
+    assigned_node_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     parent_task_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True
     )

@@ -112,6 +112,7 @@ export default function TasksPage() {
                 <th>Title</th>
                 <th>Type</th>
                 <th>Status</th>
+                <th>Where</th>
                 <th>Retries</th>
                 <th></th>
               </tr>
@@ -125,6 +126,15 @@ export default function TasksPage() {
                   </td>
                   <td>
                     <StatusBadge status={t.status} />
+                  </td>
+                  <td>
+                    {t.required_capability ? (
+                      <span className="pill" title={t.assigned_node_id ?? undefined}>
+                        node:{t.required_capability}
+                      </span>
+                    ) : (
+                      <span className="muted">local</span>
+                    )}
                   </td>
                   <td>
                     {t.retries}/{t.max_retries}

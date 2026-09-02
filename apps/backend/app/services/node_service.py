@@ -5,13 +5,15 @@ from __future__ import annotations
 import logging
 from datetime import timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.models.base import utcnow
 from app.models.node import Node
+from app.models.task import Task, TaskStatus
 from app.schemas.node import NodeHeartbeat, NodeRegister
+from app.services import task_service
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +75,57 @@ async def register_node(session: AsyncSession, data: NodeRegister) -> Node:
         extra={"event": "node_registered", "context": {"node_id": node.node_id}},
     )
     return node
+
+
+def node_capabilities(node: Node) -> list[str]:
+    return [k for k, v in (node.capabilities or {}).items() if v]
+
+
+async def claim_task(session: AsyncSession, node: Node) -> Task | None:
+    """Atomically claim the next QUEUED task matching the node's capabilities.
+
+    Uses a status-guarded UPDATE as an optimistic lock so concurrent claims from
+    multiple nodes never double-assign a task (portable across PostgreSQL/SQLite).
+    """
+
+    caps = node_capabilities(node)
+    if not caps:
+        return None
+
+    stmt = (
+        select(Task)
+        .where(Task.status == TaskStatus.QUEUED.value, Task.required_capability.in_(caps))
+        .order_by(Task.priority.desc(), Task.created_at.asc())
+        .limit(10)
+    )
+    candidates = list((await session.execute(stmt)).scalars().all())
+    now = utcnow()
+    for task in candidates:
+        result = await session.execute(
+            update(Task)
+            .where(Task.id == task.id, Task.status == TaskStatus.QUEUED.value)
+            .values(status=TaskStatus.RUNNING.value, assigned_node_id=node.id, started_at=now)
+        )
+        if result.rowcount and result.rowcount > 0:
+            await session.commit()
+            claimed = await session.get(Task, task.id)
+            assert claimed is not None
+            await task_service.record_event(
+                session,
+                claimed,
+                "status_changed",
+                status=TaskStatus.RUNNING,
+                message=f"Claimed by node {node.node_id}",
+                data={"node_id": node.node_id},
+            )
+            await session.commit()
+            await session.refresh(claimed)
+            logger.info(
+                "task claimed by node",
+                extra={"event": "node_claimed", "context": {"node_id": node.node_id}},
+            )
+            return claimed
+    return None
 
 
 async def heartbeat(session: AsyncSession, node: Node, data: NodeHeartbeat) -> Node:

@@ -187,6 +187,8 @@ prefix. **No secret is ever committed** — `.env` is git-ignored.
 | GET | `/api/v1/nodes/{id}` | Get a node (by db id or logical `node_id`) |
 | POST | `/api/v1/nodes/register` | Register/upsert a node (node token) |
 | POST | `/api/v1/nodes/{id}/heartbeat` | Node heartbeat (node token) |
+| POST | `/api/v1/nodes/{id}/claim-task` | Node claims a matching task (node token) |
+| POST | `/api/v1/tasks/{id}/result` | Node reports task result (node token) |
 
 ## Multi-node federation (M4)
 
@@ -220,9 +222,26 @@ The manager and nodes typically communicate over an encrypted overlay network
 `--manager-url`. Authentication uses the shared join token (least privilege,
 §13); rotate it by changing `ATLAS_NODE_JOIN_TOKEN` on the manager.
 
-> Scope note: this is the **minimal** M4 slice — registration, heartbeat and
-> liveness. Capability-based scheduling and remote task execution on nodes come
-> in later M4 work.
+### Remote task execution (capability-based scheduling)
+
+A task can declare a `required_capability`. Such tasks are **not** run by the
+local worker — they wait in the QUEUED pool for a node that provides the
+capability. Each node agent **pulls** matching work (claim → execute → report),
+so scheduling is capability-aware and self-balancing, and needs no inbound
+connectivity to the nodes (they reach the control plane over the overlay).
+
+```bash
+# A task that only a "build"-capable node will run
+curl -s -XPOST http://localhost/api/v1/tasks -H 'Content-Type: application/json' \
+  -d '{"title":"compile","required_capability":"build"}'
+# → stays QUEUED until a node with {"build": true} claims it, runs it,
+#   and reports the result; the Tasks page shows where each task ran.
+```
+
+Claiming is atomic (a status-guarded update), so two nodes never run the same
+task; a failed remote task is re-queued for another capable node up to
+`max_retries`. ALMA subtasks can be remote too — the DAG spans local and node
+execution transparently.
 
 ## RAG & Memory (M8)
 

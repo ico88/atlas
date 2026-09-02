@@ -65,7 +65,9 @@ async def _execute_dummy(task: Task) -> dict:
 async def _release_dependents(session, task_id: str) -> None:
     promoted = await task_service.ready_dependents(session, task_id)
     for dep in promoted:
-        await queue.enqueue(dep.id)
+        # Remote tasks (with a required capability) wait to be claimed by a node.
+        if task_service.runs_locally(dep):
+            await queue.enqueue(dep.id)
 
 
 async def process_task(task_id: str) -> None:
@@ -84,6 +86,14 @@ async def process_task(task_id: str) -> None:
             logger.info(
                 "skipping task in non-runnable state",
                 extra={"event": "worker_skip", "context": {"status": task.status}},
+            )
+            return
+
+        # Remote tasks are executed by capable nodes, never the local worker.
+        if not task_service.runs_locally(task):
+            logger.info(
+                "skipping remote task (awaiting node claim)",
+                extra={"event": "worker_skip_remote"},
             )
             return
 

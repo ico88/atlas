@@ -127,10 +127,11 @@ async def decompose(session: AsyncSession, alma: Task) -> list[Task]:
     )
     await session.commit()
 
-    # Enqueue the subtasks that are immediately runnable (no dependencies).
+    # Enqueue subtasks that are immediately runnable locally. Subtasks requiring
+    # a capability wait in the QUEUED pool for a capable node to claim them.
     for sub in created:
         await session.refresh(sub)
-        if sub.status == TaskStatus.QUEUED.value:
+        if sub.status == TaskStatus.QUEUED.value and task_service.runs_locally(sub):
             await queue.enqueue(sub.id)
 
     logger.info(

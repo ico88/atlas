@@ -48,5 +48,20 @@ class ControlPlaneClient:
         resp.raise_for_status()
         return resp.json()
 
+    async def claim_task(self, node_id: str) -> dict[str, object] | None:
+        """Claim the next task matching this node's capabilities, or None."""
+
+        resp = await self._client.post(f"/api/v1/nodes/{node_id}/claim-task")
+        resp.raise_for_status()
+        data = resp.json()
+        return data if data else None
+
+    async def report_result(
+        self, task_id: str, payload: dict[str, object]
+    ) -> dict[str, object]:
+        resp = await self._client.post(f"/api/v1/tasks/{task_id}/result", json=payload)
+        resp.raise_for_status()
+        return resp.json()
+
     async def aclose(self) -> None:
         await self._client.aclose()

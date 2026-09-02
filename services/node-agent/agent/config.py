@@ -28,6 +28,7 @@ class AgentConfig:
     token: str = ""
     capabilities: dict[str, bool] = field(default_factory=dict)
     heartbeat_interval: float = 15.0
+    poll_interval: float = 3.0  # how often to poll for claimable tasks
     register_max_retries: int = 0  # 0 = retry forever
     request_timeout: float = 10.0
 
@@ -45,6 +46,7 @@ class AgentConfig:
             token=env.get("ATLAS_NODE_TOKEN", ""),
             capabilities=_parse_capabilities(env.get("ATLAS_NODE_CAPABILITIES", "")),
             heartbeat_interval=float(env.get("ATLAS_NODE_HEARTBEAT_INTERVAL", "15")),
+            poll_interval=float(env.get("ATLAS_NODE_POLL_INTERVAL", "3")),
             register_max_retries=int(env.get("ATLAS_NODE_REGISTER_MAX_RETRIES", "0")),
             request_timeout=float(env.get("ATLAS_NODE_REQUEST_TIMEOUT", "10")),
         )

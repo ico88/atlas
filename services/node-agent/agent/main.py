@@ -18,6 +18,7 @@ from agent.client import (
     build_register_payload,
 )
 from agent.config import AgentConfig
+from agent.executor import execute_task
 from agent.hardware import collect_hardware, collect_health
 
 logger = logging.getLogger("node-agent")
@@ -78,26 +79,58 @@ async def run(config: AgentConfig | None = None) -> None:
     client = ControlPlaneClient(config)
     try:
         await _register_with_retry(client, config)
+        last_heartbeat = 0.0
         while not _shutdown.is_set():
-            await _wait(config.heartbeat_interval)
-            if _shutdown.is_set():
-                break
-            payload = build_heartbeat_payload(collect_health())
-            try:
-                await client.heartbeat(config.node_id, payload)
-                logger.info("heartbeat sent: %s", json.dumps(payload["status"]))
-            except httpx.HTTPStatusError as exc:
-                # A 404 means the control plane lost our record — re-register.
-                if exc.response.status_code == 404:
-                    logger.warning("node unknown to control plane; re-registering")
-                    await _register_with_retry(client, config)
-                else:
-                    logger.warning("heartbeat failed: %s", exc)
-            except (httpx.HTTPError, OSError) as exc:
-                logger.warning("heartbeat failed: %s", exc)
+            now = asyncio.get_event_loop().time()
+            if now - last_heartbeat >= config.heartbeat_interval:
+                await _send_heartbeat(client, config)
+                last_heartbeat = now
+
+            # Claim and execute one task if any match this node's capabilities.
+            executed = await _claim_and_execute(client, config)
+            if executed:
+                continue  # keep draining while work is available
+            await _wait(config.poll_interval)
     finally:
         await client.aclose()
         logger.info("node agent stopped")
+
+
+async def _send_heartbeat(client: ControlPlaneClient, config: AgentConfig) -> None:
+    payload = build_heartbeat_payload(collect_health())
+    try:
+        await client.heartbeat(config.node_id, payload)
+        logger.info("heartbeat sent: %s", json.dumps(payload["status"]))
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 404:
+            logger.warning("node unknown to control plane; re-registering")
+            await _register_with_retry(client, config)
+        else:
+            logger.warning("heartbeat failed: %s", exc)
+    except (httpx.HTTPError, OSError) as exc:
+        logger.warning("heartbeat failed: %s", exc)
+
+
+async def _claim_and_execute(client: ControlPlaneClient, config: AgentConfig) -> bool:
+    """Claim one task and report its result. Returns True if a task was handled."""
+
+    try:
+        task = await client.claim_task(config.node_id)
+    except (httpx.HTTPError, OSError) as exc:
+        logger.warning("claim failed: %s", exc)
+        return False
+    if not task:
+        return False
+
+    task_id = str(task.get("id"))
+    logger.info("executing task %s (%s)", task_id, task.get("required_capability"))
+    result = await execute_task(task)
+    try:
+        await client.report_result(task_id, result)
+        logger.info("reported task %s: %s", task_id, result.get("status"))
+    except (httpx.HTTPError, OSError) as exc:
+        logger.warning("report failed for %s: %s", task_id, exc)
+    return True
 
 
 def _install_signal_handlers(loop: asyncio.AbstractEventLoop) -> None:
