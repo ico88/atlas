@@ -318,3 +318,49 @@ table.data th {
   color: var(--muted);
   font-weight: 600;
 }
+
+/* Web citations in chat (ROADMAP PR 15) */
+.citations {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border);
+}
+.citations ol {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+}
+.citations a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.citations a:hover {
+  text-decoration: underline;
+}
+.web-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  white-space: nowrap;
+  user-select: none;
+  color: var(--text);
+}
+
+/* Conversation queue page (ROADMAP PR 11) */
+.queue-item {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  background: var(--panel);
+}
+.queue-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.queue-badge.active { background: #16653433; color: #22c55e; }
+.queue-badge.idle { background: var(--panel-2); color: var(--text); }

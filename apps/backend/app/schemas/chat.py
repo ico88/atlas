@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -14,6 +15,7 @@ class ChatRequest(BaseModel):
     conversation_id: str | None = None
     model: str | None = None
     mode: ChatMode = ChatMode.AUTO
+    web: bool = False  # ground the reply with a web search (ROADMAP PR 15)
 
 
 class MessageRead(BaseModel):
@@ -26,6 +28,7 @@ class MessageRead(BaseModel):
     model: str | None
     provider: str | None
     latency_ms: int | None
+    citations: list[Any] | None = None
     created_at: datetime
 
 

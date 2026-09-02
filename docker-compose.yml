@@ -54,6 +54,17 @@ services:
       ATLAS_NODE_OFFLINE_AFTER_SECONDS: ${ATLAS_NODE_OFFLINE_AFTER_SECONDS:-60}
       ATLAS_OLLAMA_URL: ${ATLAS_OLLAMA_URL:-http://ollama:11434}
       ATLAS_DEFAULT_MODEL: ${ATLAS_DEFAULT_MODEL:-}
+      # Web tools (ROADMAP PR 15) — off unless enabled; defaults target the
+      # optional SearXNG service below (start it with `--profile web`).
+      ATLAS_WEB_TOOLS_ENABLED: ${ATLAS_WEB_TOOLS_ENABLED:-false}
+      ATLAS_WEB_SEARCH_PROVIDER: ${ATLAS_WEB_SEARCH_PROVIDER:-searxng}
+      ATLAS_WEB_SEARCH_URL: ${ATLAS_WEB_SEARCH_URL:-http://searxng:8080/search}
+      ATLAS_WEB_MAX_RESULTS: ${ATLAS_WEB_MAX_RESULTS:-5}
+      ATLAS_WEB_FETCH_TIMEOUT: ${ATLAS_WEB_FETCH_TIMEOUT:-10}
+      ATLAS_WEB_ALLOW_PRIVATE_IPS: ${ATLAS_WEB_ALLOW_PRIVATE_IPS:-false}
+      ATLAS_WEB_DOMAIN_ALLOWLIST: ${ATLAS_WEB_DOMAIN_ALLOWLIST:-}
+      ATLAS_WEB_DOMAIN_DENYLIST: ${ATLAS_WEB_DOMAIN_DENYLIST:-}
+      ATLAS_CONVERSATION_MAX_PARALLEL: ${ATLAS_CONVERSATION_MAX_PARALLEL:-4}
     depends_on:
       postgres:
         condition: service_healthy
@@ -115,6 +126,19 @@ services:
     restart: unless-stopped
     volumes:
       - ollamadata:/root/.ollama
+    networks:
+      - atlas
+
+  # Optional self-hosted web search (ROADMAP PR 15). Enable with `--profile web`.
+  # ATLAS talks to its JSON API; result pages are fetched through the SSRF guard.
+  searxng:
+    image: searxng/searxng:latest
+    profiles: ["web"]
+    restart: unless-stopped
+    environment:
+      SEARXNG_BASE_URL: http://searxng:8080/
+    volumes:
+      - ./infrastructure/searxng:/etc/searxng:rw
     networks:
       - atlas
 

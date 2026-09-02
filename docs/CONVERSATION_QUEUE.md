@@ -49,6 +49,12 @@ across worker processes and survives a restart.
 |----------|---------|---------|
 | `ATLAS_CONVERSATION_MAX_PARALLEL` | `4` | Max conversations running in parallel (`0` = unlimited) |
 
+## UI
+
+The **Queue** page (sidebar → Queue) drives this API: enter a conversation id,
+enqueue messages, watch them dispatch/queue/merge live (polled every 2s), and
+press **Complete turn** to release the active turn and dispatch the next.
+
 ## Notes
 
 - Kept separate from `POST /chat/stream` (the live SSE streamer) so callers can

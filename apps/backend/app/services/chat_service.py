@@ -11,6 +11,7 @@ import json
 import logging
 import time
 from collections.abc import AsyncIterator
+from typing import cast
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,12 +23,44 @@ from app.db import get_sessionmaker
 from app.models.base import utcnow
 from app.models.conversation import Conversation, Message, MessageRole
 from app.schemas.chat import ChatRequest
+from app.services import webtools_service
 
 logger = logging.getLogger(__name__)
 
 
 def _sse(data: dict) -> str:
     return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+def _format_web_context(citations: list[dict]) -> str:
+    """Build a grounding system message from web citations (numbered for [n] cites)."""
+
+    lines = [
+        "You have web search results. Answer using them and cite sources as [n].",
+        "If the results are irrelevant, say so.",
+        "",
+        "Web results:",
+    ]
+    for i, c in enumerate(citations, start=1):
+        lines.append(f"[{i}] {c.get('title') or c.get('url')} — {c.get('url')}")
+        snippet = (c.get("snippet") or "").strip()
+        if snippet:
+            lines.append(f"    {snippet}")
+    return "\n".join(lines)
+
+
+async def _web_search(payload: ChatRequest) -> tuple[list[dict], str | None]:
+    """Run a web search for the turn. Returns (citations, note). Never raises."""
+
+    try:
+        result = await webtools_service.search(payload.content, fetch_bodies=True)
+        citations = cast("list[dict]", result.get("citations") or [])
+        return citations, None
+    except webtools_service.WebToolsDisabled:
+        return [], "web tools are disabled (set ATLAS_WEB_TOOLS_ENABLED=true)"
+    except Exception as exc:  # noqa: BLE001 - web failure must not break chat
+        logger.warning("web search failed: %s", exc, extra={"event": "chat_web_error"})
+        return [], "web search failed"
 
 
 async def list_conversations(session: AsyncSession) -> tuple[list[Conversation], int]:
@@ -89,6 +122,16 @@ async def stream_chat(payload: ChatRequest) -> AsyncIterator[str]:
 
         history = await _history(session, conversation.id)
 
+        # 2b) Optional web grounding (ROADMAP PR 15): search and prepend context.
+        citations: list[dict] = []
+        if payload.web:
+            citations, note = await _web_search(payload)
+            if citations:
+                history = [
+                    ChatMessage(role="system", content=_format_web_context(citations))
+                ] + history
+            yield _sse({"type": "citations", "citations": citations, "note": note})
+
         # 3) Route to a provider/model.
         decision = await router.select(mode=payload.mode.value, requested_model=payload.model)
         yield _sse(
@@ -123,6 +166,7 @@ async def stream_chat(payload: ChatRequest) -> AsyncIterator[str]:
             model=decision.model,
             provider=decision.provider.name,
             latency_ms=latency_ms,
+            citations=citations or None,
         )
         session.add(assistant)
         conversation.updated_at = utcnow()  # bump ordering in the sidebar

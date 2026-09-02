@@ -84,3 +84,19 @@ async def test_chat_missing_conversation_errors(client):
         body = "".join([c async for c in r.aiter_text()])
     events = _parse_sse(body)
     assert events[-1]["type"] == "error"
+
+
+@pytest.mark.asyncio
+async def test_chat_web_disabled_emits_note_and_completes(client):
+    """web=true with web tools disabled: a citations note is emitted, chat still finishes."""
+    async with client.stream(
+        "POST", "/api/v1/chat/stream", json={"content": "search this", "web": True}
+    ) as r:
+        body = "".join([c async for c in r.aiter_text()])
+    events = _parse_sse(body)
+    types = [e["type"] for e in events]
+    assert "citations" in types
+    citation_evt = next(e for e in events if e["type"] == "citations")
+    assert citation_evt["citations"] == []
+    assert "disabled" in (citation_evt.get("note") or "")
+    assert types[-1] == "done"

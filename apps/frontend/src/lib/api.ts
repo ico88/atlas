@@ -314,6 +314,13 @@ export async function createTask(body: {
 
 // --- Chat / conversations (M2) ---
 
+export interface WebCitation {
+  title: string;
+  url: string;
+  snippet: string;
+  score: number;
+}
+
 export interface Message {
   id: string;
   conversation_id: string;
@@ -322,6 +329,7 @@ export interface Message {
   model?: string | null;
   provider?: string | null;
   latency_ms?: number | null;
+  citations?: WebCitation[] | null;
   created_at: string;
 }
 
@@ -377,6 +385,7 @@ export const fetchHardware = () =>
 export interface ChatStreamHandlers {
   onStart?: (e: { conversation_id: string; provider: string; model: string }) => void;
   onToken?: (content: string) => void;
+  onCitations?: (citations: WebCitation[], note?: string | null) => void;
   onDone?: (e: { conversation_id: string; message_id: string; latency_ms: number }) => void;
   onError?: (detail: string) => void;
 }
@@ -386,7 +395,48 @@ export interface ChatStreamRequest {
   conversation_id?: string;
   model?: string;
   mode?: string;
+  web?: boolean;
 }
+
+// --- Conversation queue (PR 11) ---
+
+export interface QueuedMessage {
+  id: string;
+  role: string;
+  content: string;
+  ts: number;
+  merged_count?: number;
+}
+
+export interface QueueStatus {
+  conversation_id: string;
+  active: boolean;
+  pending: number;
+  items: QueuedMessage[];
+  active_total: number;
+}
+
+export interface EnqueueResult {
+  status: "dispatched" | "queued";
+  conversation_id: string;
+  pending: number;
+  position?: number | null;
+  message?: QueuedMessage | null;
+}
+
+export const fetchQueue = (cid: string) =>
+  getJson<QueueStatus>(`/api/v1/conversations/${encodeURIComponent(cid)}/queue`);
+
+export const enqueueMessage = (cid: string, content: string, merge = true) =>
+  postJson<EnqueueResult>(
+    `/api/v1/conversations/${encodeURIComponent(cid)}/messages`,
+    { content, merge },
+  );
+
+export const completeTurn = (cid: string) =>
+  postJson<{ conversation_id: string; next: QueuedMessage | null }>(
+    `/api/v1/conversations/${encodeURIComponent(cid)}/queue/complete`,
+  );
 
 /** POST /chat/stream and dispatch Server-Sent Events to handlers. */
 export async function streamChat(
@@ -422,6 +472,12 @@ export async function streamChat(
         break;
       case "token":
         handlers.onToken?.(String(evt.content ?? ""));
+        break;
+      case "citations":
+        handlers.onCitations?.(
+          (evt.citations as WebCitation[]) ?? [],
+          (evt.note as string | null) ?? null,
+        );
         break;
       case "done":
         handlers.onDone?.(evt as never);

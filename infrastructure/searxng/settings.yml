@@ -1,0 +1,25 @@
+# SearXNG settings for ATLAS (ROADMAP PR 15).
+# Minimal, self-hosted, JSON-enabled. Reachable only on the internal Docker
+# network (never published to the host). Change `secret_key` before production.
+use_default_settings: true
+
+general:
+  instance_name: "ATLAS Search"
+  debug: false
+
+server:
+  # NOTE: replace with a strong random value (e.g. `openssl rand -hex 32`).
+  secret_key: "change-me-atlas-searxng-secret"
+  limiter: false          # allow programmatic access from the backend
+  image_proxy: false
+
+search:
+  # JSON is disabled in stock SearXNG — ATLAS needs it for its API.
+  formats:
+    - html
+    - json
+  safe_search: 0
+  autocomplete: ""
+
+ui:
+  static_use_hash: true

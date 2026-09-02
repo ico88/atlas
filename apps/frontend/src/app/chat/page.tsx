@@ -4,10 +4,29 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ConversationSummary,
   Message,
+  WebCitation,
   fetchConversation,
   fetchConversations,
   streamChat,
 } from "@/lib/api";
+
+function Citations({ items }: { items: WebCitation[] }) {
+  if (!items || items.length === 0) return null;
+  return (
+    <div className="citations">
+      <span className="meta">Sources</span>
+      <ol>
+        {items.map((c, i) => (
+          <li key={`${c.url}-${i}`}>
+            <a href={c.url} target="_blank" rel="noreferrer noopener">
+              {c.title || c.url}
+            </a>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
 
 export default function ChatPage() {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
@@ -16,6 +35,9 @@ export default function ChatPage() {
   const [draft, setDraft] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [live, setLive] = useState("");
+  const [liveCitations, setLiveCitations] = useState<WebCitation[]>([]);
+  const [webSearch, setWebSearch] = useState(false);
+  const [webNote, setWebNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -57,6 +79,8 @@ export default function ChatPage() {
     setError(null);
     setStreaming(true);
     setLive("");
+    setLiveCitations([]);
+    setWebNote(null);
 
     // Optimistically render the user message.
     setMessages((prev) => [
@@ -74,9 +98,10 @@ export default function ChatPage() {
     let convId = activeId;
     let provider = "";
     let model = "";
+    let citations: WebCitation[] = [];
 
     await streamChat(
-      { content, conversation_id: activeId ?? undefined },
+      { content, conversation_id: activeId ?? undefined, web: webSearch },
       {
         onStart: (e) => {
           convId = e.conversation_id;
@@ -88,6 +113,11 @@ export default function ChatPage() {
           acc += t;
           setLive(acc);
         },
+        onCitations: (items, note) => {
+          citations = items;
+          setLiveCitations(items);
+          setWebNote(note ?? null);
+        },
         onDone: async () => {
           setMessages((prev) => [
             ...prev,
@@ -98,10 +128,12 @@ export default function ChatPage() {
               content: acc,
               provider,
               model,
+              citations: citations.length ? citations : null,
               created_at: new Date().toISOString(),
             },
           ]);
           setLive("");
+          setLiveCitations([]);
           setStreaming(false);
           loadConversations();
         },
@@ -151,6 +183,9 @@ export default function ChatPage() {
             {messages.map((m) => (
               <div key={m.id} className={`bubble ${m.role}`}>
                 {m.content}
+                {m.role === "assistant" && m.citations && (
+                  <Citations items={m.citations} />
+                )}
                 {m.role === "assistant" && m.model && (
                   <span className="meta">
                     {m.provider} · {m.model}
@@ -159,14 +194,29 @@ export default function ChatPage() {
                 )}
               </div>
             ))}
-            {live && <div className="bubble assistant">{live}▌</div>}
+            {live && (
+              <div className="bubble assistant">
+                {live}▌
+                <Citations items={liveCitations} />
+              </div>
+            )}
+            {webNote && <p className="muted">🌐 {webNote}</p>}
             {error && <p className="error">Error: {error}</p>}
           </div>
 
           <div className="chat-input">
+            <label className="web-toggle" title="Ground the reply with a web search">
+              <input
+                type="checkbox"
+                checked={webSearch}
+                onChange={(e) => setWebSearch(e.target.checked)}
+                disabled={streaming}
+              />
+              🌐 Web
+            </label>
             <input
               value={draft}
-              placeholder="Type a message…"
+              placeholder={webSearch ? "Ask — I'll search the web…" : "Type a message…"}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") send();

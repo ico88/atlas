@@ -68,6 +68,21 @@ Every outbound request is validated **before** and **after** DNS resolution:
 | `ATLAS_WEB_DOMAIN_ALLOWLIST` | *(empty)* | Comma host suffixes; if set, only these |
 | `ATLAS_WEB_DOMAIN_DENYLIST` | *(empty)* | Comma host suffixes; always blocked |
 
+## Chat integration
+
+The chat streamer wires web tools in end-to-end. Send `web: true` on
+`POST /api/v1/chat/stream` (the chat page has a **🌐 Web** toggle): the backend
+runs a search, prepends the ranked results as a grounding system message so the
+model answers from them and cites `[n]`, streams a `citations` SSE event, and
+persists the citations on the assistant message (`messages.citations`, migration
+0009) so they reappear on reload. If web tools are disabled the event carries an
+empty list plus a `note`, and the reply proceeds normally.
+
+To actually get results you must run a provider: start SearXNG with
+`docker compose --profile web up -d searxng` and set
+`ATLAS_WEB_TOOLS_ENABLED=true` (defaults already point the backend at
+`http://searxng:8080/search`).
+
 ## Design notes
 
 - Parsers are **pure and offline-testable**: `policy` (SSRF), `extract`
