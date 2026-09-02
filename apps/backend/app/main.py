@@ -17,6 +17,7 @@ from app.api import (
     maintenance,
     models,
     nodes,
+    query,
     rag,
     system,
     tasks,
@@ -26,7 +27,7 @@ from app.api.middleware import RequestContextMiddleware
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db import get_sessionmaker
-from app.services import user_service
+from app.services import query_service, user_service
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +66,11 @@ def create_app() -> FastAPI:
             await _seed_admin()
         except Exception:  # noqa: BLE001 - never block startup on seeding
             logger.exception("admin seeding failed", extra={"event": "admin_seed_error"})
+        try:
+            # Re-queue queries left RUNNING by a previous (crashed) backend.
+            await query_service.recover_and_resume()
+        except Exception:  # noqa: BLE001 - never block startup on recovery
+            logger.exception("query recovery failed", extra={"event": "query_recover_error"})
         yield
         logger.info("backend stopping", extra={"event": "shutdown"})
 
@@ -87,6 +93,7 @@ def create_app() -> FastAPI:
     app.include_router(rag.router)
     app.include_router(escalation.router)
     app.include_router(webtools.router)
+    app.include_router(query.router)
 
     return app
 

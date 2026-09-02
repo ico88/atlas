@@ -155,7 +155,14 @@ Stato: ✅ = consegnata.
 7. **PR 7 — ZeroTier integration:** stato, policy, API controller opzionale e audit.
 8. **PR 8 — Resilient scheduler:** lease, checkpoint, failover, fencing e task tardivi.
 9. **PR 9 — Control plane HA:** replica, leader election e disaster recovery.
-10. **PR 10 — Query lifecycle:** persistenza, background, cancellazione e recupero.
+10. ✅ **PR 10 — Query lifecycle:** modello `queries`/`query_events` (migrazione
+    0008), esecuzione in background con proprio session, stati
+    PENDING→RUNNING→COMPLETED/FAILED/CANCELLED, cancellazione cooperativa (flag
+    Redis controllato ad ogni token, risultato parziale salvato), heartbeat e
+    recovery all'avvio (RUNNING orfani ri-accodati). API
+    `POST/GET /api/v1/queries`, `GET /api/v1/queries/{id}` (con eventi),
+    `POST /api/v1/queries/{id}/cancel`. Vedi
+    [QUERY_LIFECYCLE.md](QUERY_LIFECYCLE.md).
 11. **PR 11 — Conversation queue:** invio immediato, accodamento, merge e parallelismo.
 12. **PR 12 — Resource telemetry:** metriche nodi, performance Ollama e storage storico.
 13. **PR 13 — Environments:** modello dati, manifest, isolamento, snapshot e restore.

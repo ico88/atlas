@@ -18,6 +18,7 @@ from app.models.maintenance import (
 )
 from app.models.node import Node
 from app.models.provider import LLMModel, Provider
+from app.models.query import Query, QueryEvent, QueryStatus
 from app.models.rag import (
     Document,
     DocumentChunk,
@@ -44,6 +45,9 @@ __all__ = [
     "MessageRole",
     "Provider",
     "LLMModel",
+    "Query",
+    "QueryEvent",
+    "QueryStatus",
     "MaintenanceIssue",
     "MaintenanceRun",
     "GitAction",
