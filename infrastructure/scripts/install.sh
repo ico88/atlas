@@ -206,7 +206,50 @@ configure_control_plane() {
   else
     log "ATLAS_NODE_JOIN_TOKEN already set in .env — leaving it unchanged."
   fi
+  ensure_http_port
   warn "Set a strong POSTGRES_PASSWORD in .env before production use."
+}
+
+port_in_use() {
+  local p="$1"
+  if command -v ss >/dev/null 2>&1; then
+    ss -ltn "( sport = :$p )" 2>/dev/null | grep -q LISTEN
+  elif command -v lsof >/dev/null 2>&1; then
+    lsof -iTCP:"$p" -sTCP:LISTEN >/dev/null 2>&1
+  else
+    (exec 3<>"/dev/tcp/127.0.0.1/$p") 2>/dev/null && { exec 3>&- 3<&-; return 0; } || return 1
+  fi
+}
+
+effective_http_port() {
+  grep -E '^ATLAS_HTTP_PORT=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | head -1
+}
+
+# Pick a host port for the reverse proxy. If 80 (or the configured port) is taken
+# — e.g. a system nginx/apache — fall back to a free port instead of clobbering
+# another service's config. The user can reclaim 80 by freeing it and setting
+# ATLAS_HTTP_PORT=80 in .env.
+ensure_http_port() {
+  local current desired
+  current="$(effective_http_port)"
+  desired="${current:-80}"
+  if ! port_in_use "$desired"; then
+    set_env_var ATLAS_HTTP_PORT "$desired"
+    return
+  fi
+  warn "Host port $desired is already in use (likely a system web server such as nginx)."
+  local candidate
+  for candidate in 8080 8081 8090 8888 9080; do
+    if ! port_in_use "$candidate"; then
+      set_env_var ATLAS_HTTP_PORT "$candidate"
+      warn "Falling back to host port $candidate (not overwriting the other server)."
+      warn "To use port 80 instead: stop the other server (e.g. 'sudo systemctl stop nginx')"
+      warn "then set ATLAS_HTTP_PORT=80 in .env and re-run 'docker compose up -d'."
+      return
+    fi
+  done
+  warn "No free fallback port found; leaving ATLAS_HTTP_PORT=$desired (startup may fail)."
+  set_env_var ATLAS_HTTP_PORT "$desired"
 }
 
 configure_node() {
@@ -260,6 +303,12 @@ start_stack() {
 print_next_steps() {
   log "Done (role: ${ROLE})."
   local started="${STACK_STARTED:-0}"
+  local port base
+  port="$(effective_http_port)"
+  base="http://localhost"
+  if [ -n "$port" ] && [ "$port" != "80" ]; then
+    base="http://localhost:${port}"
+  fi
   if [ "$ROLE" = "node" ]; then
     if [ "$started" = "1" ]; then
       cat <<EOF
@@ -280,8 +329,8 @@ EOF
       cat <<EOF
 
   ATLAS is running. Open:
-    http://localhost/system   (System Status)
-    http://localhost/health   (backend health)
+    ${base}/system   (System Status)
+    ${base}/health   (backend health)
   Logs:  cd ${REPO_ROOT} && docker compose logs -f
   Stop:  cd ${REPO_ROOT} && docker compose down
 
@@ -294,7 +343,7 @@ EOF
 
   cd ${REPO_ROOT}
   docker compose up --build          # or: make up
-  Open:  http://localhost/system   http://localhost/health
+  Open:  ${base}/system   ${base}/health
 EOF
     fi
   fi
