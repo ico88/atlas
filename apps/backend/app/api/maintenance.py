@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.maintenance.git import GitGuardrailError
+from app.schemas.escalation import EscalationRead
 from app.schemas.maintenance import (
     IssueDetail,
     IssueList,
@@ -14,7 +15,7 @@ from app.schemas.maintenance import (
     LogIngest,
     RunRead,
 )
-from app.services import maintenance_service
+from app.services import escalation_service, maintenance_service
 
 router = APIRouter(prefix="/api/v1/maintenance", tags=["maintenance"])
 
@@ -86,3 +87,18 @@ async def create_fix(
     except GitGuardrailError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return RunRead.model_validate(run)
+
+
+@router.post("/issues/{issue_id}/prepare-external", response_model=EscalationRead)
+async def prepare_external(
+    issue_id: str,
+    target: str = Query(default="chatgpt"),
+    session: AsyncSession = Depends(get_session),
+) -> EscalationRead:
+    """Build a ChatGPT/Claude escalation package from an issue (spec §10, §15)."""
+
+    issue = await maintenance_service.get_issue(session, issue_id)
+    if issue is None:
+        raise HTTPException(status_code=404, detail="Issue not found")
+    escalation = await escalation_service.prepare_for_issue(session, issue, target=target)
+    return EscalationRead.model_validate(escalation)

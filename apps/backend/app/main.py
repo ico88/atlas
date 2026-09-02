@@ -13,6 +13,7 @@ from app.api import (
     approvals,
     auth,
     chat,
+    escalation,
     maintenance,
     models,
     nodes,
@@ -83,6 +84,7 @@ def create_app() -> FastAPI:
     app.include_router(maintenance.router)
     app.include_router(approvals.router)
     app.include_router(rag.router)
+    app.include_router(escalation.router)
 
     return app
 

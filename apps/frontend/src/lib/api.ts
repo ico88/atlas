@@ -82,6 +82,83 @@ export const fetchTasks = () => getJson<TaskList>("/api/v1/tasks");
 export const fetchSubtasks = (id: string) =>
   getJson<Task[]>(`/api/v1/tasks/${id}/subtasks`);
 
+// --- Escalation (M7) ---
+
+export interface Escalation {
+  id: string;
+  subject_type: string;
+  subject_id?: string | null;
+  target: string;
+  objective: string;
+  package: string;
+  correlation_id: string;
+  status: string;
+  response?: string | null;
+  validation?: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface EscalationSummary {
+  id: string;
+  subject_type: string;
+  target: string;
+  objective: string;
+  status: string;
+  correlation_id: string;
+  created_at: string;
+}
+
+export interface EscalationList {
+  items: EscalationSummary[];
+  total: number;
+}
+
+export const fetchEscalations = () =>
+  getJson<EscalationList>("/api/v1/escalations");
+
+export const fetchEscalation = (id: string) =>
+  getJson<Escalation>(`/api/v1/escalations/${id}`);
+
+export async function prepareEscalation(body: {
+  objective: string;
+  target: string;
+  context?: Record<string, string>;
+}): Promise<Escalation> {
+  const res = await fetch("/api/v1/escalations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`prepare failed (${res.status})`);
+  return (await res.json()) as Escalation;
+}
+
+export async function importExternalResponse(
+  escalationId: string,
+  response: string,
+): Promise<Escalation> {
+  const res = await fetch("/api/v1/external-response/import", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ escalation_id: escalationId, response }),
+  });
+  if (!res.ok) throw new Error(`import failed (${res.status})`);
+  return (await res.json()) as Escalation;
+}
+
+export async function validateEscalation(
+  id: string,
+  approved: boolean,
+): Promise<Escalation> {
+  const res = await fetch(`/api/v1/escalations/${id}/validate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ approved, decided_by: "operator" }),
+  });
+  if (!res.ok) throw new Error(`validate failed (${res.status})`);
+  return (await res.json()) as Escalation;
+}
+
 // --- Knowledge / RAG (M8) ---
 
 export interface DocumentRead {

@@ -3,6 +3,11 @@
 from app.models.approval import Approval, ApprovalStatus
 from app.models.base import Base
 from app.models.conversation import ChatMode, Conversation, Message, MessageRole
+from app.models.escalation import (
+    Escalation,
+    EscalationStatus,
+    EscalationTarget,
+)
 from app.models.maintenance import (
     GitAction,
     IssueStatus,
@@ -50,4 +55,7 @@ __all__ = [
     "DocumentChunk",
     "Memory",
     "Feedback",
+    "Escalation",
+    "EscalationStatus",
+    "EscalationTarget",
 ]

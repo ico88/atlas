@@ -175,6 +175,10 @@ prefix. **No secret is ever committed** — `.env` is git-ignored.
 | POST | `/api/v1/knowledge-bases` | Create a knowledge base |
 | POST | `/api/v1/memories` · `/api/v1/memories/search` | Store / semantically search memory |
 | POST | `/api/v1/feedback` | Capture feedback (rating/comment) |
+| POST | `/api/v1/escalations` | Prepare a ChatGPT/Claude escalation package |
+| POST | `/api/v1/maintenance/issues/{id}/prepare-external` | Escalation package from an issue |
+| POST | `/api/v1/external-response/import` | Import the pasted (untrusted) response |
+| POST | `/api/v1/escalations/{id}/validate` | Validate / reject an imported response |
 | GET | `/health` | Liveness probe |
 | GET | `/api/v1/system/status` | Backend / DB / Redis health |
 | GET | `/api/v1/system/metrics` | Task counts, nodes online, pending approvals |
@@ -242,6 +246,28 @@ Claiming is atomic (a status-guarded update), so two nodes never run the same
 task; a failed remote task is re-queued for another capable node up to
 `max_retries`. ALMA subtasks can be remote too — the DAG spans local and node
 execution transparently.
+
+## Manual escalation (M7)
+
+When cloud APIs aren't configured, ATLAS prepares a **self-sufficient package**
+to copy into ChatGPT Plus / Claude Pro (spec §10). It never automates the
+browser or session — it only produces text. The pasted reply is imported as
+**untrusted** data (never executed) and must be **validated by a human** before
+it can become a controlled change.
+
+```bash
+# Prepare a package, copy it into ChatGPT/Claude, then import the reply
+curl -s -XPOST http://localhost/api/v1/escalations -H 'Content-Type: application/json' \
+  -d '{"objective":"Fix the ollama timeout","target":"claude","context":{"logs":"..."}}'
+curl -s -XPOST http://localhost/api/v1/external-response/import -H 'Content-Type: application/json' \
+  -d '{"escalation_id":"<id>","response":"<pasted reply>"}'
+curl -s -XPOST http://localhost/api/v1/escalations/<id>/validate -d '{"approved":true}'
+```
+
+A maintenance issue can also produce a package directly via
+`/maintenance/issues/{id}/prepare-external`. The **Escalation** page in the UI
+prepares the package (copy button), imports the reply, and shows the
+untrusted → validated gate.
 
 ## RAG & Memory (M8)
 

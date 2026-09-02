@@ -12,7 +12,7 @@ is built incrementally; each milestone keeps the application runnable and tested
 | **M4 — Node Federation** | Node Agent, register/heartbeat, capability discovery, remote execution | ✅ done (register/heartbeat + liveness, capability-based scheduling, atomic claim, remote execution with result reporting + retry) |
 | **M5 — ALMA** | Task decomposition, DAG, parallel subtasks, retry, result aggregation | ✅ done (objective → DAG decomposition, parallel subtasks, retry, aggregation, failure propagation) |
 | **M6 — Maintenance Core** | Log fingerprint, issue, branch, patch, tests, PR, approval gate | ✅ done (fingerprint→issue dedup, analyze, guard-railed branch/patch/tests/PR dry-run, git_actions audit, human approval gate) |
-| **M7 — Manual Escalation** | ChatGPT/Claude package prep + import + validation | ⬜ planned |
+| **M7 — Manual Escalation** | ChatGPT/Claude package prep + import + validation | ✅ done (package builder §10, prepare-from-issue, untrusted response import, human validate/reject; no browser automation) |
 | **M8 — RAG/Memory** | Documents, pgvector, retrieval, citations, memory | ✅ done (ingest+chunk+embed, cosine retrieval with citations, semantic memory, feedback; local/Ollama embedders. pgvector = future optimization) |
 | **M9 — Optional Cloud** | LiteLLM, OpenAI/Anthropic APIs, budget & fallback | ⬜ planned |
 | **M10 — Optimization** | Router learning, cost/latency optimizer, evaluation dataset | ⬜ planned |

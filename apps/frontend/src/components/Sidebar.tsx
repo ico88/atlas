@@ -12,6 +12,7 @@ const NAV = [
   { href: "/models", label: "Models" },
   { href: "/knowledge", label: "Knowledge" },
   { href: "/maintenance", label: "Maintenance" },
+  { href: "/escalation", label: "Escalation" },
 ];
 
 export default function Sidebar() {
