@@ -8,6 +8,10 @@ help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
+.PHONY: install
+install: ## Install host prerequisites on Ubuntu 24.04 (Docker, Compose, git, make)
+	sudo ./infrastructure/scripts/install.sh
+
 .PHONY: env
 env: ## Create .env from .env.example if missing
 	@test -f .env || (cp .env.example .env && echo "Created .env from .env.example")

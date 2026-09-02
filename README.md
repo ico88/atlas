@@ -41,9 +41,29 @@ Everything except Caddy stays on an internal network (spec §13).
 | `docs/` | Specification-derived documentation |
 | `.github/workflows` | CI (lint, typecheck, tests, Docker build, secret scan) |
 
+## Prerequisites
+
+- **Host OS:** Ubuntu Server **24.04 LTS** (spec §4). The reference target;
+  other Debian-based hosts may work but are untested.
+- **Docker Engine + Docker Compose plugin**, `git`, `make`, `curl`.
+
+Container base images are Debian-slim / Alpine by design (smaller, reduced
+attack surface); they run on the Ubuntu host regardless — the host OS and the
+container base images do not need to match.
+
+### Automated install (Ubuntu)
+
+An idempotent installer sets up all prerequisites and prepares `.env`:
+
+```bash
+sudo ./infrastructure/scripts/install.sh   # or: make install
+# then, if you were just added to the docker group:
+newgrp docker
+```
+
 ## Quick start
 
-Requires Docker + Docker Compose.
+Once the prerequisites are installed:
 
 ```bash
 cp .env.example .env      # or: make env
