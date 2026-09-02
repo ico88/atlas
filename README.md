@@ -147,6 +147,8 @@ prefix. **No secret is ever committed** — `.env` is git-ignored.
 
 | Method | Path | Description |
 |--------|------|-------------|
+| POST | `/api/v1/auth/login` | Email + password → JWT access token |
+| GET | `/api/v1/auth/me` | Current user (Bearer token) |
 | GET | `/health` | Liveness probe |
 | GET | `/api/v1/system/status` | Backend / DB / Redis health |
 | GET | `/api/v1/system/metrics` | Task counts, nodes online, pending approvals |
@@ -195,6 +197,28 @@ The manager and nodes typically communicate over an encrypted overlay network
 > Scope note: this is the **minimal** M4 slice — registration, heartbeat and
 > liveness. Capability-based scheduling and remote task execution on nodes come
 > in later M4 work.
+
+## Authentication (M1)
+
+JWT-based auth (bcrypt password hashing, `HS256` tokens). Set `ATLAS_JWT_SECRET`
+in `.env` (`openssl rand -hex 32`) and optionally a bootstrap admin
+(`ATLAS_ADMIN_EMAIL` / `ATLAS_ADMIN_PASSWORD`), which is created on first
+startup.
+
+```bash
+# Log in and call an authenticated endpoint
+TOKEN=$(curl -s -XPOST http://localhost/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"admin@example.com","password":"change-me-admin-password"}' \
+  | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')
+
+curl -s http://localhost/api/v1/auth/me -H "Authorization: Bearer $TOKEN"
+```
+
+> Note: email addresses must use a real domain format — reserved TLDs such as
+> `.local` are rejected. In this milestone the read endpoints remain public so
+> the UI works without a login screen; route-level enforcement is applied
+> incrementally in later milestones.
 
 ## Security
 

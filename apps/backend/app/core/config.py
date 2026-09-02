@@ -8,9 +8,13 @@ environment / secret store, never from the repository.
 
 from __future__ import annotations
 
+import logging
+import secrets
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -42,6 +46,16 @@ class Settings(BaseSettings):
     node_join_token: str = ""
     node_offline_after_seconds: int = 60  # a node is "online" if seen within this
 
+    # Authentication (spec §15). JWT secret MUST be set in production; when empty
+    # an ephemeral per-process secret is generated (tokens reset on restart).
+    jwt_secret: str = ""
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60 * 12
+
+    # Optional bootstrap admin, seeded on startup if it does not exist.
+    admin_email: str = ""
+    admin_password: str = ""
+
     @property
     def is_test(self) -> bool:
         return self.env.lower() in {"test", "testing"}
@@ -51,4 +65,14 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Return a cached Settings instance."""
 
-    return Settings()
+    settings = Settings()
+    if not settings.jwt_secret:
+        # Ephemeral dev secret: keeps auth working without a committed secret,
+        # but tokens are invalidated on restart. Set ATLAS_JWT_SECRET in prod.
+        settings.jwt_secret = secrets.token_hex(32)
+        logger.warning(
+            "ATLAS_JWT_SECRET is not set; using an ephemeral secret. "
+            "Set it in production so tokens survive restarts.",
+            extra={"event": "jwt_secret_ephemeral"},
+        )
+    return settings
