@@ -122,7 +122,7 @@ services:
     image: caddy:2-alpine
     restart: unless-stopped
     environment:
-      ATLAS_SITE_ADDRESS: ${ATLAS_SITE_ADDRESS::80}
+      ATLAS_SITE_ADDRESS: ${ATLAS_SITE_ADDRESS:-:80}
     ports:
       - "80:80"
       - "443:443"

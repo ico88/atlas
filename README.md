@@ -53,15 +53,17 @@ container base images do not need to match.
 
 ### Automated install (Ubuntu)
 
-An idempotent, **role-aware** installer sets up all prerequisites and prepares
-`.env`. It asks whether this host is the **control plane** (manager, runs the
-full stack) or a **node** (worker, runs only the node agent):
+An idempotent, **role-aware** installer sets up all prerequisites, prepares
+`.env`, **and builds + starts the stack** so you get a ready-to-use system. It
+asks whether this host is the **control plane** (manager, runs the full stack)
+or a **node** (worker, runs only the node agent):
 
 ```bash
 sudo ./infrastructure/scripts/install.sh   # or: make install  (interactive)
-# then, if you were just added to the docker group:
-newgrp docker
 ```
+
+When it finishes, ATLAS is already running at http://localhost/system. Pass
+`--no-start` to only install prerequisites and write config without starting.
 
 Non-interactive examples:
 

@@ -17,6 +17,9 @@
 #        --manager-url http://10.0.0.1:80 --token <TOKEN> \
 #        --capabilities llm,build --label gpu-1 [--yes]
 #
+# By default the installer also builds and starts the stack (delivering a
+# ready-to-use system). Pass --no-start to only install prerequisites + config.
+#
 # The script is idempotent: re-running it is safe.
 # ===========================================================================
 set -euo pipefail
@@ -32,6 +35,7 @@ ENV_FILE="${REPO_ROOT}/.env"
 # --- defaults / CLI args --------------------------------------------------
 ROLE=""
 ASSUME_YES=0
+NO_START=0
 MANAGER_URL=""
 NODE_TOKEN=""
 NODE_ID=""
@@ -52,6 +56,7 @@ while [ $# -gt 0 ]; do
     --label) NODE_LABEL="${2:-}"; shift 2 ;;
     --capabilities) NODE_CAPS="${2:-}"; shift 2 ;;
     -y|--yes) ASSUME_YES=1; shift ;;
+    --no-start) NO_START=1; shift ;;
     -h|--help) usage 0 ;;
     *) err "Unknown argument: $1"; usage 1 ;;
   esac
@@ -228,32 +233,73 @@ verify() {
   docker compose version || true
 }
 
-print_next_steps() {
-  log "Done (role: ${ROLE}). Next steps:"
+# Bring the stack up so the installer delivers a ready-to-use system.
+start_stack() {
+  if [ "$NO_START" -eq 1 ]; then
+    log "Skipping startup (--no-start). Start it yourself with the commands below."
+    return 0
+  fi
+  local compose_args
   if [ "$ROLE" = "node" ]; then
-    cat <<EOF
+    compose_args="-f docker-compose.node.yml"
+    log "Building and starting the node agent (this can take a while)..."
+  else
+    compose_args=""
+    log "Building and starting the full stack (this can take a while)..."
+  fi
+  # shellcheck disable=SC2086
+  if (cd "$REPO_ROOT" && $SUDO docker compose $compose_args up -d --build); then
+    STACK_STARTED=1
+    log "Stack is up."
+  else
+    STACK_STARTED=0
+    warn "Automatic startup failed. Bring it up manually with the command below."
+  fi
+}
+
+print_next_steps() {
+  log "Done (role: ${ROLE})."
+  local started="${STACK_STARTED:-0}"
+  if [ "$ROLE" = "node" ]; then
+    if [ "$started" = "1" ]; then
+      cat <<EOF
+
+  The node agent is running and registering with ${MANAGER_URL}.
+  Check it on the manager: GET /api/v1/nodes  or the UI "Nodes" page.
+  Logs:  cd ${REPO_ROOT} && docker compose -f docker-compose.node.yml logs -f
+EOF
+    else
+      cat <<EOF
 
   cd ${REPO_ROOT}
   docker compose -f docker-compose.node.yml up --build -d
-
-  The node will register with ${MANAGER_URL} and start sending heartbeats.
-  Check it on the manager: GET /api/v1/nodes  or the UI "Nodes" page.
 EOF
+    fi
   else
-    cat <<EOF
+    if [ "$started" = "1" ]; then
+      cat <<EOF
 
-  cd ${REPO_ROOT}
-  docker compose up --build          # or: make up
-
-  Open:  http://localhost/system  (System Status)   http://localhost/health
+  ATLAS is running. Open:
+    http://localhost/system   (System Status)
+    http://localhost/health   (backend health)
+  Logs:  cd ${REPO_ROOT} && docker compose logs -f
+  Stop:  cd ${REPO_ROOT} && docker compose down
 
   To add a worker node later, run this installer on that machine with:
     sudo ./infrastructure/scripts/install.sh --role node \\
          --manager-url http://<this-host>:80 --token <ATLAS_NODE_JOIN_TOKEN>
 EOF
+    else
+      cat <<EOF
+
+  cd ${REPO_ROOT}
+  docker compose up --build          # or: make up
+  Open:  http://localhost/system   http://localhost/health
+EOF
+    fi
   fi
   if [ "$TARGET_USER" != "root" ] && ! id -nG "$TARGET_USER" | tr ' ' '\n' | grep -qx docker; then
-    echo "  (Run 'newgrp docker' or re-login so docker works without sudo.)"
+    echo "  (For docker without sudo later: run 'newgrp docker' or re-login.)"
   fi
 }
 
@@ -270,6 +316,7 @@ main() {
     *) err "Invalid role: '$ROLE' (expected 'control-plane' or 'node')"; exit 1 ;;
   esac
   verify
+  start_stack
   print_next_steps
 }
 
