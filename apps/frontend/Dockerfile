@@ -14,7 +14,10 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
-    PORT=3000
+    PORT=3000 \
+    HOSTNAME=0.0.0.0
+# HOSTNAME=0.0.0.0 ensures the standalone server listens on all interfaces so the
+# reverse proxy container can reach it (otherwise it may bind localhost only).
 
 RUN addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 nextjs

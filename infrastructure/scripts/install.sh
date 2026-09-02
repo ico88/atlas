@@ -225,6 +225,14 @@ effective_http_port() {
   grep -E '^ATLAS_HTTP_PORT=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | head -1
 }
 
+# Best-effort primary LAN IP so the user can open ATLAS from another machine.
+server_ip() {
+  local ip
+  ip="$(ip route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src"){print $(i+1); exit}}')"
+  [ -z "$ip" ] && ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  echo "${ip:-<server-ip>}"
+}
+
 # Pick a host port for the reverse proxy. If 80 (or the configured port) is taken
 # — e.g. a system nginx/apache — fall back to a free port instead of clobbering
 # another service's config. The user can reclaim 80 by freeing it and setting
@@ -303,12 +311,15 @@ start_stack() {
 print_next_steps() {
   log "Done (role: ${ROLE})."
   local started="${STACK_STARTED:-0}"
-  local port base
+  local port base ipbase suffix ip
   port="$(effective_http_port)"
-  base="http://localhost"
+  suffix=""
   if [ -n "$port" ] && [ "$port" != "80" ]; then
-    base="http://localhost:${port}"
+    suffix=":${port}"
   fi
+  base="http://localhost${suffix}"
+  ip="$(server_ip)"
+  ipbase="http://${ip}${suffix}"
   if [ "$ROLE" = "node" ]; then
     if [ "$started" = "1" ]; then
       cat <<EOF
@@ -328,11 +339,15 @@ EOF
     if [ "$started" = "1" ]; then
       cat <<EOF
 
-  ATLAS is running. Open:
-    ${base}/system   (System Status)
-    ${base}/health   (backend health)
+  ATLAS is running. Open in a browser:
+
+      ${ipbase}/            <-- from another machine (the server address)
+      ${base}/             <-- from this machine
+
+  (System Status: ${ipbase}/system   health: ${ipbase}/health)
   Logs:  cd ${REPO_ROOT} && docker compose logs -f
   Stop:  cd ${REPO_ROOT} && docker compose down
+  Firewall: ensure port ${port:-80}/tcp is open (e.g. 'sudo ufw allow ${port:-80}/tcp').
 
   To add a worker node later, run this installer on that machine with:
     sudo ./infrastructure/scripts/install.sh --role node \\
