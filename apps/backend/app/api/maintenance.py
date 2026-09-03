@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.maintenance.git import GitGuardrailError
+from app.maintenance.sandbox import run_sandbox
 from app.schemas.escalation import EscalationRead
 from app.schemas.maintenance import (
     IssueDetail,
@@ -14,8 +15,11 @@ from app.schemas.maintenance import (
     IssueSummary,
     LogIngest,
     RunRead,
+    SandboxRequest,
+    SandboxResultRead,
 )
 from app.services import escalation_service, maintenance_service
+from app.services.maintenance_service import MaintenanceStateError
 
 router = APIRouter(prefix="/api/v1/maintenance", tags=["maintenance"])
 
@@ -87,6 +91,45 @@ async def create_fix(
     except GitGuardrailError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return RunRead.model_validate(run)
+
+
+@router.post("/issues/{issue_id}/apply-fix", response_model=RunRead)
+async def apply_fix(
+    issue_id: str,
+    session: AsyncSession = Depends(get_session),
+) -> RunRead:
+    """Open the real PR for an APPROVED fix (governed; guardrails enforced)."""
+
+    issue = await maintenance_service.get_issue(session, issue_id)
+    if issue is None:
+        raise HTTPException(status_code=404, detail="Issue not found")
+    try:
+        run = await maintenance_service.apply_fix(session, issue)
+    except MaintenanceStateError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except GitGuardrailError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return RunRead.model_validate(run)
+
+
+@router.post("/sandbox", response_model=SandboxResultRead)
+async def sandbox(payload: SandboxRequest) -> SandboxResultRead:
+    """Apply a patch to seed files in the real, isolated sandbox and report results.
+
+    The validation command is taken from server config only (never the request),
+    so this cannot execute arbitrary commands.
+    """
+
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    result = run_sandbox(
+        payload.files,
+        payload.patch,
+        check_command=settings.maintenance_check_command or None,
+        timeout=settings.maintenance_sandbox_timeout,
+    )
+    return SandboxResultRead(**result.to_dict())
 
 
 @router.post("/issues/{issue_id}/prepare-external", response_model=EscalationRead)

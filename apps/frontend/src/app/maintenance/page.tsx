@@ -5,6 +5,7 @@ import {
   Approval,
   MaintenanceIssue,
   analyzeIssue,
+  applyFix,
   approveApproval,
   createFix,
   fetchApprovals,
@@ -70,9 +71,11 @@ export default function MaintenancePage() {
     <div>
       <h1 className="page-title">Maintenance</h1>
       <p className="page-subtitle">
-        The Maintenance Agent fingerprints logs into issues, proposes a fix
-        (branch → patch → tests → PR, never touching <code>main</code>), and waits
-        for your approval (spec §11). Git actions are dry-run and audited.
+        The Maintenance Agent fingerprints logs into issues, proposes a fix and
+        validates the patch in a real, isolated <strong>sandbox</strong> (spec §11,
+        PR 17), then waits for your approval. Only after you approve does it open
+        the PR — never touching <code>main</code>, never merging. Git actions are
+        guard-railed and audited (dry-run unless GitHub is explicitly enabled).
       </p>
 
       {error && <p className="error">{error}</p>}
@@ -153,8 +156,30 @@ export default function MaintenancePage() {
                   )}
                   {r.tests_summary && (
                     <div className="status-row">
-                      <span className="muted">Tests</span>
+                      <span className="muted">Sandbox</span>
                       <span>{r.tests_summary}</span>
+                    </div>
+                  )}
+                  {r.status === "APPROVED" && (
+                    <div style={{ marginTop: 10 }}>
+                      <button
+                        className="btn"
+                        disabled={busy}
+                        onClick={() => act(() => applyFix(selected.id), selected.id)}
+                      >
+                        Apply approved fix (open PR)
+                      </button>
+                      <p className="muted" style={{ marginTop: 6, fontSize: 12 }}>
+                        Governed action: opens the PR via the configured provider
+                        (dry-run unless GitHub is enabled). Never pushes to a
+                        protected branch or merges.
+                      </p>
+                    </div>
+                  )}
+                  {r.status === "PR_OPENED" && (
+                    <div className="status-row">
+                      <span className="muted">Applied</span>
+                      <span className="pill">PR opened</span>
                     </div>
                   )}
                 </div>

@@ -67,6 +67,24 @@ class Settings(BaseSettings):
     # Resource telemetry (ROADMAP PR 12). Samples per node kept before pruning.
     metrics_history_limit: int = 500
 
+    # Self-healing (ROADMAP PR 17). The maintenance agent validates a proposed
+    # fix in a real, isolated sandbox before asking for approval, and only after
+    # a human approves does it (optionally) open a real PR — never touching the
+    # working repo, never pushing to a protected branch, never merging.
+    maintenance_sandbox_enabled: bool = True  # run the real patch+test sandbox
+    maintenance_sandbox_timeout: float = 120.0  # seconds per validation command
+    # Operator-configured validation command run inside the sandbox (never taken
+    # from an API request). Empty => apply-only check (patch must apply cleanly).
+    maintenance_check_command: str = ""
+    # Real GitHub-backed git actions. OFF by default: the loop stays dry-run and
+    # never mutates a real repository until an operator opts in AND a human
+    # approves the specific fix. Guardrails (no push_main/merge/force_push) apply
+    # to the real provider exactly as they do to the dry-run one.
+    maintenance_github_enabled: bool = False
+    maintenance_github_token: str = ""
+    maintenance_github_repo: str = ""  # "owner/repo" for the opened PR
+    maintenance_github_api: str = "https://api.github.com"
+
     # Node federation (spec §8). A shared join token authenticates nodes against
     # the control plane (least privilege, §13). Empty => open (development only).
     node_join_token: str = ""

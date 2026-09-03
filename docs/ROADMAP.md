@@ -213,7 +213,11 @@ Stato: ✅ = consegnata.
     (quality = substring attese, safety = substring vietate, latency), baseline,
     aggregati (pass_rate/avg_quality/avg_safety/latency p95). API
     `/api/v1/evals/*` + pagina **Evals**. Vedi [EVALS.md](EVALS.md).
-17. **PR 17 — Self-healing reale:** sandbox, GitHub, patch, test e PR governate.
+17. ✅ **PR 17 — Self-healing reale:** sandbox isolato reale (`git apply` in
+    check mode + comando di verifica configurato, repo mai toccato), applicazione
+    governata (`apply-fix` solo dopo approvazione umana), provider GitHub reale
+    dietro guardrail (off di default), API `/maintenance/sandbox|apply-fix` +
+    pagina **Maintenance**. Vedi [SELF_HEALING.md](SELF_HEALING.md).
 18. **PR 18 — Continuous Improvement:** proposte, esperimenti, confronto e approvazioni.
 19. **PR 19 — Critical Review:** proposer, critic, verifier, judge e consensus adattivo.
 20. **PR 20 — Unified Updater:** comando unico, preflight, snapshot, migrazioni e ripresa.

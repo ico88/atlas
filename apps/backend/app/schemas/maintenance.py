@@ -67,3 +67,27 @@ class IssueDetail(IssueSummary):
 class IssueList(BaseModel):
     items: list[IssueSummary]
     total: int
+
+
+class SandboxRequest(BaseModel):
+    """Validate a patch against seed files in the real sandbox (ROADMAP PR 17).
+
+    The check command is *not* accepted here — it comes only from server config,
+    so this endpoint can never be used to run arbitrary commands.
+    """
+
+    files: dict[str, str] = Field(
+        default_factory=dict, description="relative path -> file content to seed"
+    )
+    patch: str = Field(min_length=1, description="unified diff to apply and validate")
+
+
+class SandboxResultRead(BaseModel):
+    applied: bool
+    passed: bool
+    returncode: int | None = None
+    command: str | None = None
+    stdout: str = ""
+    stderr: str = ""
+    summary: str
+    files: list[str] = []

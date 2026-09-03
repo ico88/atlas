@@ -281,7 +281,16 @@ async function postJson<T>(path: string, body?: unknown): Promise<T> {
     headers: { "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (!res.ok) throw new Error(`${path} failed (${res.status})`);
+  if (!res.ok) {
+    // Prefer the API's own `detail` (e.g. the approval-gate message) if present.
+    let detail = "";
+    try {
+      detail = ((await res.json()) as { detail?: string }).detail ?? "";
+    } catch {
+      /* non-JSON error body */
+    }
+    throw new Error(detail || `${path} failed (${res.status})`);
+  }
   return (await res.json()) as T;
 }
 
@@ -290,6 +299,9 @@ export const analyzeIssue = (id: string) =>
 
 export const createFix = (id: string) =>
   postJson<MaintenanceRun>(`/api/v1/maintenance/issues/${id}/create-fix`);
+
+export const applyFix = (id: string) =>
+  postJson<MaintenanceRun>(`/api/v1/maintenance/issues/${id}/apply-fix`);
 
 export const approveApproval = (id: string) =>
   postJson<Approval>(`/api/v1/approvals/${id}/approve`, { decided_by: "operator" });
