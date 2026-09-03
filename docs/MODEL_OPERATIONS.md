@@ -3,6 +3,19 @@
 Practical guide for installing local AI, changing models, updating ATLAS and
 recovering — without losing settings or data. (ROADMAP PR 2 + partial PR 3.)
 
+## Manage models from the UI (no CLI)
+
+The **Models** page lets you do it all from the browser:
+
+- **Download a model** — type a name (e.g. `llama3.2:1b`) and click Download;
+  progress is shown live (`POST /api/v1/models/pull`, background).
+- **Set default** — pick the ⭐ default model used when a chat doesn't specify
+  one (`POST /api/v1/models/default`); stored as a runtime setting (no restart).
+- **Delete** an Ollama model (`DELETE /api/v1/models/{name}`).
+
+And from the **Chat** page you can pick the model per conversation with the
+model dropdown, or with the `/model <name>` and `/models` commands.
+
 ## What is preserved
 
 - **Settings** — `.env` is git-ignored, so `git pull` / updates never overwrite

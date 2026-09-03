@@ -527,3 +527,14 @@ pre {
 @keyframes caret-blink {
   50% { opacity: 0; }
 }
+
+/* Model picker in the chat input */
+.model-select {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  max-width: 150px;
+}

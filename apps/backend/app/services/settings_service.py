@@ -22,6 +22,10 @@ from app.models.app_setting import AppSetting
 logger = logging.getLogger(__name__)
 
 WEB_KEY = "web"
+AI_KEY = "ai"
+
+# AI overrides applied to Settings (operator-editable model defaults).
+_AI_FIELDS: dict[str, str] = {"default_model": "default_model"}
 
 # Friendly UI field name -> Settings attribute. Stored overrides use the UI names.
 _WEB_FIELDS: dict[str, str] = {
@@ -76,12 +80,31 @@ async def get_effective_settings(session: AsyncSession | None = None) -> Setting
     """Env-based Settings with stored web overrides applied."""
 
     settings = Settings()  # fresh from env/.env; never mutate the cached singleton
-    overrides = await get_overrides(WEB_KEY, session)
-    for ui_name, value in overrides.items():
+    web = await get_overrides(WEB_KEY, session)
+    for ui_name, value in web.items():
         attr = _WEB_FIELDS.get(ui_name)
         if attr is not None and value is not None:
             setattr(settings, attr, value)
+    ai = await get_overrides(AI_KEY, session)
+    for ui_name, value in ai.items():
+        attr = _AI_FIELDS.get(ui_name)
+        if attr is not None and value is not None:
+            setattr(settings, attr, value)
     return settings
+
+
+async def set_ai_config(
+    patch: dict[str, Any], session: AsyncSession | None = None
+) -> dict[str, Any]:
+    clean = {k: v for k, v in patch.items() if k in _AI_FIELDS and v is not None}
+    await set_overrides(AI_KEY, clean, session)
+    logger.info("ai config updated", extra={"event": "ai_config_updated"})
+    return await get_ai_config_public(session)
+
+
+async def get_ai_config_public(session: AsyncSession | None = None) -> dict[str, Any]:
+    settings = await get_effective_settings(session)
+    return {"default_model": settings.default_model}
 
 
 def _normalise_web_patch(patch: dict[str, Any]) -> dict[str, Any]:

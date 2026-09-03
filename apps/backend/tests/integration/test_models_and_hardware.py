@@ -33,3 +33,22 @@ async def test_hardware_scan(client):
     assert "cpu_cores" in body
     assert "platform" in body
     assert "ram_total_mb" in body
+
+
+@pytest.mark.asyncio
+async def test_model_default_get_and_set(client):
+    got = await client.get("/api/v1/models/default")
+    assert got.status_code == 200
+    assert "default_model" in got.json()
+
+    resp = await client.post("/api/v1/models/default", json={"model": "llama3.2:1b"})
+    assert resp.status_code == 200
+    assert resp.json()["default_model"] == "llama3.2:1b"
+    # Persisted: a fresh GET reflects the runtime override.
+    assert (await client.get("/api/v1/models/default")).json()["default_model"] == "llama3.2:1b"
+
+
+@pytest.mark.asyncio
+async def test_model_pull_rejects_bad_name(client):
+    resp = await client.post("/api/v1/models/pull", json={"name": "bad name; rm -rf"})
+    assert resp.status_code == 400

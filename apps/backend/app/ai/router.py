@@ -47,7 +47,10 @@ class RoutingDecision:
 async def select(mode: str = ChatMode.AUTO.value, requested_model: str | None = None):
     """Choose a provider + model for the given mode."""
 
-    settings = get_settings()
+    # Effective settings pick up the UI-set default model (runtime override).
+    from app.services import settings_service
+
+    settings = await settings_service.get_effective_settings()
     echo = EchoProvider()
 
     # External/manual modes are not implemented in M2 -> use local fallback.

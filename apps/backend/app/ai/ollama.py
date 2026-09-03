@@ -34,6 +34,45 @@ class OllamaProvider:
         except (httpx.HTTPError, OSError):
             return False
 
+    async def pull_model(self, name: str, on_progress=None) -> bool:
+        """Pull a model, consuming the streamed progress. Returns success."""
+
+        try:
+            async with (
+                httpx.AsyncClient(timeout=None) as client,
+                client.stream(
+                    "POST", f"{self._base_url}/api/pull", json={"model": name, "stream": True}
+                ) as resp,
+            ):
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    if not line.strip():
+                        continue
+                    try:
+                        chunk = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if on_progress is not None:
+                        on_progress(chunk)
+                    if chunk.get("error"):
+                        logger.warning("ollama pull error: %s", chunk["error"])
+                        return False
+            return True
+        except (httpx.HTTPError, OSError) as exc:
+            logger.warning("ollama pull failed: %s", exc)
+            return False
+
+    async def delete_model(self, name: str) -> bool:
+        try:
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                resp = await client.request(
+                    "DELETE", f"{self._base_url}/api/delete", json={"model": name}
+                )
+                return resp.status_code in (200, 404)
+        except (httpx.HTTPError, OSError) as exc:
+            logger.warning("ollama delete failed: %s", exc)
+            return False
+
     async def list_models(self) -> list[ModelInfo]:
         try:
             async with httpx.AsyncClient(timeout=self._timeout) as client:

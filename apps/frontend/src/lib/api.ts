@@ -379,6 +379,26 @@ export async function refreshModels(): Promise<ModelList> {
   return (await res.json()) as ModelList;
 }
 
+export const fetchDefaultModel = () =>
+  getJson<{ default_model: string }>("/api/v1/models/default");
+
+export const setDefaultModel = (model: string) =>
+  postJson<{ default_model: string }>("/api/v1/models/default", { model });
+
+export const pullModel = (name: string) =>
+  postJson<{ status: string; model: string }>("/api/v1/models/pull", { name });
+
+export const fetchPullStatus = () =>
+  getJson<{ items: Record<string, { state: string; status?: string; completed?: number; total?: number }> }>(
+    "/api/v1/models/pull-status",
+  );
+
+export async function deleteModel(name: string): Promise<ModelList> {
+  const res = await fetch(`/api/v1/models/${encodeURIComponent(name)}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`delete failed (${res.status})`);
+  return (await res.json()) as ModelList;
+}
+
 export const fetchHardware = () =>
   getJson<Record<string, unknown>>("/api/v1/system/hardware");
 

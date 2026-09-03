@@ -4,10 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ConversationSummary,
   Message,
+  ModelInfo,
   WebCitation,
   addMemory,
   fetchConversation,
   fetchConversations,
+  fetchDefaultModel,
+  fetchModels,
   searchMemories,
   streamChat,
   webSearch,
@@ -39,6 +42,7 @@ const HELP = [
   "• /search <query> — show web results only",
   "• /remember <text> — save a memory",
   "• /recall <query> — recall saved memories",
+  "• /model <name> — pick the model (or /models to list)",
   "• /help — show this help",
 ].join("\n");
 
@@ -53,6 +57,8 @@ export default function ChatPage() {
   const [statusLine, setStatusLine] = useState("");
   const [elapsed, setElapsed] = useState(0);
   const [webOn, setWebOn] = useState(false);
+  const [models, setModels] = useState<ModelInfo[]>([]);
+  const [model, setModel] = useState("");  // "" = Auto (server default)
   const [webNote, setWebNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -72,6 +78,16 @@ export default function ChatPage() {
 
   useEffect(() => {
     loadConversations();
+    // Load the model list + current default so the chat can pick a model.
+    (async () => {
+      try {
+        const [list, def] = await Promise.all([fetchModels(), fetchDefaultModel()]);
+        setModels(list.items.filter((m) => m.available));
+        setModel(def.default_model || "");
+      } catch {
+        /* backend may be starting */
+      }
+    })();
   }, [loadConversations]);
 
   useEffect(() => {
@@ -161,6 +177,21 @@ export default function ChatPage() {
       }
       return true;
     }
+    if (c === "models") {
+      pushBubble(
+        "assistant",
+        models.length
+          ? "Available models:\n" + models.map((m) => `• ${m.name}`).join("\n") + `\n\nCurrent: ${model || "Auto"}`
+          : "No models yet — download one from the Models page.",
+      );
+      return true;
+    }
+    if (c === "model") {
+      if (!arg) return pushBubble("assistant", `Current model: ${model || "Auto"}. Usage: /model <name>`), true;
+      setModel(arg);
+      pushBubble("assistant", `✅ This chat will use model: ${arg}`);
+      return true;
+    }
     if (c === "web") {
       // Fall through to a normal chat turn, but force web grounding on.
       setDraft(arg);
@@ -199,7 +230,12 @@ export default function ChatPage() {
     abortRef.current = controller;
 
     await streamChat(
-      { content, conversation_id: activeId ?? undefined, web: forceWeb || webOn },
+      {
+        content,
+        conversation_id: activeId ?? undefined,
+        web: forceWeb || webOn,
+        model: model || undefined,
+      },
       {
         onStart: (e) => {
           setStatusLine(`${e.provider} · ${e.model} — generating…`);
@@ -326,6 +362,20 @@ export default function ChatPage() {
           </div>
 
           <div className="chat-input">
+            <select
+              className="model-select"
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              disabled={streaming}
+              title="Model for this chat"
+            >
+              <option value="">Auto</option>
+              {models.map((m) => (
+                <option key={`${m.provider}:${m.name}`} value={m.name}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
             <label className="web-toggle" title="Ground the reply with a web search">
               <input
                 type="checkbox"
