@@ -398,6 +398,37 @@ export interface ChatStreamRequest {
   web?: boolean;
 }
 
+// --- Memory lifecycle (PR 14) ---
+
+export interface MemoryHit {
+  id: string;
+  content: string;
+  scope: string;
+  scope_id?: string | null;
+  score: number;
+  source?: string | null;
+  mem_type: string;
+  tags?: string[] | null;
+  importance: number;
+  pinned: boolean;
+}
+
+export const addMemory = (body: {
+  content: string;
+  source?: string;
+  mem_type?: string;
+  tags?: string[];
+  importance?: number;
+  pinned?: boolean;
+  ttl_seconds?: number;
+}) => postJson<Record<string, unknown>>("/api/v1/memories", body);
+
+export const searchMemories = (query: string) =>
+  postJson<MemoryHit[]>("/api/v1/memories/search", { query });
+
+export const pruneMemories = () =>
+  postJson<{ pruned: number }>("/api/v1/memories/prune", {});
+
 // --- Environments (PR 13) ---
 
 export interface Environment {

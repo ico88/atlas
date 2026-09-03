@@ -6,7 +6,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, pk_column, utcnow
@@ -74,6 +74,20 @@ class Memory(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     embedding: Mapped[list[float] | None] = mapped_column(JSON, nullable=True)
     mem_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    # Lifecycle: provenance, retention and usage (ROADMAP PR 14).
+    source: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    source_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    mem_type: Mapped[str] = mapped_column(String(32), nullable=False, default="fact")
+    tags: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    importance: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    pinned: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    last_accessed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    access_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow
     )

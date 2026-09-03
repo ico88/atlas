@@ -98,6 +98,9 @@ class Settings(BaseSettings):
     rag_chunk_size: int = 800  # characters per chunk
     rag_chunk_overlap: int = 100
     rag_top_k: int = 5
+    # Memory lifecycle (ROADMAP PR 14). Default TTL for new memories in seconds
+    # (0 = never expire); pinned memories ignore it.
+    memory_default_ttl_seconds: int = 0
 
     # Web tools (spec §6 web; ROADMAP PR 15). Disabled by default: the platform
     # is local-first and must not reach the internet unless the operator opts in.

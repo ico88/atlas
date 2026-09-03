@@ -72,6 +72,14 @@ class MemoryCreate(BaseModel):
     content: str = Field(min_length=1)
     scope: str = "user"
     scope_id: str | None = None
+    environment_id: str | None = None
+    source: str | None = None
+    source_id: str | None = None
+    mem_type: str = "fact"
+    tags: list[str] | None = None
+    importance: int = Field(default=0, ge=0, le=100)
+    pinned: bool = False
+    ttl_seconds: int | None = Field(default=None, ge=0)
     metadata: dict[str, Any] | None = None
 
 
@@ -82,6 +90,16 @@ class MemoryRead(BaseModel):
     content: str
     scope: str
     scope_id: str | None
+    environment_id: str | None = None
+    source: str | None = None
+    source_id: str | None = None
+    mem_type: str = "fact"
+    tags: list[str] | None = None
+    importance: int = 0
+    pinned: bool = False
+    expires_at: datetime | None = None
+    last_accessed_at: datetime | None = None
+    access_count: int = 0
     created_at: datetime
 
 
@@ -89,6 +107,7 @@ class MemorySearch(BaseModel):
     query: str = Field(min_length=1)
     scope: str | None = None
     scope_id: str | None = None
+    environment_id: str | None = None
     top_k: int | None = Field(default=None, ge=1, le=50)
 
 
@@ -98,6 +117,19 @@ class MemoryHitRead(BaseModel):
     scope: str
     scope_id: str | None
     score: float
+    source: str | None = None
+    mem_type: str = "fact"
+    tags: list[str] | None = None
+    importance: int = 0
+    pinned: bool = False
+
+
+class MemoryImportanceUpdate(BaseModel):
+    importance: int = Field(ge=0, le=100)
+
+
+class MemoryPinUpdate(BaseModel):
+    pinned: bool
 
 
 class FeedbackCreate(BaseModel):

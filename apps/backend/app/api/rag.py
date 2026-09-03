@@ -17,6 +17,8 @@ from app.schemas.rag import (
     KnowledgeBaseRead,
     MemoryCreate,
     MemoryHitRead,
+    MemoryImportanceUpdate,
+    MemoryPinUpdate,
     MemoryRead,
     MemorySearch,
     RagQuery,
@@ -107,6 +109,14 @@ async def add_memory(
         content=payload.content,
         scope=payload.scope,
         scope_id=payload.scope_id,
+        environment_id=payload.environment_id,
+        source=payload.source,
+        source_id=payload.source_id,
+        mem_type=payload.mem_type,
+        tags=payload.tags,
+        importance=payload.importance,
+        pinned=payload.pinned,
+        ttl_seconds=payload.ttl_seconds,
         metadata=payload.metadata,
     )
     return MemoryRead.model_validate(mem)
@@ -116,9 +126,19 @@ async def add_memory(
 async def list_memories(
     scope: str | None = Query(default=None),
     scope_id: str | None = Query(default=None),
+    environment_id: str | None = Query(default=None),
+    source: str | None = Query(default=None),
+    include_expired: bool = Query(default=False),
     session: AsyncSession = Depends(get_session),
 ) -> list[MemoryRead]:
-    mems = await memory_service.list_memories(session, scope=scope, scope_id=scope_id)
+    mems = await memory_service.list_memories(
+        session,
+        scope=scope,
+        scope_id=scope_id,
+        environment_id=environment_id,
+        source=source,
+        include_expired=include_expired,
+    )
     return [MemoryRead.model_validate(m) for m in mems]
 
 
@@ -132,12 +152,61 @@ async def search_memories(
         query=payload.query,
         scope=payload.scope,
         scope_id=payload.scope_id,
+        environment_id=payload.environment_id,
         top_k=payload.top_k,
     )
     return [
-        MemoryHitRead(id=h.id, content=h.content, scope=h.scope, scope_id=h.scope_id, score=h.score)
+        MemoryHitRead(
+            id=h.id,
+            content=h.content,
+            scope=h.scope,
+            scope_id=h.scope_id,
+            score=h.score,
+            source=h.source,
+            mem_type=h.mem_type,
+            tags=h.tags,
+            importance=h.importance,
+            pinned=h.pinned,
+        )
         for h in hits
     ]
+
+
+@router.post("/memories/prune")
+async def prune_memories(session: AsyncSession = Depends(get_session)) -> dict[str, int]:
+    """Delete expired, non-pinned memories (retention)."""
+
+    removed = await memory_service.prune_expired(session)
+    return {"pruned": removed}
+
+
+async def _load_memory(session: AsyncSession, memory_id: str):
+    mem = await memory_service.get_memory(session, memory_id)
+    if mem is None:
+        raise HTTPException(status_code=404, detail="Memory not found")
+    return mem
+
+
+@router.post("/memories/{memory_id}/pin", response_model=MemoryRead)
+async def pin_memory(
+    memory_id: str,
+    payload: MemoryPinUpdate,
+    session: AsyncSession = Depends(get_session),
+) -> MemoryRead:
+    mem = await _load_memory(session, memory_id)
+    return MemoryRead.model_validate(await memory_service.set_pinned(session, mem, payload.pinned))
+
+
+@router.post("/memories/{memory_id}/importance", response_model=MemoryRead)
+async def set_memory_importance(
+    memory_id: str,
+    payload: MemoryImportanceUpdate,
+    session: AsyncSession = Depends(get_session),
+) -> MemoryRead:
+    mem = await _load_memory(session, memory_id)
+    return MemoryRead.model_validate(
+        await memory_service.set_importance(session, mem, payload.importance)
+    )
 
 
 # --- feedback ---

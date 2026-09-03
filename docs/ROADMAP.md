@@ -196,7 +196,12 @@ Stato: ✅ = consegnata.
     a livello di configurazione (con summary stats). API `/api/v1/environments`
     (+ snapshots/restore) e pagina **Environments**. Vedi
     [ENVIRONMENTS.md](ENVIRONMENTS.md).
-14. **PR 14 — Memory lifecycle:** acquisizione, retrieval, provenienza e retention.
+14. ✅ **PR 14 — Memory lifecycle:** provenienza (source/source_id/mem_type/tags),
+    retrieval che registra l'uso (access_count/last_accessed) e ordina per
+    score+importanza escludendo gli scaduti, retention (TTL→expires_at, prune) e
+    controlli pin/importance (migrazione 0015). API `/api/v1/memories`
+    (+search/prune/pin/importance) e sezione **Memory** nella pagina Knowledge.
+    Vedi [MEMORY_LIFECYCLE.md](MEMORY_LIFECYCLE.md).
 15. ✅ **PR 15 — Web tools:** ricerca + fetch sicuri con SSRF guard (schemi
     http/https, blocco IP privati/loopback/link-local pre- e post-DNS contro il
     DNS-rebinding, redirect ri-validati, cap dimensione/tempo), ranking BM25,
