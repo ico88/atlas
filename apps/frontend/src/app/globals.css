@@ -538,3 +538,62 @@ pre {
   font-size: 13px;
   max-width: 150px;
 }
+
+/* Global command palette (Ctrl/Cmd-K) */
+.cmdk-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  z-index: 80;
+}
+.cmdk {
+  width: min(560px, 92vw);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+.cmdk-input {
+  width: 100%;
+  padding: 14px 16px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 15px;
+  outline: none;
+}
+.cmdk-list {
+  max-height: 320px;
+  overflow-y: auto;
+}
+.cmdk-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.cmdk-item.active {
+  background: var(--panel-2);
+}
+.cmdk-hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+.cmdk-empty {
+  padding: 16px;
+  color: var(--muted);
+}
+.cmdk-foot {
+  padding: 8px 16px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+}
