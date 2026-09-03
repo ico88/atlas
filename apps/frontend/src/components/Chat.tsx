@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Markdown from "@/components/Markdown";
 import { useI18n } from "@/lib/i18n";
 import {
   ConversationSummary,
@@ -446,7 +447,7 @@ export default function Chat() {
               if (m.role === "assistant" && m.status === "pending") {
                 return (
                   <div key={m.id} className="bubble assistant">
-                    {m.content}
+                    <Markdown text={m.content} />
                     <span className="caret">▌</span>
                     <span className="working-row">
                       <span className="typing">
@@ -461,7 +462,7 @@ export default function Chat() {
               }
               return (
                 <div key={m.id} className={`bubble ${m.role}`}>
-                  {m.content}
+                  {m.role === "assistant" ? <Markdown text={m.content} /> : m.content}
                   {m.role === "assistant" && m.citations && (
                     <Citations items={m.citations} label={t("chat.sources")} />
                   )}
@@ -478,7 +479,7 @@ export default function Chat() {
             {/* Live streaming text once tokens arrive. */}
             {phase === "streaming" && (
               <div className="bubble assistant">
-                {live}
+                <Markdown text={live} />
                 <span className="caret">▌</span>
                 <Citations items={liveCitations} label={t("chat.sources")} />
               </div>

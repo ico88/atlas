@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Markdown from "@/components/Markdown";
 import {
   QueryDetail,
   QueryRead,
@@ -129,12 +130,20 @@ export default function QueriesPage() {
           ))}
         </div>
 
-        <div className="chat-main" style={{ padding: 16 }}>
+        <div className="chat-main" style={{ padding: 16, overflowY: "auto" }}>
           {!selected ? (
             <p className="muted">Select a query to see its result and events.</p>
           ) : (
             <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  marginBottom: 8,
+                  flexWrap: "wrap",
+                }}
+              >
                 <StatusBadge status={selected.status} />
                 {selected.provider && (
                   <span className="muted">
@@ -153,8 +162,12 @@ export default function QueriesPage() {
               </div>
               <p><strong>Prompt:</strong> {selected.prompt}</p>
               {selected.error && <p className="error">Error: {selected.error}</p>}
-              <div className="card" style={{ marginTop: 8, whiteSpace: "pre-wrap" }}>
-                {selected.result || <span className="muted">No output yet…</span>}
+              <div className="card result-card" style={{ marginTop: 8 }}>
+                {selected.result ? (
+                  <Markdown text={selected.result} />
+                ) : (
+                  <span className="muted">No output yet…</span>
+                )}
               </div>
               <h3 style={{ marginTop: 16, fontSize: 14 }}>Events</h3>
               {selected.events.map((ev) => (
