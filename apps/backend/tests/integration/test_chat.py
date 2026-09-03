@@ -100,3 +100,16 @@ async def test_chat_web_disabled_emits_note_and_completes(client):
     assert citation_evt["citations"] == []
     assert "disabled" in (citation_evt.get("note") or "")
     assert types[-1] == "done"
+
+
+@pytest.mark.asyncio
+async def test_chat_auto_captures_user_name(client):
+    """Saying "sono Federico" is remembered automatically as a user memory."""
+    async with client.stream(
+        "POST", "/api/v1/chat/stream", json={"content": "ciao, sono Federico"}
+    ) as r:
+        async for _ in r.aiter_text():
+            pass
+    mems = (await client.get("/api/v1/memories?scope=user")).json()
+    assert any("Federico" in m["content"] for m in mems)
+    assert any(m["source"] == "chat" for m in mems)
