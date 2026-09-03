@@ -87,6 +87,10 @@ a {
 
 .main {
   padding: 28px 32px;
+  /* Grid items default to min-width:auto and refuse to shrink below their
+     content — that is what lets a wide child scroll the whole page sideways.
+     Pin it to 0 so wide content stays contained. */
+  min-width: 0;
 }
 
 .page-title {
@@ -98,6 +102,7 @@ a {
   margin: 0 0 24px;
   color: var(--muted);
   font-size: 14px;
+  overflow-wrap: anywhere;
 }
 
 .cards {
@@ -459,6 +464,8 @@ table.data th {
   }
   .main {
     padding: 16px;
+    /* Belt-and-braces: never let a page scroll sideways on a phone. */
+    overflow-x: hidden;
   }
   /* Chat fills the screen; the composer stays pinned and always visible. */
   .chat-layout {
@@ -499,11 +506,21 @@ table.data th {
   .chat-main {
     flex: 1 1 auto;
     min-height: 0; /* let the inner message list scroll, not the page */
+    min-width: 0;  /* and never widen the page past the viewport */
   }
   /* Long help / code inside chat wraps instead of overflowing the screen. */
+  .chat-messages {
+    min-width: 0;
+  }
+  .chat-messages > * {
+    min-width: 0;
+    max-width: 100%;
+  }
   .chat-messages pre {
     white-space: pre-wrap;
     word-break: break-word;
+    min-width: 0;
+    max-width: 100%;
   }
   .bubble {
     max-width: 92%;
@@ -542,7 +559,12 @@ table.data th {
     grid-template-columns: 1fr;
   }
   .page-title {
-    font-size: 22px;
+    font-size: 20px;
+  }
+  /* Reclaim vertical space for the content on small screens. */
+  .page-subtitle {
+    font-size: 12px;
+    margin-bottom: 12px;
   }
   /* Form rows stack their label above the control. */
   .setting-row {
