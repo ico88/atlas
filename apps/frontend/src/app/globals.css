@@ -460,16 +460,82 @@ table.data th {
   .main {
     padding: 16px;
   }
-  /* Stack the chat/queries two-pane layouts. */
+  /* Chat fills the screen; the composer stays pinned and always visible. */
   .chat-layout {
     grid-template-columns: 1fr;
-    height: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    /* dvh tracks the *visible* viewport, so the mobile browser bars don't
+       hide the composer; vh is the fallback for older engines. */
+    height: calc(100vh - 150px);
+    height: calc(100dvh - 150px);
+    min-height: 340px;
   }
+  /* Conversation history becomes a horizontal strip of chips (no vertical
+     space stolen from the messages). */
   .convo-list {
-    max-height: 30vh;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px;
+  }
+  .convo-list > .btn {
+    width: auto !important;
+    margin-bottom: 0 !important;
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+  .convo-item {
+    flex: 0 0 auto;
+    max-width: 55vw;
+    background: var(--panel-2);
   }
   .chat-main {
-    min-height: 60vh;
+    flex: 1 1 auto;
+    min-height: 0; /* let the inner message list scroll, not the page */
+  }
+  /* Long help / code inside chat wraps instead of overflowing the screen. */
+  .chat-messages pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .bubble {
+    max-width: 92%;
+  }
+  /* Composer: model + web on one row, full-width input, full-width Send —
+     big tap targets, nothing clipped. */
+  .chat-input {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "model web"
+      "text  text"
+      "send  send";
+    gap: 8px;
+  }
+  .chat-input .model-select {
+    grid-area: model;
+    max-width: none;
+    width: 100%;
+  }
+  .chat-input .web-toggle {
+    grid-area: web;
+    justify-self: end;
+  }
+  .chat-input input {
+    grid-area: text;
+    width: 100%;
+    font-size: 16px; /* >=16px stops iOS Safari from zooming on focus */
+  }
+  .chat-input .btn {
+    grid-area: send;
+    width: 100%;
   }
   /* Cards go single-column so nothing overflows. */
   .cards {
