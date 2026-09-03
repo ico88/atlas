@@ -113,3 +113,32 @@ async def test_chat_auto_captures_user_name(client):
     mems = (await client.get("/api/v1/memories?scope=user")).json()
     assert any("Federico" in m["content"] for m in mems)
     assert any(m["source"] == "chat" for m in mems)
+
+
+@pytest.mark.asyncio
+async def test_turn_completes_after_client_disconnect(client):
+    """Closing the browser mid-turn must not interrupt generation (async chat)."""
+
+    import asyncio as _asyncio
+
+    from app.schemas.chat import ChatRequest
+    from app.services import chat_service
+
+    gen = chat_service.stream_chat(ChatRequest(content="resilient hello"))
+    first_raw = await gen.__anext__()  # 'start' event
+    convo_id = json.loads(first_raw[len("data: ") :])["conversation_id"]
+
+    # Simulate the client going away right after the stream starts.
+    await gen.aclose()
+
+    # The detached worker keeps running and persists the assistant reply.
+    messages: list[dict] = []
+    for _ in range(100):
+        await _asyncio.sleep(0.02)
+        resp = await client.get(f"/api/v1/conversations/{convo_id}")
+        messages = resp.json()["messages"]
+        if any(m["role"] == "assistant" and m["content"] for m in messages):
+            break
+
+    roles = [m["role"] for m in messages]
+    assert "user" in roles and "assistant" in roles

@@ -7,6 +7,7 @@ session. Every user turn and assistant reply is persisted (cronologia).
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -135,8 +136,18 @@ async def _history(session: AsyncSession, conversation_id: str) -> list[ChatMess
     return [ChatMessage(role=m.role, content=m.content) for m in rows]
 
 
-async def stream_chat(payload: ChatRequest) -> AsyncIterator[str]:
-    """Run one chat turn, streaming SSE events and persisting both messages."""
+# Keep strong references to detached turn workers so they are not garbage
+# collected mid-flight (see stream_chat).
+_BACKGROUND_TURNS: set[asyncio.Task] = set()
+
+
+async def _generate_turn(payload: ChatRequest) -> AsyncIterator[dict]:
+    """Run one chat turn, yielding event dicts and persisting both messages.
+
+    This owns its own DB session and does not depend on the HTTP request, so it
+    runs to completion (persisting the assistant reply) even if the client that
+    started it disconnects.
+    """
 
     sessionmaker = get_sessionmaker()
     async with sessionmaker() as session:
@@ -145,7 +156,7 @@ async def stream_chat(payload: ChatRequest) -> AsyncIterator[str]:
         if payload.conversation_id:
             conversation = await session.get(Conversation, payload.conversation_id)
             if conversation is None:
-                yield _sse({"type": "error", "detail": "Conversation not found"})
+                yield {"type": "error", "detail": "Conversation not found"}
                 return
         if conversation is None:
             title = payload.content.strip()[:60] or "New conversation"
@@ -184,18 +195,16 @@ async def stream_chat(payload: ChatRequest) -> AsyncIterator[str]:
                 history = [
                     ChatMessage(role="system", content=_format_web_context(citations))
                 ] + history
-            yield _sse({"type": "citations", "citations": citations, "note": note})
+            yield {"type": "citations", "citations": citations, "note": note}
 
         # 3) Route to a provider/model.
         decision = await router.select(mode=payload.mode.value, requested_model=payload.model)
-        yield _sse(
-            {
-                "type": "start",
-                "conversation_id": conversation.id,
-                "provider": decision.provider.name,
-                "model": decision.model,
-            }
-        )
+        yield {
+            "type": "start",
+            "conversation_id": conversation.id,
+            "provider": decision.provider.name,
+            "model": decision.model,
+        }
 
         # 4) Stream the reply, accumulating the full text.
         started = time.perf_counter()
@@ -203,10 +212,10 @@ async def stream_chat(payload: ChatRequest) -> AsyncIterator[str]:
         try:
             async for piece in decision.provider.stream_chat(history, decision.model):
                 parts.append(piece)
-                yield _sse({"type": "token", "content": piece})
+                yield {"type": "token", "content": piece}
         except Exception as exc:  # noqa: BLE001 - surface provider errors to client
             logger.exception("chat stream failed", extra={"event": "chat_stream_error"})
-            yield _sse({"type": "error", "detail": str(exc)})
+            yield {"type": "error", "detail": str(exc)}
             return
 
         latency_ms = int((time.perf_counter() - started) * 1000)
@@ -227,11 +236,46 @@ async def stream_chat(payload: ChatRequest) -> AsyncIterator[str]:
         await session.commit()
         await session.refresh(assistant)
 
-        yield _sse(
-            {
-                "type": "done",
-                "conversation_id": conversation.id,
-                "message_id": assistant.id,
-                "latency_ms": latency_ms,
-            }
-        )
+        yield {
+            "type": "done",
+            "conversation_id": conversation.id,
+            "message_id": assistant.id,
+            "latency_ms": latency_ms,
+        }
+
+
+async def _drive_turn(payload: ChatRequest, out: asyncio.Queue) -> None:
+    """Background worker: run the turn to completion, pushing events to ``out``.
+
+    Runs independently of the HTTP stream so that closing the browser does not
+    interrupt generation — the assistant reply is persisted no matter what.
+    """
+
+    try:
+        async for event in _generate_turn(payload):
+            await out.put(event)
+    except Exception as exc:  # noqa: BLE001 - never leave the reader hanging
+        logger.exception("chat turn worker failed", extra={"event": "chat_turn_error"})
+        await out.put({"type": "error", "detail": str(exc)})
+    finally:
+        await out.put(None)  # sentinel: stream complete
+
+
+async def stream_chat(payload: ChatRequest) -> AsyncIterator[str]:
+    """Stream a chat turn as SSE, backed by a detached worker.
+
+    The generation happens in a background task that keeps running even if this
+    HTTP stream is cancelled (client disconnect / browser close). The reader here
+    just relays events; the worker owns persistence.
+    """
+
+    out: asyncio.Queue = asyncio.Queue()
+    task = asyncio.create_task(_drive_turn(payload, out))
+    _BACKGROUND_TURNS.add(task)
+    task.add_done_callback(_BACKGROUND_TURNS.discard)
+
+    while True:
+        event = await out.get()
+        if event is None:
+            break
+        yield _sse(event)
