@@ -20,6 +20,10 @@ os.environ.setdefault("ATLAS_RETRY_JITTER", "0")
 # Deterministic, offline AI: no Ollama, no inter-token delay -> echo provider.
 os.environ.setdefault("ATLAS_OLLAMA_URL", "")
 os.environ.setdefault("ATLAS_CHAT_STREAM_DELAY", "0")
+# Determinism: background semi-auto advancement is exercised explicitly in its
+# own tests, not fired implicitly on ingest/create during other tests.
+os.environ.setdefault("ATLAS_MAINTENANCE_AUTO_FIX_ENABLED", "false")
+os.environ.setdefault("ATLAS_IMPROVEMENT_AUTO_EXPERIMENT_ENABLED", "false")
 
 import fakeredis.aioredis  # noqa: E402
 import pytest  # noqa: E402

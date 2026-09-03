@@ -105,6 +105,11 @@ async def ingest_log(
         "maintenance issue created",
         extra={"event": "maint_issue_created", "context": {"fingerprint": fingerprint}},
     )
+    # Semi-auto: prepare a sandbox-validated fix in the background (awaiting
+    # approval). Fired only for a brand-new issue, never on every recurrence.
+    from app.services import automation_service
+
+    automation_service.maybe_advance_issue(issue.id)
     return issue
 
 

@@ -71,9 +71,10 @@ export default function MaintenancePage() {
     <div>
       <h1 className="page-title">Maintenance</h1>
       <p className="page-subtitle">
-        The Maintenance Agent fingerprints logs into issues, proposes a fix and
-        validates the patch in a real, isolated <strong>sandbox</strong> (spec §11,
-        PR 17), then waits for your approval. Only after you approve does it open
+        <strong>Semi-automatic:</strong> a new issue is analysed and a fix is
+        prepared &amp; validated in a real, isolated <strong>sandbox</strong> on its
+        own (this page refreshes as it progresses) — you are left with just{" "}
+        <em>Approve</em> then <em>Apply</em>. Only after you approve does it open
         the PR — never touching <code>main</code>, never merging. Git actions are
         guard-railed and audited (dry-run unless GitHub is explicitly enabled).
       </p>

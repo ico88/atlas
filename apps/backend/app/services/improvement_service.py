@@ -111,6 +111,11 @@ async def create_proposal(
     session.add(proposal)
     await session.commit()
     await session.refresh(proposal)
+    # Semi-auto: run the baseline-vs-candidate experiment in the background so the
+    # proposal reaches a verdict + approval gate by itself.
+    from app.services import automation_service
+
+    automation_service.maybe_advance_proposal(proposal.id)
     return proposal
 
 

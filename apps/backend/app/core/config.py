@@ -85,6 +85,14 @@ class Settings(BaseSettings):
     maintenance_github_repo: str = ""  # "owner/repo" for the opened PR
     maintenance_github_api: str = "https://api.github.com"
 
+    # Semi-automatic loops (ROADMAP PR 17/18 UX). When enabled, the analysis /
+    # experiment phases run by themselves in the background so a human is left
+    # with only the approve/apply decision. Irreversible steps (open PR, change
+    # the default model) still require explicit human approval — governance is
+    # never bypassed.
+    maintenance_auto_fix_enabled: bool = True  # ingest -> analyze -> sandbox fix
+    improvement_auto_experiment_enabled: bool = True  # create -> run experiment
+
     # Node federation (spec §8). A shared join token authenticates nodes against
     # the control plane (least privilege, §13). Empty => open (development only).
     node_join_token: str = ""

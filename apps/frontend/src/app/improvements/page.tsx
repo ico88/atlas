@@ -59,6 +59,15 @@ export default function ImprovementsPage() {
     load();
   }, [load]);
 
+  // Auto-refresh while an experiment is running in the background (DRAFT), so the
+  // verdict + approval gate appear on their own.
+  useEffect(() => {
+    const running = proposals.some((p) => p.status === "DRAFT");
+    if (!running) return;
+    const id = setInterval(load, 3000);
+    return () => clearInterval(id);
+  }, [proposals, load]);
+
   // Keep the selected proposal in sync with the freshest list data.
   useEffect(() => {
     if (selected) {
@@ -110,9 +119,10 @@ export default function ImprovementsPage() {
     <div>
       <h1 className="page-title">Continuous Improvement</h1>
       <p className="page-subtitle">
-        Propose a change (e.g. a different default model), run an{" "}
-        <strong>experiment</strong> that evaluates the candidate against a baseline
-        on an eval suite, and — only after you <strong>approve</strong> — apply it
+        <strong>Semi-automatic:</strong> create a proposal and the{" "}
+        <strong>experiment</strong> (candidate vs baseline on an eval suite) runs
+        by itself — this page refreshes until a verdict and an approval gate
+        appear. You are left with just <em>Approve</em> then <em>Apply</em>
         (ROADMAP PR 18). Safety is the overriding signal: a candidate that lowers
         safety is always a regression.
       </p>
