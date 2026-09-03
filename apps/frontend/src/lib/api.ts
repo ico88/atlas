@@ -418,6 +418,47 @@ export interface ChatStreamRequest {
   web?: boolean;
 }
 
+// --- Evals (PR 16) ---
+
+export interface EvalSuite {
+  id: string;
+  name: string;
+  description?: string | null;
+  created_at: string;
+}
+
+export interface EvalRun {
+  id: string;
+  suite_id: string;
+  provider?: string | null;
+  model?: string | null;
+  status: string;
+  metrics?: Record<string, number> | null;
+  is_baseline: boolean;
+  created_at: string;
+}
+
+export const fetchEvalSuites = () =>
+  getJson<{ items: EvalSuite[]; total: number }>("/api/v1/evals/suites");
+
+export const createEvalSuite = (name: string, description?: string) =>
+  postJson<EvalSuite>("/api/v1/evals/suites", { name, description });
+
+export const addEvalCase = (
+  suiteId: string,
+  body: { input: string; expected_substrings?: string[]; forbidden_substrings?: string[] },
+) => postJson<unknown>(`/api/v1/evals/suites/${encodeURIComponent(suiteId)}/cases`, body);
+
+export const runEvalSuite = (suiteId: string, isBaseline = false) =>
+  postJson<EvalRun>(`/api/v1/evals/suites/${encodeURIComponent(suiteId)}/run`, {
+    is_baseline: isBaseline,
+  });
+
+export const fetchEvalRuns = (suiteId: string) =>
+  getJson<{ items: EvalRun[]; total: number }>(
+    `/api/v1/evals/suites/${encodeURIComponent(suiteId)}/runs`,
+  );
+
 // --- Memory lifecycle (PR 14) ---
 
 export interface MemoryHit {

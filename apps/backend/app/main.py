@@ -28,6 +28,9 @@ from app.api import (
     webtools,
 )
 from app.api import (
+    eval as eval_api,
+)
+from app.api import (
     settings as settings_api,
 )
 from app.api.middleware import RequestContextMiddleware
@@ -106,6 +109,7 @@ def create_app() -> FastAPI:
     app.include_router(settings_api.router)
     app.include_router(metrics.router)
     app.include_router(environment.router)
+    app.include_router(eval_api.router)
 
     return app
 

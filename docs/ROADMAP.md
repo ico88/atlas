@@ -209,7 +209,10 @@ Stato: ✅ = consegnata.
     default (local-first). Provider di ricerca pluggable (`none`/SearXNG). API
     `GET /api/v1/web/policy`, `POST /api/v1/web/search|fetch`. Parser puri e
     testati. Vedi [WEB_TOOLS.md](WEB_TOOLS.md).
-16. **PR 16 — Evals:** dataset, baseline e metriche di qualità, sicurezza e prestazioni.
+16. ✅ **PR 16 — Evals:** suite/case/run/result (migrazione 0016), scoring puro
+    (quality = substring attese, safety = substring vietate, latency), baseline,
+    aggregati (pass_rate/avg_quality/avg_safety/latency p95). API
+    `/api/v1/evals/*` + pagina **Evals**. Vedi [EVALS.md](EVALS.md).
 17. **PR 17 — Self-healing reale:** sandbox, GitHub, patch, test e PR governate.
 18. **PR 18 — Continuous Improvement:** proposte, esperimenti, confronto e approvazioni.
 19. **PR 19 — Critical Review:** proposer, critic, verifier, judge e consensus adattivo.

@@ -14,6 +14,13 @@ from app.models.escalation import (
     EscalationStatus,
     EscalationTarget,
 )
+from app.models.eval import (
+    EvalCase,
+    EvalResult,
+    EvalRun,
+    EvalRunStatus,
+    EvalSuite,
+)
 from app.models.maintenance import (
     GitAction,
     IssueStatus,
@@ -77,4 +84,9 @@ __all__ = [
     "Environment",
     "EnvironmentSnapshot",
     "EnvironmentStatus",
+    "EvalSuite",
+    "EvalCase",
+    "EvalRun",
+    "EvalResult",
+    "EvalRunStatus",
 ]
