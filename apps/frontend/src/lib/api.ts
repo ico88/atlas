@@ -429,6 +429,24 @@ export const searchMemories = (query: string) =>
 export const pruneMemories = () =>
   postJson<{ pruned: number }>("/api/v1/memories/prune", {});
 
+export interface WebSearchResponse {
+  query: string;
+  provider: string;
+  count: number;
+  citations: WebCitation[];
+}
+
+export async function webSearch(query: string): Promise<WebSearchResponse> {
+  const res = await fetch("/api/v1/web/search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query }),
+  });
+  if (res.status === 403) throw new Error("web tools are disabled — enable them in Settings");
+  if (!res.ok) throw new Error(`web search failed (${res.status})`);
+  return (await res.json()) as WebSearchResponse;
+}
+
 // --- Environments (PR 13) ---
 
 export interface Environment {

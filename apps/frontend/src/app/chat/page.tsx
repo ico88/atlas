@@ -5,10 +5,15 @@ import {
   ConversationSummary,
   Message,
   WebCitation,
+  addMemory,
   fetchConversation,
   fetchConversations,
+  searchMemories,
   streamChat,
+  webSearch,
 } from "@/lib/api";
+
+type Phase = "idle" | "waiting" | "streaming";
 
 function Citations({ items }: { items: WebCitation[] }) {
   if (!items || items.length === 0) return null;
@@ -28,18 +33,33 @@ function Citations({ items }: { items: WebCitation[] }) {
   );
 }
 
+const HELP = [
+  "Commands you can type here:",
+  "• /web <question> — answer using a web search (cites sources)",
+  "• /search <query> — show web results only",
+  "• /remember <text> — save a memory",
+  "• /recall <query> — recall saved memories",
+  "• /help — show this help",
+].join("\n");
+
 export default function ChatPage() {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
-  const [streaming, setStreaming] = useState(false);
+  const [phase, setPhase] = useState<Phase>("idle");
   const [live, setLive] = useState("");
   const [liveCitations, setLiveCitations] = useState<WebCitation[]>([]);
-  const [webSearch, setWebSearch] = useState(false);
+  const [statusLine, setStatusLine] = useState("");
+  const [elapsed, setElapsed] = useState(0);
+  const [webOn, setWebOn] = useState(false);
   const [webNote, setWebNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const streaming = phase !== "idle";
 
   const loadConversations = useCallback(async () => {
     try {
@@ -56,7 +76,22 @@ export default function ChatPage() {
 
   useEffect(() => {
     scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight);
-  }, [messages, live]);
+  }, [messages, live, phase]);
+
+  // Elapsed-time ticker so the user can see the system is working, not stuck.
+  const startTimer = useCallback(() => {
+    setElapsed(0);
+    const started = Date.now();
+    timerRef.current = setInterval(
+      () => setElapsed(Math.floor((Date.now() - started) / 1000)),
+      500,
+    );
+  }, []);
+  const stopTimer = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = null;
+  }, []);
+  useEffect(() => () => stopTimer(), [stopTimer]);
 
   const openConversation = useCallback(async (id: string) => {
     setActiveId(id);
@@ -72,45 +107,107 @@ export default function ChatPage() {
     setError(null);
   };
 
-  const send = async () => {
-    const content = draft.trim();
-    if (!content || streaming) return;
-    setDraft("");
-    setError(null);
-    setStreaming(true);
-    setLive("");
-    setLiveCitations([]);
-    setWebNote(null);
-
-    // Optimistically render the user message.
+  const pushBubble = (role: "user" | "assistant", content: string, citations?: WebCitation[]) =>
     setMessages((prev) => [
       ...prev,
       {
-        id: `local-${Date.now()}`,
+        id: `${role}-${Date.now()}-${Math.random()}`,
         conversation_id: activeId ?? "",
-        role: "user",
+        role,
         content,
+        citations: citations && citations.length ? citations : null,
         created_at: new Date().toISOString(),
       },
     ]);
 
+  // ---- slash commands (run platform actions without leaving the chat) ----
+  const handleCommand = async (raw: string): Promise<boolean> => {
+    const [cmd, ...rest] = raw.slice(1).split(" ");
+    const arg = rest.join(" ").trim();
+    const c = cmd.toLowerCase();
+    if (c === "help") {
+      pushBubble("assistant", HELP);
+      return true;
+    }
+    if (c === "remember") {
+      if (!arg) return pushBubble("assistant", "Usage: /remember <text>"), true;
+      pushBubble("user", raw);
+      await addMemory({ content: arg, source: "chat" });
+      pushBubble("assistant", `🧠 Saved to memory: “${arg}”`);
+      return true;
+    }
+    if (c === "recall") {
+      pushBubble("user", raw);
+      const hits = await searchMemories(arg || "");
+      pushBubble(
+        "assistant",
+        hits.length
+          ? "🧠 Memories:\n" + hits.map((h, i) => `${i + 1}. ${h.content}`).join("\n")
+          : "No memories found.",
+      );
+      return true;
+    }
+    if (c === "search") {
+      pushBubble("user", raw);
+      try {
+        const res = await webSearch(arg);
+        pushBubble(
+          "assistant",
+          res.count ? `🔎 ${res.count} result(s) for “${arg}”:` : `No results for “${arg}”.`,
+          res.citations,
+        );
+      } catch (e) {
+        pushBubble("assistant", `⚠️ ${e instanceof Error ? e.message : "search failed"}`);
+      }
+      return true;
+    }
+    if (c === "web") {
+      // Fall through to a normal chat turn, but force web grounding on.
+      setDraft(arg);
+      await send(arg, true);
+      return true;
+    }
+    pushBubble("assistant", `Unknown command “/${c}”. Type /help.`);
+    return true;
+  };
+
+  const send = async (text?: string, forceWeb = false) => {
+    const content = (text ?? draft).trim();
+    if (!content || streaming) return;
+
+    // Slash command? Handle it and stop.
+    if (content.startsWith("/") && text === undefined) {
+      setDraft("");
+      await handleCommand(content);
+      return;
+    }
+
+    setDraft("");
+    setError(null);
+    setLive("");
+    setLiveCitations([]);
+    setWebNote(null);
+    setPhase("waiting");
+    setStatusLine((forceWeb || webOn) ? "Searching the web…" : "Thinking…");
+    startTimer();
+    pushBubble("user", content);
+
     let acc = "";
-    let convId = activeId;
-    let provider = "";
-    let model = "";
     let citations: WebCitation[] = [];
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     await streamChat(
-      { content, conversation_id: activeId ?? undefined, web: webSearch },
+      { content, conversation_id: activeId ?? undefined, web: forceWeb || webOn },
       {
         onStart: (e) => {
-          convId = e.conversation_id;
-          provider = e.provider;
-          model = e.model;
+          setStatusLine(`${e.provider} · ${e.model} — generating…`);
           if (!activeId) setActiveId(e.conversation_id);
         },
         onToken: (t) => {
           acc += t;
+          setPhase("streaming");
           setLive(acc);
         },
         onCitations: (items, note) => {
@@ -119,39 +216,41 @@ export default function ChatPage() {
           setWebNote(note ?? null);
         },
         onDone: async () => {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `a-${Date.now()}`,
-              conversation_id: convId ?? "",
-              role: "assistant",
-              content: acc,
-              provider,
-              model,
-              citations: citations.length ? citations : null,
-              created_at: new Date().toISOString(),
-            },
-          ]);
+          stopTimer();
+          pushBubble("assistant", acc || "(no output)", citations);
           setLive("");
           setLiveCitations([]);
-          setStreaming(false);
+          setPhase("idle");
+          abortRef.current = null;
           loadConversations();
         },
         onError: (detail) => {
+          stopTimer();
           setError(detail);
           setLive("");
-          setStreaming(false);
+          setPhase("idle");
+          abortRef.current = null;
         },
       },
+      controller.signal,
     );
+  };
+
+  const stop = () => {
+    abortRef.current?.abort();
+    stopTimer();
+    if (live) pushBubble("assistant", live + " …(stopped)");
+    setLive("");
+    setPhase("idle");
+    abortRef.current = null;
   };
 
   return (
     <div>
       <h1 className="page-title">Chat</h1>
       <p className="page-subtitle">
-        Local-first chat with streaming replies (spec §9). Uses Ollama when
-        available, otherwise the built-in echo model.
+        Local-first chat. Type a message, or a command like <code>/web</code>,{" "}
+        <code>/remember</code>, <code>/recall</code>, <code>/search</code> — everything from here.
       </p>
 
       <div className="chat-layout">
@@ -177,15 +276,18 @@ export default function ChatPage() {
 
         <div className="chat-main">
           <div className="chat-messages" ref={scrollRef}>
-            {messages.length === 0 && !live && (
-              <p className="muted">Start the conversation below.</p>
+            {messages.length === 0 && !live && phase === "idle" && (
+              <div className="muted">
+                <p>Start the conversation below, or try a command:</p>
+                <pre style={{ background: "var(--panel-2)", padding: 12, borderRadius: 8 }}>
+                  {HELP}
+                </pre>
+              </div>
             )}
             {messages.map((m) => (
               <div key={m.id} className={`bubble ${m.role}`}>
                 {m.content}
-                {m.role === "assistant" && m.citations && (
-                  <Citations items={m.citations} />
-                )}
+                {m.role === "assistant" && m.citations && <Citations items={m.citations} />}
                 {m.role === "assistant" && m.model && (
                   <span className="meta">
                     {m.provider} · {m.model}
@@ -194,12 +296,31 @@ export default function ChatPage() {
                 )}
               </div>
             ))}
-            {live && (
+
+            {/* Live streaming text once tokens arrive. */}
+            {phase === "streaming" && (
               <div className="bubble assistant">
-                {live}▌
+                {live}
+                <span className="caret">▌</span>
                 <Citations items={liveCitations} />
               </div>
             )}
+
+            {/* Processing indicator BEFORE the first token, so it never looks stuck. */}
+            {phase === "waiting" && (
+              <div className="bubble assistant thinking">
+                <span className="typing">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </span>
+                <span className="meta">
+                  {statusLine} {elapsed > 0 ? `· ${elapsed}s` : ""}
+                  {elapsed >= 8 ? " · first reply loads the model, hang tight…" : ""}
+                </span>
+              </div>
+            )}
+
             {webNote && <p className="muted">🌐 {webNote}</p>}
             {error && <p className="error">Error: {error}</p>}
           </div>
@@ -208,24 +329,30 @@ export default function ChatPage() {
             <label className="web-toggle" title="Ground the reply with a web search">
               <input
                 type="checkbox"
-                checked={webSearch}
-                onChange={(e) => setWebSearch(e.target.checked)}
+                checked={webOn}
+                onChange={(e) => setWebOn(e.target.checked)}
                 disabled={streaming}
               />
               🌐 Web
             </label>
             <input
               value={draft}
-              placeholder={webSearch ? "Ask — I'll search the web…" : "Type a message…"}
+              placeholder={webOn ? "Ask — I'll search the web…" : "Type a message or /command…"}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") send();
               }}
               disabled={streaming}
             />
-            <button className="btn" onClick={send} disabled={streaming || !draft.trim()}>
-              {streaming ? "…" : "Send"}
-            </button>
+            {streaming ? (
+              <button className="btn secondary" onClick={stop}>
+                Stop
+              </button>
+            ) : (
+              <button className="btn" onClick={() => send()} disabled={!draft.trim()}>
+                Send
+              </button>
+            )}
           </div>
         </div>
       </div>
