@@ -73,6 +73,7 @@ async def create_query(
     mode: str = "AUTO",
     model: str | None = None,
     conversation_id: str | None = None,
+    environment_id: str | None = None,
     owner_id: str | None = None,
 ) -> Query:
     query = Query(
@@ -80,6 +81,7 @@ async def create_query(
         mode=mode,
         model=model,
         conversation_id=conversation_id,
+        environment_id=environment_id,
         owner_id=owner_id,
         status=QueryStatus.PENDING.value,
     )
@@ -103,13 +105,20 @@ async def get_query_with_events(session: AsyncSession, query_id: str) -> Query |
 
 
 async def list_queries(
-    session: AsyncSession, *, status: str | None = None, limit: int = 100
+    session: AsyncSession,
+    *,
+    status: str | None = None,
+    environment_id: str | None = None,
+    limit: int = 100,
 ) -> tuple[list[Query], int]:
     stmt = select(Query).order_by(Query.created_at.desc())
     count_stmt = select(func.count()).select_from(Query)
     if status:
         stmt = stmt.where(Query.status == status)
         count_stmt = count_stmt.where(Query.status == status)
+    if environment_id:
+        stmt = stmt.where(Query.environment_id == environment_id)
+        count_stmt = count_stmt.where(Query.environment_id == environment_id)
     items = list((await session.execute(stmt.limit(limit))).scalars().all())
     total = int((await session.execute(count_stmt)).scalar_one())
     return items, total

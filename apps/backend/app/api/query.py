@@ -31,6 +31,7 @@ async def create_query(
         mode=payload.mode.value,
         model=payload.model,
         conversation_id=payload.conversation_id,
+        environment_id=payload.environment_id,
     )
     query_service.schedule_run(query.id)
     return QueryRead.model_validate(query)
@@ -39,10 +40,13 @@ async def create_query(
 @router.get("", response_model=QueryList)
 async def list_queries(
     status: str | None = Query(default=None),
+    environment_id: str | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=500),
     session: AsyncSession = Depends(get_session),
 ) -> QueryList:
-    items, total = await query_service.list_queries(session, status=status, limit=limit)
+    items, total = await query_service.list_queries(
+        session, status=status, environment_id=environment_id, limit=limit
+    )
     return QueryList(items=[QueryRead.model_validate(q) for q in items], total=total)
 
 

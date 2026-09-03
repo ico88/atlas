@@ -70,6 +70,7 @@ class Memory(Base):
     # scope: user / project / global
     scope: Mapped[str] = mapped_column(String(16), nullable=False, default="user")
     scope_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    environment_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     embedding: Mapped[list[float] | None] = mapped_column(JSON, nullable=True)
     mem_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)

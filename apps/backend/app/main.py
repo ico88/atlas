@@ -15,6 +15,7 @@ from app.api import (
     chat,
     conversation_queue,
     enrollment,
+    environment,
     escalation,
     maintenance,
     metrics,
@@ -104,6 +105,7 @@ def create_app() -> FastAPI:
     app.include_router(enrollment.router)
     app.include_router(settings_api.router)
     app.include_router(metrics.router)
+    app.include_router(environment.router)
 
     return app
 

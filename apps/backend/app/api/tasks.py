@@ -47,12 +47,17 @@ async def create_task(
 @router.get("", response_model=TaskList)
 async def list_tasks(
     status_filter: str | None = Query(default=None, alias="status"),
+    environment_id: str | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
     session: AsyncSession = Depends(get_session),
 ) -> TaskList:
     items, total = await task_service.list_tasks(
-        session, status=status_filter, limit=limit, offset=offset
+        session,
+        status=status_filter,
+        environment_id=environment_id,
+        limit=limit,
+        offset=offset,
     )
     return TaskList(items=[TaskRead.model_validate(t) for t in items], total=total)
 

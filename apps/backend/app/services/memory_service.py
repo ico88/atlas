@@ -31,6 +31,7 @@ async def add_memory(
     content: str,
     scope: str = "user",
     scope_id: str | None = None,
+    environment_id: str | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> Memory:
     embedding = await get_embedder().embed(content)
@@ -38,6 +39,7 @@ async def add_memory(
         content=content,
         scope=scope,
         scope_id=scope_id,
+        environment_id=environment_id,
         embedding=embedding,
         mem_metadata=metadata,
     )
@@ -52,13 +54,19 @@ async def add_memory(
 
 
 async def list_memories(
-    session: AsyncSession, *, scope: str | None = None, scope_id: str | None = None
+    session: AsyncSession,
+    *,
+    scope: str | None = None,
+    scope_id: str | None = None,
+    environment_id: str | None = None,
 ) -> list[Memory]:
     query = select(Memory).order_by(Memory.created_at.desc())
     if scope:
         query = query.where(Memory.scope == scope)
     if scope_id:
         query = query.where(Memory.scope_id == scope_id)
+    if environment_id:
+        query = query.where(Memory.environment_id == environment_id)
     return list((await session.execute(query)).scalars().all())
 
 
@@ -68,11 +76,14 @@ async def search_memories(
     query: str,
     scope: str | None = None,
     scope_id: str | None = None,
+    environment_id: str | None = None,
     top_k: int | None = None,
 ) -> list[MemoryHit]:
     top_k = top_k or get_settings().rag_top_k
     query_vec = await get_embedder().embed(query)
-    memories = await list_memories(session, scope=scope, scope_id=scope_id)
+    memories = await list_memories(
+        session, scope=scope, scope_id=scope_id, environment_id=environment_id
+    )
 
     hits: list[MemoryHit] = []
     for mem in memories:

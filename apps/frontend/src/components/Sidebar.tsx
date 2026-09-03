@@ -15,6 +15,7 @@ const NAV = [
   { href: "/resources", label: "Resources" },
   { href: "/models", label: "Models" },
   { href: "/knowledge", label: "Knowledge" },
+  { href: "/environments", label: "Environments" },
   { href: "/maintenance", label: "Maintenance" },
   { href: "/escalation", label: "Escalation" },
   { href: "/settings", label: "Settings" },

@@ -39,6 +39,7 @@ class Query(Base):
         String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     conversation_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    environment_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     prompt: Mapped[str] = mapped_column(Text, nullable=False)
     mode: Mapped[str] = mapped_column(String(32), nullable=False, default="AUTO")
     model: Mapped[str | None] = mapped_column(String(128), nullable=True)

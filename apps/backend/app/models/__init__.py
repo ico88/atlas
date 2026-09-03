@@ -4,6 +4,11 @@ from app.models.app_setting import AppSetting
 from app.models.approval import Approval, ApprovalStatus
 from app.models.base import Base
 from app.models.conversation import ChatMode, Conversation, Message, MessageRole
+from app.models.environment import (
+    Environment,
+    EnvironmentSnapshot,
+    EnvironmentStatus,
+)
 from app.models.escalation import (
     Escalation,
     EscalationStatus,
@@ -69,4 +74,7 @@ __all__ = [
     "Escalation",
     "EscalationStatus",
     "EscalationTarget",
+    "Environment",
+    "EnvironmentSnapshot",
+    "EnvironmentStatus",
 ]

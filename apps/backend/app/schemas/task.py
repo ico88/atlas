@@ -23,6 +23,7 @@ class TaskCreate(BaseModel):
     max_retries: int | None = Field(default=None, ge=0, le=20)
     depends_on: list[str] | None = None
     required_capability: str | None = Field(default=None, max_length=64)
+    environment_id: str | None = None
 
 
 class TaskEventRead(BaseModel):

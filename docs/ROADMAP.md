@@ -190,7 +190,12 @@ Stato: ✅ = consegnata.
     (count/avg/min/max latenza). API `/api/v1/metrics/nodes[/{id}]` e
     `/metrics/ollama` + pagina **Resources**. Vedi
     [RESOURCE_TELEMETRY.md](RESOURCE_TELEMETRY.md).
-13. **PR 13 — Environments:** modello dati, manifest, isolamento, snapshot e restore.
+13. ✅ **PR 13 — Environments:** workspace isolati con manifest + variabili
+    (`environments`, `environment_snapshots`, migrazione 0014), scoping di
+    task/query/memory via `environment_id` (colonne + filtri), snapshot e restore
+    a livello di configurazione (con summary stats). API `/api/v1/environments`
+    (+ snapshots/restore) e pagina **Environments**. Vedi
+    [ENVIRONMENTS.md](ENVIRONMENTS.md).
 14. **PR 14 — Memory lifecycle:** acquisizione, retrieval, provenienza e retention.
 15. ✅ **PR 15 — Web tools:** ricerca + fetch sicuri con SSRF guard (schemi
     http/https, blocco IP privati/loopback/link-local pre- e post-DNS contro il

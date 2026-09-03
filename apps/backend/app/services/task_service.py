@@ -85,6 +85,7 @@ async def create_task(session: AsyncSession, data: TaskCreate) -> Task:
         idempotency_key=data.idempotency_key,
         max_retries=max_retries,
         required_capability=data.required_capability,
+        environment_id=data.environment_id,
         status=TaskStatus.QUEUED.value,
     )
     if data.correlation_id:
@@ -196,6 +197,7 @@ async def list_tasks(
     session: AsyncSession,
     *,
     status: str | None = None,
+    environment_id: str | None = None,
     limit: int = 100,
     offset: int = 0,
 ) -> tuple[list[Task], int]:
@@ -204,6 +206,9 @@ async def list_tasks(
     if status:
         query = query.where(Task.status == status)
         count_query = count_query.where(Task.status == status)
+    if environment_id:
+        query = query.where(Task.environment_id == environment_id)
+        count_query = count_query.where(Task.environment_id == environment_id)
 
     query = query.order_by(Task.created_at.desc()).limit(limit).offset(offset)
     items = list((await session.execute(query)).scalars().all())

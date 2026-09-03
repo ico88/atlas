@@ -12,6 +12,7 @@ from app.models.conversation import ChatMode
 class QueryCreate(BaseModel):
     prompt: str = Field(min_length=1)
     conversation_id: str | None = None
+    environment_id: str | None = None
     model: str | None = None
     mode: ChatMode = ChatMode.AUTO
 

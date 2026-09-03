@@ -58,6 +58,8 @@ class Task(Base):
         String(64), nullable=True, index=True
     )
     assigned_node_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    # Optional workspace isolation (ROADMAP PR 13).
+    environment_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     parent_task_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("tasks.id", ondelete="SET NULL"), nullable=True
     )

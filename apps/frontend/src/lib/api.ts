@@ -398,6 +398,64 @@ export interface ChatStreamRequest {
   web?: boolean;
 }
 
+// --- Environments (PR 13) ---
+
+export interface Environment {
+  id: string;
+  slug: string;
+  name: string;
+  description?: string | null;
+  status: "ACTIVE" | "ARCHIVED";
+  manifest?: Record<string, unknown> | null;
+  variables?: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EnvironmentSnapshot {
+  id: string;
+  environment_id: string;
+  name?: string | null;
+  stats?: Record<string, number> | null;
+  created_at: string;
+}
+
+export const fetchEnvironments = () =>
+  getJson<{ items: Environment[]; total: number }>("/api/v1/environments");
+
+export const createEnvironment = (body: {
+  name: string;
+  description?: string;
+  manifest?: Record<string, unknown>;
+  variables?: Record<string, unknown>;
+}) => postJson<Environment>("/api/v1/environments", body);
+
+export async function updateEnvironment(id: string, patch: Record<string, unknown>) {
+  const res = await fetch(`/api/v1/environments/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) throw new Error(`update failed (${res.status})`);
+  return (await res.json()) as Environment;
+}
+
+export const snapshotEnvironment = (id: string, name?: string) =>
+  postJson<EnvironmentSnapshot>(`/api/v1/environments/${encodeURIComponent(id)}/snapshots`, {
+    name,
+  });
+
+export const fetchSnapshots = (id: string) =>
+  getJson<{ items: EnvironmentSnapshot[]; total: number }>(
+    `/api/v1/environments/${encodeURIComponent(id)}/snapshots`,
+  );
+
+export const restoreSnapshot = (snapshotId: string) =>
+  postJson<Environment>(
+    `/api/v1/environments/snapshots/${encodeURIComponent(snapshotId)}/restore`,
+    {},
+  );
+
 // --- Resource telemetry (PR 12) ---
 
 export interface NodeMetric {
