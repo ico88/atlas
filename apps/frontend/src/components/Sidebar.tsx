@@ -12,6 +12,7 @@ const NAV = [
   { href: "/tasks", label: "Tasks" },
   { href: "/system", label: "System Status" },
   { href: "/nodes", label: "Nodes" },
+  { href: "/resources", label: "Resources" },
   { href: "/models", label: "Models" },
   { href: "/knowledge", label: "Knowledge" },
   { href: "/maintenance", label: "Maintenance" },

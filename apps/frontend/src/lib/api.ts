@@ -398,6 +398,32 @@ export interface ChatStreamRequest {
   web?: boolean;
 }
 
+// --- Resource telemetry (PR 12) ---
+
+export interface NodeMetric {
+  id: string;
+  node_id: string;
+  load1?: number | null;
+  ram_free_mb?: number | null;
+  data?: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface OllamaPerfRow {
+  provider?: string | null;
+  model?: string | null;
+  count: number;
+  avg_latency_ms?: number | null;
+  min_latency_ms?: number | null;
+  max_latency_ms?: number | null;
+}
+
+export const fetchNodeMetrics = () =>
+  getJson<NodeMetric[]>("/api/v1/metrics/nodes");
+
+export const fetchOllamaPerf = () =>
+  getJson<{ items: OllamaPerfRow[] }>("/api/v1/metrics/ollama");
+
 // --- Web tools config (PR 15 settings) ---
 
 export interface WebConfig {

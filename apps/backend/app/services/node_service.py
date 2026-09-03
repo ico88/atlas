@@ -142,4 +142,12 @@ async def heartbeat(session: AsyncSession, node: Node, data: NodeHeartbeat) -> N
         node.hardware = hardware
     await session.commit()
     await session.refresh(node)
+    # Record a telemetry sample (ROADMAP PR 12); never let it break heartbeats.
+    if data.health:
+        from app.services import metrics_service
+
+        try:
+            await metrics_service.ingest_health(session, node.node_id, data.health)
+        except Exception:  # noqa: BLE001 - telemetry is best-effort
+            logger.warning("metric ingest failed", extra={"event": "metric_ingest_error"})
     return node

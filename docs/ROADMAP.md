@@ -184,7 +184,12 @@ Stato: ✅ = consegnata.
     `POST /api/v1/conversations/{id}/messages`,
     `GET …/queue`, `POST …/queue/complete`. Vedi
     [CONVERSATION_QUEUE.md](CONVERSATION_QUEUE.md).
-12. **PR 12 — Resource telemetry:** metriche nodi, performance Ollama e storage storico.
+12. ✅ **PR 12 — Resource telemetry:** `node_metrics` (migrazione 0013) ingeriti
+    dagli heartbeat (load/RAM + campi extra), storico per-nodo con retention
+    (`ATLAS_METRICS_HISTORY_LIMIT`), performance Ollama aggregata dai messaggi
+    (count/avg/min/max latenza). API `/api/v1/metrics/nodes[/{id}]` e
+    `/metrics/ollama` + pagina **Resources**. Vedi
+    [RESOURCE_TELEMETRY.md](RESOURCE_TELEMETRY.md).
 13. **PR 13 — Environments:** modello dati, manifest, isolamento, snapshot e restore.
 14. **PR 14 — Memory lifecycle:** acquisizione, retrieval, provenienza e retention.
 15. ✅ **PR 15 — Web tools:** ricerca + fetch sicuri con SSRF guard (schemi

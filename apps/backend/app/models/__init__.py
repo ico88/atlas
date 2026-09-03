@@ -19,6 +19,7 @@ from app.models.maintenance import (
 )
 from app.models.node import Node
 from app.models.node_enrollment import EnrollmentStatus, NodeEnrollment
+from app.models.node_metric import NodeMetric
 from app.models.provider import LLMModel, Provider
 from app.models.query import Query, QueryEvent, QueryStatus
 from app.models.rag import (
@@ -42,6 +43,7 @@ __all__ = [
     "Node",
     "NodeEnrollment",
     "EnrollmentStatus",
+    "NodeMetric",
     "Approval",
     "ApprovalStatus",
     "Conversation",

@@ -17,6 +17,7 @@ from app.api import (
     enrollment,
     escalation,
     maintenance,
+    metrics,
     models,
     nodes,
     query,
@@ -102,6 +103,7 @@ def create_app() -> FastAPI:
     app.include_router(conversation_queue.router)
     app.include_router(enrollment.router)
     app.include_router(settings_api.router)
+    app.include_router(metrics.router)
 
     return app
 

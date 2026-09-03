@@ -64,6 +64,9 @@ class Settings(BaseSettings):
     task_lease_seconds: float = 60.0
     scheduler_reclaim_enabled: bool = True
 
+    # Resource telemetry (ROADMAP PR 12). Samples per node kept before pruning.
+    metrics_history_limit: int = 500
+
     # Node federation (spec §8). A shared join token authenticates nodes against
     # the control plane (least privilege, §13). Empty => open (development only).
     node_join_token: str = ""
