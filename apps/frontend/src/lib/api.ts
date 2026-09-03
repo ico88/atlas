@@ -398,6 +398,57 @@ export interface ChatStreamRequest {
   web?: boolean;
 }
 
+// --- Query lifecycle (PR 10) ---
+
+export interface QueryRead {
+  id: string;
+  conversation_id?: string | null;
+  prompt: string;
+  mode: string;
+  model?: string | null;
+  provider?: string | null;
+  status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "CANCELLED";
+  result?: string | null;
+  error?: string | null;
+  cancel_requested: boolean;
+  progress: number;
+  created_at: string;
+  updated_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+}
+
+export interface QueryEventRead {
+  id: string;
+  event_type: string;
+  status?: string | null;
+  message?: string | null;
+  created_at: string;
+}
+
+export interface QueryDetail extends QueryRead {
+  events: QueryEventRead[];
+}
+
+export interface QueryList {
+  items: QueryRead[];
+  total: number;
+}
+
+export const fetchQueries = () => getJson<QueryList>("/api/v1/queries");
+
+export const fetchQuery = (id: string) =>
+  getJson<QueryDetail>(`/api/v1/queries/${encodeURIComponent(id)}`);
+
+export const createQuery = (body: {
+  prompt: string;
+  mode?: string;
+  model?: string;
+}) => postJson<QueryRead>("/api/v1/queries", body);
+
+export const cancelQuery = (id: string) =>
+  postJson<QueryRead>(`/api/v1/queries/${encodeURIComponent(id)}/cancel`);
+
 // --- Conversation queue (PR 11) ---
 
 export interface QueuedMessage {

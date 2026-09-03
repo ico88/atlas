@@ -56,6 +56,12 @@ calls `recover_and_resume()`:
 Recovery re-executes from the start (a token stream cannot be resumed
 mid-flight); the audit trail records a `recovered` event.
 
+## UI
+
+The **Queries** page (sidebar → Queries) drives this API: run a prompt in the
+background, watch the list and the selected query update live (polled), read the
+streamed result and its event history, and cancel a running query.
+
 ## Audit
 
 Every transition writes a `query_events` row (`created`, `started`, `completed`,
