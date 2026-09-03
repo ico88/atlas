@@ -62,6 +62,10 @@ class Settings(BaseSettings):
     # the control plane (least privilege, §13). Empty => open (development only).
     node_join_token: str = ""
     node_offline_after_seconds: int = 60  # a node is "online" if seen within this
+    # Per-node enrollment with an approval gate (ROADMAP PR 6). When True, nodes
+    # must present a valid enrollment token and be APPROVED before claiming work.
+    # Off by default so the shared-join-token flow keeps working unchanged.
+    node_enrollment_required: bool = False
 
     # Authentication (spec §15). JWT secret MUST be set in production; when empty
     # an ephemeral per-process secret is generated (tokens reset on restart).

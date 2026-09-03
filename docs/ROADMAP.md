@@ -151,7 +151,14 @@ Stato: ✅ = consegnata.
    `--network-provider zerotier --zerotier-network-id <16-hex>` (installa
    ZeroTier sull'host, join alla rete, stampa node id + IP gestito) e
    `--await-enrollment`. Parser ZeroTier puri e testabili.
-6. **PR 6 — Node enrollment:** inviti UI, mTLS, approvazione, rotazione e revoca.
+6. ✅ **PR 6 — Node enrollment:** credenziali per-nodo con gate di approvazione
+    (`node_enrollments`, migrazione 0010) — invito (token monouso, salvato solo
+    come hash SHA-256), stati PENDING→APPROVED/REJECTED/REVOKED, rotazione e
+    revoca. Register/heartbeat consentiti da PENDING, claim solo se APPROVED;
+    enforcement opt-in (`ATLAS_NODE_ENROLLMENT_REQUIRED`, off di default). API
+    `/api/v1/enrollments` + sezione Enrollment nella pagina Nodes. mTLS resta
+    hardening di trasporto complementare (Caddy/ZeroTier). Vedi
+    [NODE_ENROLLMENT.md](NODE_ENROLLMENT.md).
 7. **PR 7 — ZeroTier integration:** stato, policy, API controller opzionale e audit.
 8. **PR 8 — Resilient scheduler:** lease, checkpoint, failover, fencing e task tardivi.
 9. **PR 9 — Control plane HA:** replica, leader election e disaster recovery.

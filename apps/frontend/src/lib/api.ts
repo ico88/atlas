@@ -398,6 +398,47 @@ export interface ChatStreamRequest {
   web?: boolean;
 }
 
+// --- Node enrollment (PR 6) ---
+
+export interface Enrollment {
+  id: string;
+  node_id: string;
+  label?: string | null;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "REVOKED";
+  token_prefix: string;
+  created_by?: string | null;
+  decided_by?: string | null;
+  created_at: string;
+  last_used_at?: string | null;
+}
+
+export interface EnrollmentWithToken extends Enrollment {
+  token: string;
+}
+
+export interface EnrollmentList {
+  items: Enrollment[];
+  total: number;
+}
+
+export const fetchEnrollments = () =>
+  getJson<EnrollmentList>("/api/v1/enrollments");
+
+export const createEnrollment = (body: { node_id: string; label?: string }) =>
+  postJson<EnrollmentWithToken>("/api/v1/enrollments", body);
+
+export const approveEnrollment = (id: string) =>
+  postJson<Enrollment>(`/api/v1/enrollments/${encodeURIComponent(id)}/approve`, {});
+
+export const rejectEnrollment = (id: string) =>
+  postJson<Enrollment>(`/api/v1/enrollments/${encodeURIComponent(id)}/reject`, {});
+
+export const revokeEnrollment = (id: string) =>
+  postJson<Enrollment>(`/api/v1/enrollments/${encodeURIComponent(id)}/revoke`, {});
+
+export const rotateEnrollment = (id: string) =>
+  postJson<EnrollmentWithToken>(`/api/v1/enrollments/${encodeURIComponent(id)}/rotate`, {});
+
 // --- Query lifecycle (PR 10) ---
 
 export interface QueryRead {

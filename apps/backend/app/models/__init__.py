@@ -17,6 +17,7 @@ from app.models.maintenance import (
     Severity,
 )
 from app.models.node import Node
+from app.models.node_enrollment import EnrollmentStatus, NodeEnrollment
 from app.models.provider import LLMModel, Provider
 from app.models.query import Query, QueryEvent, QueryStatus
 from app.models.rag import (
@@ -37,6 +38,8 @@ __all__ = [
     "TaskStatus",
     "TaskDependency",
     "Node",
+    "NodeEnrollment",
+    "EnrollmentStatus",
     "Approval",
     "ApprovalStatus",
     "Conversation",
