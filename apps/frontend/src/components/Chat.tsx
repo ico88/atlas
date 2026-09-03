@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 import {
   ConversationSummary,
   Message,
@@ -21,11 +22,11 @@ import {
 
 type Phase = "idle" | "waiting" | "streaming";
 
-function Citations({ items }: { items: WebCitation[] }) {
+function Citations({ items, label }: { items: WebCitation[]; label: string }) {
   if (!items || items.length === 0) return null;
   return (
     <div className="citations">
-      <span className="meta">Sources</span>
+      <span className="meta">{label}</span>
       <ol>
         {items.map((c, i) => (
           <li key={`${c.url}-${i}`}>
@@ -51,6 +52,7 @@ const HELP = [
 ].join("\n");
 
 export default function Chat() {
+  const { t } = useI18n();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -261,7 +263,7 @@ export default function Chat() {
     setLiveCitations([]);
     setWebNote(null);
     setPhase("waiting");
-    setStatusLine((forceWeb || webOn) ? "Searching the web…" : "Thinking…");
+    setStatusLine((forceWeb || webOn) ? t("chat.searching") : t("chat.thinking"));
     startTimer();
     pushBubble("user", content);
 
@@ -280,7 +282,7 @@ export default function Chat() {
       },
       {
         onStart: (e) => {
-          setStatusLine(`${e.provider} · ${e.model} — generating…`);
+          setStatusLine(`${e.provider} · ${e.model} — ${t("chat.generating")}`);
           if (!activeId) setActiveId(e.conversation_id);
         },
         onToken: (t) => {
@@ -325,20 +327,17 @@ export default function Chat() {
 
   return (
     <div>
-      <h1 className="page-title">Chat</h1>
-      <p className="page-subtitle">
-        Local-first chat. Type a message, or a command like <code>/web</code>,{" "}
-        <code>/remember</code>, <code>/recall</code>, <code>/search</code> — everything from here.
-      </p>
+      <h1 className="page-title">{t("chat.title")}</h1>
+      <p className="page-subtitle">{t("chat.subtitle")}</p>
 
-      <div className="chat-layout">
+      <div className="chat-layout chat-fill">
         <div className="convo-list">
           <button
             className="btn secondary"
             style={{ width: "100%", marginBottom: 8 }}
             onClick={newConversation}
           >
-            + New chat
+            {t("chat.newChat")}
           </button>
           {conversations.map((c) => (
             <div
@@ -347,7 +346,7 @@ export default function Chat() {
               onClick={() => openConversation(c.id)}
               title={c.title ?? c.id}
             >
-              {c.title ?? "Untitled"}
+              {c.title ?? t("chat.untitled")}
             </div>
           ))}
         </div>
@@ -356,7 +355,7 @@ export default function Chat() {
           <div className="chat-messages" ref={scrollRef}>
             {messages.length === 0 && !live && phase === "idle" && (
               <div className="muted">
-                <p>Start the conversation below, or try a command:</p>
+                <p>{t("chat.empty")}</p>
                 <pre style={{ background: "var(--panel-2)", padding: 12, borderRadius: 8 }}>
                   {HELP}
                 </pre>
@@ -365,7 +364,9 @@ export default function Chat() {
             {messages.map((m) => (
               <div key={m.id} className={`bubble ${m.role}`}>
                 {m.content}
-                {m.role === "assistant" && m.citations && <Citations items={m.citations} />}
+                {m.role === "assistant" && m.citations && (
+                  <Citations items={m.citations} label={t("chat.sources")} />
+                )}
                 {m.role === "assistant" && m.model && (
                   <span className="meta">
                     {m.provider} · {m.model}
@@ -380,7 +381,7 @@ export default function Chat() {
               <div className="bubble assistant">
                 {live}
                 <span className="caret">▌</span>
-                <Citations items={liveCitations} />
+                <Citations items={liveCitations} label={t("chat.sources")} />
               </div>
             )}
 
@@ -394,7 +395,7 @@ export default function Chat() {
                 </span>
                 <span className="meta">
                   {statusLine} {elapsed > 0 ? `· ${elapsed}s` : ""}
-                  {elapsed >= 8 ? " · first reply loads the model, hang tight…" : ""}
+                  {elapsed >= 8 ? ` · ${t("chat.modelLoad")}` : ""}
                 </span>
               </div>
             )}
@@ -411,7 +412,7 @@ export default function Chat() {
               disabled={streaming}
               title="Model for this chat"
             >
-              <option value="">Auto</option>
+              <option value="">{t("chat.auto")}</option>
               {models.map((m) => (
                 <option key={`${m.provider}:${m.name}`} value={m.name}>
                   {m.name}
@@ -425,11 +426,11 @@ export default function Chat() {
                 onChange={(e) => setWebOn(e.target.checked)}
                 disabled={streaming}
               />
-              🌐 Web
+              🌐 {t("chat.web")}
             </label>
             <input
               value={draft}
-              placeholder={webOn ? "Ask — I'll search the web…" : "Type a message or /command…"}
+              placeholder={webOn ? t("chat.placeholderWeb") : t("chat.placeholder")}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") send();
@@ -438,11 +439,11 @@ export default function Chat() {
             />
             {streaming ? (
               <button className="btn secondary" onClick={stop}>
-                Stop
+                {t("chat.stop")}
               </button>
             ) : (
               <button className="btn" onClick={() => send()} disabled={!draft.trim()}>
-                Send
+                {t("chat.send")}
               </button>
             )}
           </div>

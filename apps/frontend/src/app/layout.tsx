@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Sidebar from "@/components/Sidebar";
 import CommandPalette from "@/components/CommandPalette";
+import { I18nProvider } from "@/lib/i18n";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -21,11 +22,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <div className="layout">
-          <Sidebar />
-          <main className="main">{children}</main>
-        </div>
-        <CommandPalette />
+        <I18nProvider>
+          <div className="layout">
+            <Sidebar />
+            <main className="main">{children}</main>
+          </div>
+          <CommandPalette />
+        </I18nProvider>
       </body>
     </html>
   );

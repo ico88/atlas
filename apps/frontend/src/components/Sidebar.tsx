@@ -3,29 +3,31 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Lang, useI18n } from "@/lib/i18n";
 
 const NAV = [
-  { href: "/", label: "Chat" },
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/queries", label: "Queries" },
-  { href: "/queue", label: "Queue" },
-  { href: "/tasks", label: "Tasks" },
-  { href: "/system", label: "System Status" },
-  { href: "/nodes", label: "Nodes" },
-  { href: "/resources", label: "Resources" },
-  { href: "/models", label: "Models" },
-  { href: "/knowledge", label: "Knowledge" },
-  { href: "/environments", label: "Environments" },
-  { href: "/maintenance", label: "Maintenance" },
-  { href: "/evals", label: "Evals" },
-  { href: "/improvements", label: "Improvements" },
-  { href: "/escalation", label: "Escalation" },
-  { href: "/settings", label: "Settings" },
+  { href: "/", key: "nav.chat" },
+  { href: "/dashboard", key: "nav.dashboard" },
+  { href: "/queries", key: "nav.queries" },
+  { href: "/queue", key: "nav.queue" },
+  { href: "/tasks", key: "nav.tasks" },
+  { href: "/system", key: "nav.system" },
+  { href: "/nodes", key: "nav.nodes" },
+  { href: "/resources", key: "nav.resources" },
+  { href: "/models", key: "nav.models" },
+  { href: "/knowledge", key: "nav.knowledge" },
+  { href: "/environments", key: "nav.environments" },
+  { href: "/maintenance", key: "nav.maintenance" },
+  { href: "/evals", key: "nav.evals" },
+  { href: "/improvements", key: "nav.improvements" },
+  { href: "/escalation", key: "nav.escalation" },
+  { href: "/settings", key: "nav.settings" },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const { t, lang, setLang } = useI18n();
 
   // Close the mobile drawer whenever the route changes.
   useEffect(() => {
@@ -52,7 +54,7 @@ export default function Sidebar() {
       <aside className={`sidebar ${open ? "open" : ""}`}>
         <div className="brand">
           <span className="logo">ATLAS</span>
-          <span className="tagline">Adaptive Task &amp; LLM Array System</span>
+          <span className="tagline">{t("sidebar.tagline")}</span>
         </div>
         <nav className="nav">
           {NAV.map((item) => (
@@ -61,12 +63,25 @@ export default function Sidebar() {
               href={item.href}
               className={pathname === item.href ? "active" : ""}
             >
-              {item.label}
+              {t(item.key)}
             </Link>
           ))}
         </nav>
-        <div style={{ marginTop: "auto" }} className="muted">
-          Local-first · Human-governed
+        <div style={{ marginTop: "auto" }}>
+          <label className="lang-switch">
+            <span className="muted">🌐 {t("sidebar.language")}</span>
+            <select
+              value={lang}
+              onChange={(e) => setLang(e.target.value as Lang)}
+              aria-label={t("sidebar.language")}
+            >
+              <option value="it">Italiano</option>
+              <option value="en">English</option>
+            </select>
+          </label>
+          <div className="muted" style={{ marginTop: 8, fontSize: 12 }}>
+            {t("sidebar.footer")}
+          </div>
         </div>
       </aside>
     </>

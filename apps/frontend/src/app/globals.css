@@ -19,6 +19,8 @@ html,
 body {
   margin: 0;
   padding: 0;
+  max-width: 100%;
+  overflow-x: hidden; /* no page ever scrolls sideways */
   background: var(--bg);
   color: var(--text);
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -467,17 +469,24 @@ table.data th {
     /* Belt-and-braces: never let a page scroll sideways on a phone. */
     overflow-x: hidden;
   }
-  /* Chat fills the screen; the composer stays pinned and always visible. */
+  /* Two-pane layouts stack on mobile. */
   .chat-layout {
     grid-template-columns: 1fr;
     display: flex;
     flex-direction: column;
     gap: 10px;
-    /* dvh tracks the *visible* viewport, so the mobile browser bars don't
-       hide the composer; vh is the fallback for older engines. */
+  }
+  /* The real chat fills the screen; the composer stays pinned and visible.
+     dvh tracks the *visible* viewport so the mobile browser bars don't hide
+     the composer; vh is the fallback for older engines. Non-chat pages that
+     reuse .chat-layout keep natural height (no double scroll). */
+  .chat-fill {
     height: calc(100vh - 150px);
     height: calc(100dvh - 150px);
     min-height: 340px;
+  }
+  .chat-layout:not(.chat-fill) .chat-main {
+    min-height: 55vh;
   }
   /* Conversation history becomes a horizontal strip of chips (no vertical
      space stolen from the messages). */
@@ -558,6 +567,13 @@ table.data th {
   .cards {
     grid-template-columns: 1fr;
   }
+  /* Wide tables scroll inside their card, never the page. */
+  .card {
+    overflow-x: auto;
+  }
+  table.data {
+    min-width: 460px;
+  }
   .page-title {
     font-size: 20px;
   }
@@ -625,6 +641,23 @@ pre {
   color: var(--text);
   font-size: 13px;
   max-width: 150px;
+}
+
+/* Language switcher in the sidebar */
+.lang-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+.lang-switch select {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 13px;
 }
 
 /* Global command palette (Ctrl/Cmd-K) */
