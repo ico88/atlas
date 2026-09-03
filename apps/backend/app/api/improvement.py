@@ -31,6 +31,21 @@ async def create_proposal(
     return ProposalRead.model_validate(proposal)
 
 
+@router.post("/auto-propose", response_model=ProposalList, status_code=201)
+async def auto_propose(
+    session: AsyncSession = Depends(get_session),
+) -> ProposalList:
+    """Let ATLAS generate improvement proposals itself (candidate models vs default).
+
+    Each created proposal auto-runs its experiment; you are left with approve/apply.
+    """
+
+    created = await improvement_service.propose_model_candidates(session)
+    return ProposalList(
+        items=[ProposalRead.model_validate(p) for p in created], total=len(created)
+    )
+
+
 @router.get("/proposals", response_model=ProposalList)
 async def list_proposals(
     status_filter: str | None = Query(default=None, alias="status"),

@@ -24,6 +24,7 @@ os.environ.setdefault("ATLAS_CHAT_STREAM_DELAY", "0")
 # own tests, not fired implicitly on ingest/create during other tests.
 os.environ.setdefault("ATLAS_MAINTENANCE_AUTO_FIX_ENABLED", "false")
 os.environ.setdefault("ATLAS_IMPROVEMENT_AUTO_EXPERIMENT_ENABLED", "false")
+os.environ.setdefault("ATLAS_IMPROVEMENT_AUTO_PROPOSE_ENABLED", "false")
 
 import fakeredis.aioredis  # noqa: E402
 import pytest  # noqa: E402

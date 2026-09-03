@@ -505,6 +505,11 @@ export const createProposal = (body: {
   candidate_model?: string;
 }) => postJson<ImprovementProposal>("/api/v1/improvements/proposals", body);
 
+export const autoPropose = () =>
+  postJson<{ items: ImprovementProposal[]; total: number }>(
+    "/api/v1/improvements/auto-propose",
+  );
+
 export const experimentProposal = (id: string) =>
   postJson<ImprovementProposal>(
     `/api/v1/improvements/proposals/${encodeURIComponent(id)}/experiment`,

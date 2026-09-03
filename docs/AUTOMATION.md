@@ -22,6 +22,24 @@ baseline-vs-candidate **experiment** and opens the approval gate, so the proposa
 reaches a verdict (`EXPERIMENTED`) on its own. The Improvements page auto-refreshes
 until the verdict + gate appear; you then **Approve** and **Apply**.
 
+## Autonomous proposer (no human input)
+
+ATLAS can also **generate the proposals itself**: a background sweep proposes
+adopting each available model (that isn't the current default and has no open
+proposal) as the default, on the newest eval suite. Each created proposal
+auto-experiments, so the whole chain — propose → experiment → verdict → approval
+gate — runs with **zero human input up to the approval**. Only the final apply
+(changing the default model) stays human-gated.
+
+- Timer loop: started at boot when `ATLAS_IMPROVEMENT_AUTO_PROPOSE_ENABLED` is on
+  (default), every `ATLAS_IMPROVEMENT_AUTO_PROPOSE_INTERVAL` seconds. It is a
+  no-op until there is an eval suite and at least one alternative model, so it is
+  safe to leave running.
+- On demand: `POST /api/v1/improvements/auto-propose`, or the **Generate proposals
+  now** button on the Improvements page.
+- Idempotent: never creates a duplicate proposal for a candidate that already has
+  an open (DRAFT/EXPERIMENTED/APPROVED) proposal.
+
 ## How it works
 
 `app/services/automation_service.py` spawns detached `asyncio` tasks that each own
@@ -37,5 +55,7 @@ only when the corresponding flag is on.
 |----------|---------|---------|
 | `ATLAS_MAINTENANCE_AUTO_FIX_ENABLED` | `true` | on ingest, auto-prepare a sandbox-validated fix (awaiting approval) |
 | `ATLAS_IMPROVEMENT_AUTO_EXPERIMENT_ENABLED` | `true` | on create, auto-run the experiment (awaiting approval) |
+| `ATLAS_IMPROVEMENT_AUTO_PROPOSE_ENABLED` | `true` | timer sweep that generates proposals autonomously |
+| `ATLAS_IMPROVEMENT_AUTO_PROPOSE_INTERVAL` | `3600` | seconds between autonomous proposer sweeps |
 
 Set either to `false` to return that loop to fully manual.

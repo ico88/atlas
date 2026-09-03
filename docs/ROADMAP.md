@@ -233,6 +233,21 @@ Stato: ✅ = consegnata.
 25. **PR 25 — Auto-remediation:** rimedi, quarantena, diagnosi guidata e reintegro.
 26. **PR 26 — Quality:** upgrade, failover, fault injection, recovery, CI e prova AMD.
 
+### Estensioni utenti & privacy (aggiunte su richiesta)
+
+27. **PR 27 — Utenti & RBAC:** modello ruoli `admin` (gestisce tutto: utenti,
+    nodi, modelli, impostazioni, approvazioni) e `user` (utilizza: chat, query,
+    la propria memoria/cronologia); dependency `require_admin`/`require_user`
+    sugli endpoint di gestione; API + pagina **Users** (crea/lista/disattiva,
+    cambia ruolo). Base già presente (modello `User.role`, login JWT con ruolo,
+    bootstrap admin — spec §15).
+28. **PR 28 — Modalità anonima & tracciata:** *anonima* → nessuna persistenza
+    dell'esperienza utente (conversazioni/memoria effimere, purgate a fine
+    sessione); *tracciata* → ogni utente registra la propria esperienza, con
+    dati (conversazioni, memoria, query) isolati per `user_id` e visibili
+    all'utente stesso; l'admin vede gli aggregati. Toggle di modalità + scoping
+    per-utente dei dati esistenti.
+
 ## Definition of Done globale
 
 Una funzionalità o release è completata soltanto se:

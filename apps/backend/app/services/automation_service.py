@@ -119,3 +119,38 @@ def maybe_advance_proposal(proposal_id: str) -> None:
 
     if get_settings().improvement_auto_experiment_enabled:
         _spawn(_advance_proposal_bg(proposal_id))
+
+
+# --------------------------------------------------------------------------- #
+# autonomous proposer: ATLAS proposes improvements by itself, on a timer
+# --------------------------------------------------------------------------- #
+async def autonomous_propose() -> int:
+    """One proposer sweep: generate candidate proposals. Returns how many created."""
+
+    from app.services import improvement_service
+
+    async with get_sessionmaker()() as session:
+        created = await improvement_service.propose_model_candidates(session)
+        return len(created)
+
+
+async def _autonomous_loop() -> None:
+    settings = get_settings()
+    interval = max(60.0, settings.improvement_auto_propose_interval)
+    logger.info(
+        "autonomous proposer started",
+        extra={"event": "auto_propose_start", "context": {"interval_s": interval}},
+    )
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            await autonomous_propose()
+        except Exception:  # noqa: BLE001 - a bad sweep must not kill the loop
+            logger.warning("autonomous proposer sweep failed", extra={"event": "auto_propose_err"})
+
+
+def start_autonomous_proposer() -> None:
+    """Start the background proposer loop if enabled (called once at startup)."""
+
+    if get_settings().improvement_auto_propose_enabled:
+        _spawn(_autonomous_loop())

@@ -183,6 +183,68 @@ async def run_experiment(
     return proposal, approval
 
 
+async def propose_model_candidates(
+    session: AsyncSession, *, suite_id: str | None = None
+) -> list[ImprovementProposal]:
+    """Autonomously propose adopting other available models as the default.
+
+    For each available model that isn't the current default and doesn't already
+    have an open proposal, create a proposal (candidate vs current default) on an
+    eval suite. Creating it fires the auto-experiment, so ATLAS reaches a verdict
+    and an approval gate without any human input — only the final apply stays
+    human-gated. A no-op when there is no eval suite or no alternative model.
+    """
+
+    from app.services import eval_service, registry_service
+
+    settings = await settings_service.get_effective_settings(session)
+    default = settings.default_model
+
+    if suite_id:
+        suite = await eval_service.get_suite(session, suite_id)
+    else:
+        suites = await eval_service.list_suites(session)
+        suite = suites[0] if suites else None
+    if suite is None:
+        return []
+
+    models = [m for m in await registry_service.list_models(session) if m.available]
+    open_states = {
+        ProposalStatus.DRAFT.value,
+        ProposalStatus.EXPERIMENTED.value,
+        ProposalStatus.APPROVED.value,
+    }
+    taken = {
+        p.candidate_model
+        for p in await list_proposals(session)
+        if p.status in open_states and p.candidate_model
+    }
+
+    created: list[ImprovementProposal] = []
+    for model in models:
+        name = model.name
+        if not name or name == default or name in taken:
+            continue
+        proposal = await create_proposal(
+            session,
+            title=f"Auto: adopt {name} as default",
+            description="Autonomously proposed by ATLAS (candidate vs current default).",
+            category=ProposalCategory.MODEL.value,
+            suite_id=suite.id,
+            baseline_model=default or None,
+            candidate_model=name,
+        )
+        created.append(proposal)
+        taken.add(name)
+
+    if created:
+        logger.info(
+            "autonomous proposals created",
+            extra={"event": "auto_propose", "context": {"count": len(created)}},
+        )
+    return created
+
+
 async def apply_proposal(
     session: AsyncSession, proposal: ImprovementProposal
 ) -> ImprovementProposal:

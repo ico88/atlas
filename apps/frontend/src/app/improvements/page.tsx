@@ -7,6 +7,7 @@ import {
   ImprovementProposal,
   applyProposal,
   approveApproval,
+  autoPropose,
   createProposal,
   experimentProposal,
   fetchApprovals,
@@ -128,6 +129,25 @@ export default function ImprovementsPage() {
       </p>
 
       {error && <p className="error">Error: {error}</p>}
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span>
+            <strong>Let ATLAS propose</strong>
+            <span className="muted" style={{ marginLeft: 8, fontSize: 12 }}>
+              generates a proposal for each available model vs the current default,
+              then experiments them automatically
+            </span>
+          </span>
+          <button
+            className="btn"
+            disabled={busy}
+            onClick={() => act(() => autoPropose())}
+          >
+            Generate proposals now
+          </button>
+        </div>
+      </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
         <strong>New proposal</strong>

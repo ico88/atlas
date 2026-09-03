@@ -82,6 +82,13 @@ def create_app() -> FastAPI:
             await query_service.recover_and_resume()
         except Exception:  # noqa: BLE001 - never block startup on recovery
             logger.exception("query recovery failed", extra={"event": "query_recover_error"})
+        try:
+            # Fully autonomous improvement proposer (no-op unless enabled).
+            from app.services import automation_service
+
+            automation_service.start_autonomous_proposer()
+        except Exception:  # noqa: BLE001 - never block startup on the proposer
+            logger.exception("proposer start failed", extra={"event": "auto_propose_start_err"})
         yield
         logger.info("backend stopping", extra={"event": "shutdown"})
 

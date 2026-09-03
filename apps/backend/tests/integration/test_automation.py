@@ -70,3 +70,34 @@ async def test_advance_proposal_needs_suite(session):
         session, title="no-suite", candidate_model="c"
     )
     assert await automation_service.advance_proposal(session, proposal.id) is False
+
+
+@pytest.mark.asyncio
+async def test_autonomous_proposer_generates_and_dedups(session):
+    from app.models.provider import LLMModel
+
+    suite = await eval_service.create_suite(session, name="auto-propose-suite")
+    await eval_service.add_case(
+        session, suite_id=suite.id, input="x", expected_substrings=["x"]
+    )
+    # Two available models; no default set -> both are candidates.
+    session.add(LLMModel(provider="ollama", name="model-a", available=True))
+    session.add(LLMModel(provider="ollama", name="model-b", available=True))
+    await session.commit()
+
+    created = await improvement_service.propose_model_candidates(session)
+    assert {p.candidate_model for p in created} == {"model-a", "model-b"}
+    assert all(p.category == "model" and p.suite_id == suite.id for p in created)
+
+    # A second sweep must not duplicate proposals for the same candidates.
+    again = await improvement_service.propose_model_candidates(session)
+    assert again == []
+
+
+@pytest.mark.asyncio
+async def test_autonomous_proposer_noop_without_suite(session):
+    from app.models.provider import LLMModel
+
+    session.add(LLMModel(provider="ollama", name="solo", available=True))
+    await session.commit()
+    assert await improvement_service.propose_model_candidates(session) == []

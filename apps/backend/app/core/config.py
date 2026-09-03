@@ -92,6 +92,13 @@ class Settings(BaseSettings):
     # never bypassed.
     maintenance_auto_fix_enabled: bool = True  # ingest -> analyze -> sandbox fix
     improvement_auto_experiment_enabled: bool = True  # create -> run experiment
+    # Fully autonomous proposer: ATLAS generates improvement proposals by itself
+    # (e.g. try each available model as the default) on a timer, then the
+    # auto-experiment runs them to a verdict + approval gate. Only the final
+    # apply stays human-gated. The loop is a no-op until there is an eval suite
+    # and at least one alternative model, so it is safe to leave on.
+    improvement_auto_propose_enabled: bool = True
+    improvement_auto_propose_interval: float = 3600.0  # seconds between sweeps
 
     # Node federation (spec §8). A shared join token authenticates nodes against
     # the control plane (least privilege, §13). Empty => open (development only).
