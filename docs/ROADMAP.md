@@ -160,7 +160,13 @@ Stato: ✅ = consegnata.
     hardening di trasporto complementare (Caddy/ZeroTier). Vedi
     [NODE_ENROLLMENT.md](NODE_ENROLLMENT.md).
 7. **PR 7 — ZeroTier integration:** stato, policy, API controller opzionale e audit.
-8. **PR 8 — Resilient scheduler:** lease, checkpoint, failover, fencing e task tardivi.
+8. ✅ **PR 8 — Resilient scheduler:** lease temporizzato + fencing token sui task
+    RUNNING (worker locale e claim nodo), heartbeat/checkpoint per ripresa,
+    `reclaim_expired` (failover: locali→RETRYING ri-accodati, remoti→QUEUED,
+    esauriti→FAILED, token ruotato), rifiuto dei risultati tardivi (409).
+    Migrazione 0012; config `ATLAS_TASK_LEASE_SECONDS`/
+    `ATLAS_SCHEDULER_RECLAIM_ENABLED`. Vedi
+    [RESILIENT_SCHEDULER.md](RESILIENT_SCHEDULER.md).
 9. **PR 9 — Control plane HA:** replica, leader election e disaster recovery.
 10. ✅ **PR 10 — Query lifecycle:** modello `queries`/`query_events` (migrazione
     0008), esecuzione in background con proprio session, stati

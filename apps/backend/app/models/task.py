@@ -65,6 +65,15 @@ class Task(Base):
         String(36), nullable=False, default=new_uuid, index=True
     )
     deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Resilient scheduling (ROADMAP PR 8): a RUNNING task holds a time-boxed lease
+    # with a fencing token; progress is heartbeated and optionally checkpointed so
+    # a task orphaned by a crashed worker/node can be reclaimed and resumed.
+    lease_token: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    heartbeat_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    checkpoint: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow
     )

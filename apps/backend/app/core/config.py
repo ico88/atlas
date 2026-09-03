@@ -58,6 +58,12 @@ class Settings(BaseSettings):
     retry_backoff_max: float = 30.0
     retry_jitter: float = 0.2
 
+    # Resilient scheduler (ROADMAP PR 8). A RUNNING task holds a lease for this
+    # many seconds; if it is not renewed (worker/node crash) the scheduler
+    # reclaims and re-queues it. 0 disables reclaiming.
+    task_lease_seconds: float = 60.0
+    scheduler_reclaim_enabled: bool = True
+
     # Node federation (spec §8). A shared join token authenticates nodes against
     # the control plane (least privilege, §13). Empty => open (development only).
     node_join_token: str = ""

@@ -26,7 +26,13 @@ from app.core.context import set_request_id, set_task_id
 from app.core.logging import configure_logging
 from app.db import get_sessionmaker
 from app.models.task import Task, TaskStatus
-from app.services import alma_service, concurrency, queue, task_service
+from app.services import (
+    alma_service,
+    concurrency,
+    queue,
+    scheduler_service,
+    task_service,
+)
 
 logger = logging.getLogger("app.worker")
 
@@ -123,6 +129,7 @@ async def process_task(task_id: str) -> None:
 
         try:
             await task_service.mark_running(session, task)
+            await scheduler_service.acquire_lease(session, task)
             logger.info("task running", extra={"event": "worker_running"})
             try:
                 result = await _execute_dummy(task)
@@ -148,6 +155,20 @@ async def process_task(task_id: str) -> None:
             set_task_id(None)
 
 
+async def _reclaim_leases() -> None:
+    """Return tasks orphaned by a crashed worker/node to the queue (failover)."""
+
+    sessionmaker = get_sessionmaker()
+    async with sessionmaker() as session:
+        reclaimed = await scheduler_service.reclaim_expired(session)
+    for task in reclaimed:
+        await queue.enqueue(task.id)
+        logger.info(
+            "reclaimed orphaned task",
+            extra={"event": "worker_reclaimed", "context": {"task_id": task.id}},
+        )
+
+
 async def run() -> None:
     settings = get_settings()
     configure_logging(level=settings.log_level, service="worker")
@@ -157,7 +178,9 @@ async def run() -> None:
         set_request_id(None)
         set_task_id(None)
         try:
-            # Scheduler step: move due delayed/retry tasks into the main queue.
+            # Scheduler step: reclaim orphaned leases (failover), then move due
+            # delayed/retry tasks into the main queue.
+            await _reclaim_leases()
             await queue.promote_due()
             task_id = await queue.dequeue(timeout=1)
         except Exception:  # noqa: BLE001 - transient Redis error, back off and retry

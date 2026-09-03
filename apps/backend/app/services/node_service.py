@@ -110,6 +110,10 @@ async def claim_task(session: AsyncSession, node: Node) -> Task | None:
             await session.commit()
             claimed = await session.get(Task, task.id)
             assert claimed is not None
+            # Grant a lease so a crashed node's task is reclaimed (ROADMAP PR 8).
+            from app.services import scheduler_service
+
+            await scheduler_service.acquire_lease(session, claimed)
             await task_service.record_event(
                 session,
                 claimed,
