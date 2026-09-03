@@ -40,7 +40,7 @@ async def auto_propose(
     Each created proposal auto-runs its experiment; you are left with approve/apply.
     """
 
-    created = await improvement_service.propose_model_candidates(session)
+    created = await improvement_service.propose_now(session)
     return ProposalList(
         items=[ProposalRead.model_validate(p) for p in created], total=len(created)
     )

@@ -338,6 +338,7 @@ export interface Message {
   conversation_id: string;
   role: "user" | "assistant" | "system";
   content: string;
+  status?: string;
   model?: string | null;
   provider?: string | null;
   latency_ms?: number | null;
@@ -349,6 +350,7 @@ export interface ConversationSummary {
   id: string;
   title?: string | null;
   mode: string;
+  archived?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -377,11 +379,26 @@ export interface ModelList {
   total: number;
 }
 
-export const fetchConversations = () =>
-  getJson<ConversationList>("/api/v1/conversations");
+export const fetchConversations = (archived = false) =>
+  getJson<ConversationList>(`/api/v1/conversations?archived=${archived}`);
 
 export const fetchConversation = (id: string) =>
   getJson<Conversation>(`/api/v1/conversations/${id}`);
+
+export const archiveConversation = (id: string, archived = true) =>
+  postJson<ConversationSummary>(
+    `/api/v1/conversations/${encodeURIComponent(id)}/archive`,
+    { archived },
+  );
+
+export async function deleteConversation(id: string): Promise<void> {
+  const res = await fetch(`/api/v1/conversations/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+  if (!res.ok && res.status !== 204) {
+    throw new Error(`delete failed (${res.status})`);
+  }
+}
 
 export const fetchModels = () => getJson<ModelList>("/api/v1/models");
 

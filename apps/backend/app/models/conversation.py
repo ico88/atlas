@@ -6,7 +6,7 @@ import enum
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, pk_column, utcnow
@@ -38,6 +38,9 @@ class Conversation(Base):
     )
     title: Mapped[str | None] = mapped_column(String(255), nullable=True)
     mode: Mapped[str] = mapped_column(String(32), nullable=False, default=ChatMode.AUTO.value)
+    # Archived conversations are hidden from the default list but kept; deleting
+    # removes the conversation and all its messages (content is erased).
+    archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow
     )
@@ -64,6 +67,10 @@ class Message(Base):
     )
     role: Mapped[str] = mapped_column(String(16), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    # Async turns: an assistant reply is "pending" while it generates in the
+    # background, then "complete" (or "error"). Lets a client that reconnects
+    # (or reopens after closing the browser) see and resume an in-flight reply.
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="complete")
     model: Mapped[str | None] = mapped_column(String(128), nullable=True)
     provider: Mapped[str | None] = mapped_column(String(64), nullable=True)
     tokens_in: Mapped[int | None] = mapped_column(Integer, nullable=True)

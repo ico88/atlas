@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import Logo from "@/components/Logo";
 import { Lang, useI18n } from "@/lib/i18n";
 
 const NAV = [
@@ -46,14 +47,20 @@ export default function Sidebar() {
         >
           ☰
         </button>
-        <span className="topbar-logo">ATLAS</span>
+        <span className="topbar-logo">
+          <Logo size={24} />
+          ATLAS
+        </span>
       </header>
 
       {open && <div className="scrim" onClick={() => setOpen(false)} />}
 
       <aside className={`sidebar ${open ? "open" : ""}`}>
         <div className="brand">
-          <span className="logo">ATLAS</span>
+          <div className="brand-row">
+            <Logo size={34} />
+            <span className="logo">ATLAS</span>
+          </div>
           <span className="tagline">{t("sidebar.tagline")}</span>
         </div>
         <nav className="nav">

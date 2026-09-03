@@ -98,13 +98,50 @@ async def _web_search(payload: ChatRequest) -> tuple[list[dict], str | None]:
         return [], "web search failed"
 
 
-async def list_conversations(session: AsyncSession) -> tuple[list[Conversation], int]:
-    query = select(Conversation).order_by(Conversation.updated_at.desc())
+async def list_conversations(
+    session: AsyncSession, *, archived: bool = False
+) -> tuple[list[Conversation], int]:
+    query = (
+        select(Conversation)
+        .where(Conversation.archived == archived)
+        .order_by(Conversation.updated_at.desc())
+    )
     items = list((await session.execute(query)).scalars().all())
     total = int(
-        (await session.execute(select(func.count()).select_from(Conversation))).scalar_one()
+        (
+            await session.execute(
+                select(func.count())
+                .select_from(Conversation)
+                .where(Conversation.archived == archived)
+            )
+        ).scalar_one()
     )
     return items, total
+
+
+async def set_archived(
+    session: AsyncSession, conversation_id: str, archived: bool
+) -> Conversation | None:
+    """Archive/unarchive a conversation (hidden from the default list, kept)."""
+
+    conversation = await session.get(Conversation, conversation_id)
+    if conversation is None:
+        return None
+    conversation.archived = archived
+    await session.commit()
+    await session.refresh(conversation)
+    return conversation
+
+
+async def delete_conversation(session: AsyncSession, conversation_id: str) -> bool:
+    """Delete a conversation and all its messages (content is erased)."""
+
+    conversation = await session.get(Conversation, conversation_id)
+    if conversation is None:
+        return False
+    await session.delete(conversation)  # cascade removes its messages
+    await session.commit()
+    return True
 
 
 async def get_conversation(session: AsyncSession, conversation_id: str) -> Conversation | None:
@@ -199,9 +236,28 @@ async def _generate_turn(payload: ChatRequest) -> AsyncIterator[dict]:
 
         # 3) Route to a provider/model.
         decision = await router.select(mode=payload.mode.value, requested_model=payload.model)
+
+        # 3a) Persist the assistant reply up front as 'pending', so a client that
+        #     reconnects (or reopens after closing the browser) can see and resume
+        #     the in-flight reply instead of losing it.
+        assistant = Message(
+            conversation_id=conversation.id,
+            role=MessageRole.ASSISTANT.value,
+            content="",
+            status="pending",
+            model=decision.model,
+            provider=decision.provider.name,
+            citations=citations or None,
+        )
+        session.add(assistant)
+        conversation.updated_at = utcnow()  # bump ordering in the sidebar
+        await session.commit()
+        await session.refresh(assistant)
+
         yield {
             "type": "start",
             "conversation_id": conversation.id,
+            "message_id": assistant.id,
             "provider": decision.provider.name,
             "model": decision.model,
         }
@@ -215,24 +271,19 @@ async def _generate_turn(payload: ChatRequest) -> AsyncIterator[dict]:
                 yield {"type": "token", "content": piece}
         except Exception as exc:  # noqa: BLE001 - surface provider errors to client
             logger.exception("chat stream failed", extra={"event": "chat_stream_error"})
+            assistant.content = "".join(parts)
+            assistant.status = "error"
+            await session.commit()
             yield {"type": "error", "detail": str(exc)}
             return
 
         latency_ms = int((time.perf_counter() - started) * 1000)
-        full = "".join(parts).strip()
 
-        # 5) Persist the assistant message.
-        assistant = Message(
-            conversation_id=conversation.id,
-            role=MessageRole.ASSISTANT.value,
-            content=full,
-            model=decision.model,
-            provider=decision.provider.name,
-            latency_ms=latency_ms,
-            citations=citations or None,
-        )
-        session.add(assistant)
-        conversation.updated_at = utcnow()  # bump ordering in the sidebar
+        # 5) Finalize the assistant message (same row -> 'complete').
+        assistant.content = "".join(parts).strip()
+        assistant.status = "complete"
+        assistant.latency_ms = latency_ms
+        assistant.citations = citations or None
         await session.commit()
         await session.refresh(assistant)
 

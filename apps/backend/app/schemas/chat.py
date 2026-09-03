@@ -25,6 +25,7 @@ class MessageRead(BaseModel):
     conversation_id: str
     role: str
     content: str
+    status: str = "complete"
     model: str | None
     provider: str | None
     latency_ms: int | None
@@ -38,6 +39,7 @@ class ConversationSummary(BaseModel):
     id: str
     title: str | None
     mode: str
+    archived: bool = False
     created_at: datetime
     updated_at: datetime
 

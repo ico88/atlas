@@ -33,6 +33,7 @@ export default function ImprovementsPage() {
   const [selected, setSelected] = useState<ImprovementProposal | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
 
   // new-proposal form
   const [title, setTitle] = useState("");
@@ -142,11 +143,33 @@ export default function ImprovementsPage() {
           <button
             className="btn"
             disabled={busy}
-            onClick={() => act(() => autoPropose())}
+            onClick={async () => {
+              setBusy(true);
+              setError(null);
+              setNote(null);
+              try {
+                const res = await autoPropose();
+                setNote(
+                  res.total > 0
+                    ? `Created ${res.total} proposal(s); the experiment runs automatically.`
+                    : "Nothing to propose yet — you need at least two models (download another on the Models page). A starter eval suite was created for you.",
+                );
+                await load();
+              } catch (e) {
+                setError(e instanceof Error ? e.message : "auto-propose failed");
+              } finally {
+                setBusy(false);
+              }
+            }}
           >
             Generate proposals now
           </button>
         </div>
+        {note && (
+          <p className="muted" style={{ marginTop: 8, fontSize: 13 }}>
+            {note}
+          </p>
+        )}
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>

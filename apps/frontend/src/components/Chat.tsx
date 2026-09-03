@@ -8,7 +8,9 @@ import {
   ModelInfo,
   WebCitation,
   addMemory,
+  archiveConversation,
   createTask,
+  deleteConversation,
   fetchConversation,
   fetchConversations,
   fetchDefaultModel,
@@ -54,6 +56,7 @@ const HELP = [
 export default function Chat() {
   const { t } = useI18n();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [viewArchived, setViewArchived] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
@@ -75,12 +78,12 @@ export default function Chat() {
 
   const loadConversations = useCallback(async () => {
     try {
-      const list = await fetchConversations();
+      const list = await fetchConversations(viewArchived);
       setConversations(list.items);
     } catch {
       /* backend may be starting */
     }
-  }, []);
+  }, [viewArchived]);
 
   useEffect(() => {
     loadConversations();
@@ -127,6 +130,46 @@ export default function Chat() {
     setMessages([]);
     setLive("");
     setError(null);
+  };
+
+  // Resume an in-flight reply: if the open conversation has a pending assistant
+  // message (e.g. after reloading the page), poll until it completes.
+  useEffect(() => {
+    if (!activeId || phase !== "idle") return;
+    const hasPending = messages.some(
+      (m) => m.role === "assistant" && m.status === "pending",
+    );
+    if (!hasPending) return;
+    const id = setInterval(async () => {
+      try {
+        const convo = await fetchConversation(activeId);
+        setMessages(convo.messages);
+      } catch {
+        /* transient */
+      }
+    }, 1500);
+    return () => clearInterval(id);
+  }, [activeId, messages, phase]);
+
+  const archiveConvo = async (id: string, archived: boolean) => {
+    try {
+      await archiveConversation(id, archived);
+      if (id === activeId) newConversation();
+      await loadConversations();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "archive failed");
+    }
+  };
+
+  const removeConvo = async (id: string) => {
+    if (typeof window !== "undefined" && !window.confirm(t("chat.confirmDelete"))) return;
+    try {
+      await deleteConversation(id);
+      if (id === activeId) newConversation();
+      await loadConversations();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "delete failed");
+    }
   };
 
   const pushBubble = (role: "user" | "assistant", content: string, citations?: WebCitation[]) =>
@@ -339,14 +382,50 @@ export default function Chat() {
           >
             {t("chat.newChat")}
           </button>
+          <button
+            className="btn secondary convo-toggle"
+            style={{ width: "100%", marginBottom: 8, fontSize: 12 }}
+            onClick={() => {
+              setViewArchived((v) => !v);
+              newConversation();
+            }}
+          >
+            {viewArchived ? `← ${t("chat.showActive")}` : `🗄 ${t("chat.showArchived")}`}
+          </button>
+          {viewArchived && conversations.length === 0 && (
+            <p className="muted" style={{ fontSize: 12 }}>{t("chat.noArchived")}</p>
+          )}
           {conversations.map((c) => (
             <div
               key={c.id}
               className={`convo-item ${c.id === activeId ? "active" : ""}`}
-              onClick={() => openConversation(c.id)}
               title={c.title ?? c.id}
             >
-              {c.title ?? t("chat.untitled")}
+              <span className="convo-title" onClick={() => openConversation(c.id)}>
+                {c.title ?? t("chat.untitled")}
+              </span>
+              <span className="convo-actions">
+                <button
+                  className="convo-act"
+                  title={viewArchived ? t("chat.unarchive") : t("chat.archive")}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    archiveConvo(c.id, !viewArchived);
+                  }}
+                >
+                  {viewArchived ? "↩" : "🗄"}
+                </button>
+                <button
+                  className="convo-act danger"
+                  title={t("chat.delete")}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeConvo(c.id);
+                  }}
+                >
+                  🗑
+                </button>
+              </span>
             </div>
           ))}
         </div>

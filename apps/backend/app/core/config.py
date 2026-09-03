@@ -126,7 +126,9 @@ class Settings(BaseSettings):
     # Responsiveness tuning (keeps the model hot and bounds the work per turn).
     ollama_keep_alive: str = "30m"  # keep the model resident between turns
     ollama_num_ctx: int = 4096  # context window sent to Ollama (0 = server default)
-    ollama_num_predict: int = 512  # cap reply length (-1 = unlimited)
+    # Max tokens per reply. -1 = unlimited (never truncate long answers); set a
+    # positive cap only if you want to bound latency at the cost of completeness.
+    ollama_num_predict: int = -1
     chat_history_limit: int = 20  # max prior messages sent as context (0 = all)
     ai_available_cache_seconds: float = 30.0  # cache Ollama reachability probe
     # Automatic memory: capture durable facts from chat and recall them as context.

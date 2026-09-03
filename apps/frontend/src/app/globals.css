@@ -52,6 +52,12 @@ a {
   gap: 2px;
 }
 
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .brand .logo {
   font-size: 22px;
   font-weight: 800;
@@ -203,14 +209,43 @@ a {
 }
 
 .convo-item {
-  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
   border-radius: 8px;
-  cursor: pointer;
   font-size: 13px;
   color: var(--muted);
+}
+.convo-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.convo-actions {
+  display: flex;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+.convo-act {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: 6px;
+  opacity: 0.65;
+}
+.convo-act:hover {
+  opacity: 1;
+  background: var(--bg);
+}
+.convo-act.danger:hover {
+  color: var(--bad);
 }
 
 .convo-item:hover {
@@ -417,6 +452,9 @@ table.data th {
   z-index: 40;
 }
 .topbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-weight: 800;
   letter-spacing: 2px;
 }
@@ -509,8 +547,13 @@ table.data th {
   }
   .convo-item {
     flex: 0 0 auto;
-    max-width: 55vw;
+    max-width: 72vw;
     background: var(--panel-2);
+  }
+  .convo-toggle {
+    flex: 0 0 auto;
+    width: auto !important;
+    margin-bottom: 0 !important;
   }
   .chat-main {
     flex: 1 1 auto;

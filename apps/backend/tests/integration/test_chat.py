@@ -137,8 +137,43 @@ async def test_turn_completes_after_client_disconnect(client):
         await _asyncio.sleep(0.02)
         resp = await client.get(f"/api/v1/conversations/{convo_id}")
         messages = resp.json()["messages"]
-        if any(m["role"] == "assistant" and m["content"] for m in messages):
+        assistant = next((m for m in messages if m["role"] == "assistant"), None)
+        if assistant and assistant["status"] == "complete":
             break
 
     roles = [m["role"] for m in messages]
     assert "user" in roles and "assistant" in roles
+    assistant = next(m for m in messages if m["role"] == "assistant")
+    # The detached worker finalized the reply even though the client left.
+    assert assistant["status"] == "complete"
+    assert assistant["content"]
+
+
+@pytest.mark.asyncio
+async def test_archive_and_delete_conversation(client):
+    # Create a conversation via a chat turn.
+    async with client.stream(
+        "POST", "/api/v1/chat/stream", json={"content": "keep me then remove me"}
+    ) as resp:
+        body = ""
+        async for chunk in resp.aiter_text():
+            body += chunk
+    convo_id = _parse_sse(body)[0]["conversation_id"]
+
+    # It shows in the default (non-archived) list.
+    listing = (await client.get("/api/v1/conversations")).json()
+    assert any(c["id"] == convo_id for c in listing["items"])
+
+    # Archive it -> gone from default list, present in archived list.
+    arch = await client.post(f"/api/v1/conversations/{convo_id}/archive", json={"archived": True})
+    assert arch.status_code == 200 and arch.json()["archived"] is True
+    default_list = (await client.get("/api/v1/conversations")).json()
+    assert all(c["id"] != convo_id for c in default_list["items"])
+    archived_list = (await client.get("/api/v1/conversations?archived=true")).json()
+    assert any(c["id"] == convo_id for c in archived_list["items"])
+
+    # Delete it -> content erased (404 afterwards).
+    deleted = await client.delete(f"/api/v1/conversations/{convo_id}")
+    assert deleted.status_code == 204
+    gone = await client.get(f"/api/v1/conversations/{convo_id}")
+    assert gone.status_code == 404

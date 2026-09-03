@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
@@ -30,14 +31,43 @@ async def chat_stream(payload: ChatRequest) -> StreamingResponse:
     )
 
 
+class ArchiveRequest(BaseModel):
+    archived: bool = True
+
+
 @router.get("/conversations", response_model=ConversationList)
 async def list_conversations(
+    archived: bool = Query(default=False),
     session: AsyncSession = Depends(get_session),
 ) -> ConversationList:
-    items, total = await chat_service.list_conversations(session)
+    items, total = await chat_service.list_conversations(session, archived=archived)
     return ConversationList(
         items=[ConversationSummary.model_validate(c) for c in items], total=total
     )
+
+
+@router.post("/conversations/{conversation_id}/archive", response_model=ConversationSummary)
+async def archive_conversation(
+    conversation_id: str,
+    payload: ArchiveRequest | None = None,
+    session: AsyncSession = Depends(get_session),
+) -> ConversationSummary:
+    archived = payload.archived if payload is not None else True
+    conversation = await chat_service.set_archived(session, conversation_id, archived)
+    if conversation is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return ConversationSummary.model_validate(conversation)
+
+
+@router.delete("/conversations/{conversation_id}", status_code=204)
+async def delete_conversation(
+    conversation_id: str,
+    session: AsyncSession = Depends(get_session),
+) -> Response:
+    ok = await chat_service.delete_conversation(session, conversation_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return Response(status_code=204)
 
 
 @router.get("/conversations/{conversation_id}", response_model=ConversationRead)

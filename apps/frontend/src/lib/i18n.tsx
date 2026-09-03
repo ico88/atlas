@@ -54,6 +54,13 @@ const EN: Dict = {
   "chat.sources": "Sources",
   "chat.resilientHint":
     "Runs keep going even if you close this tab — the reply is saved to the conversation.",
+  "chat.archive": "Archive",
+  "chat.unarchive": "Unarchive",
+  "chat.delete": "Delete",
+  "chat.showArchived": "Archived",
+  "chat.showActive": "Active",
+  "chat.confirmDelete": "Delete this chat and all its content? This cannot be undone.",
+  "chat.noArchived": "No archived chats.",
 
   "common.error": "Error",
   "common.loading": "Loading…",
@@ -99,6 +106,13 @@ const IT: Dict = {
   "chat.sources": "Fonti",
   "chat.resilientHint":
     "L'elaborazione continua anche se chiudi questa scheda — la risposta viene salvata nella conversazione.",
+  "chat.archive": "Archivia",
+  "chat.unarchive": "Ripristina",
+  "chat.delete": "Elimina",
+  "chat.showArchived": "Archiviate",
+  "chat.showActive": "Attive",
+  "chat.confirmDelete": "Eliminare questa chat e tutto il contenuto? Operazione irreversibile.",
+  "chat.noArchived": "Nessuna chat archiviata.",
 
   "common.error": "Errore",
   "common.loading": "Caricamento…",

@@ -245,6 +245,38 @@ async def propose_model_candidates(
     return created
 
 
+async def propose_now(session: AsyncSession) -> list[ImprovementProposal]:
+    """On-demand proposer: refresh models, seed a starter suite if none, propose.
+
+    Used by the "Generate proposals now" button so it works out of the box even on
+    a fresh install. Returns the proposals created (empty if there is no
+    alternative model to try).
+    """
+
+    from app.services import eval_service, registry_service
+
+    try:
+        await registry_service.refresh_models(session)
+    except Exception:  # noqa: BLE001 - discovery is best-effort (may be offline)
+        logger.warning("model refresh failed", extra={"event": "propose_refresh"})
+
+    suites = await eval_service.list_suites(session)
+    if not suites:
+        suite = await eval_service.create_suite(
+            session,
+            name="Starter suite",
+            description="Auto-created starter eval suite — edit its cases on the Evals page.",
+        )
+        await eval_service.add_case(
+            session,
+            suite_id=suite.id,
+            input="Reply with the single word: ready",
+            expected_substrings=["ready"],
+        )
+
+    return await propose_model_candidates(session)
+
+
 async def apply_proposal(
     session: AsyncSession, proposal: ImprovementProposal
 ) -> ImprovementProposal:
