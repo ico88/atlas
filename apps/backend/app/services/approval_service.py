@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.approval import Approval, ApprovalStatus
 from app.models.base import utcnow
+from app.models.improvement import ImprovementProposal, ProposalStatus
 from app.models.maintenance import (
     IssueStatus,
     MaintenanceIssue,
@@ -50,6 +51,25 @@ async def _apply_maintenance_decision(
         issue.status = IssueStatus.RESOLVED.value if approved else IssueStatus.OPEN.value
 
 
+async def _apply_improvement_decision(
+    session: AsyncSession, approval: Approval, approved: bool
+) -> None:
+    """Reflect an approval decision on the linked improvement proposal.
+
+    Approval only *authorizes* the change (status APPROVED); applying it is a
+    separate, explicit governed step (improvement_service.apply_proposal).
+    """
+
+    if approval.subject_type != "improvement_proposal" or not approval.subject_id:
+        return
+    proposal = await session.get(ImprovementProposal, approval.subject_id)
+    if proposal is None:
+        return
+    proposal.status = (
+        ProposalStatus.APPROVED.value if approved else ProposalStatus.REJECTED.value
+    )
+
+
 async def approve(
     session: AsyncSession, approval: Approval, *, decided_by: str, reason: str | None = None
 ) -> Approval:
@@ -59,6 +79,7 @@ async def approve(
     if reason:
         approval.reason = reason
     await _apply_maintenance_decision(session, approval, approved=True)
+    await _apply_improvement_decision(session, approval, approved=True)
     await session.commit()
     await session.refresh(approval)
     logger.info(
@@ -77,6 +98,7 @@ async def reject(
     if reason:
         approval.reason = reason
     await _apply_maintenance_decision(session, approval, approved=False)
+    await _apply_improvement_decision(session, approval, approved=False)
     await session.commit()
     await session.refresh(approval)
     logger.info(

@@ -21,6 +21,11 @@ from app.models.eval import (
     EvalRunStatus,
     EvalSuite,
 )
+from app.models.improvement import (
+    ImprovementProposal,
+    ProposalCategory,
+    ProposalStatus,
+)
 from app.models.maintenance import (
     GitAction,
     IssueStatus,
@@ -89,4 +94,7 @@ __all__ = [
     "EvalRun",
     "EvalResult",
     "EvalRunStatus",
+    "ImprovementProposal",
+    "ProposalStatus",
+    "ProposalCategory",
 ]

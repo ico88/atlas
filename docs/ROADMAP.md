@@ -218,7 +218,12 @@ Stato: ✅ = consegnata.
     governata (`apply-fix` solo dopo approvazione umana), provider GitHub reale
     dietro guardrail (off di default), API `/maintenance/sandbox|apply-fix` +
     pagina **Maintenance**. Vedi [SELF_HEALING.md](SELF_HEALING.md).
-18. **PR 18 — Continuous Improvement:** proposte, esperimenti, confronto e approvazioni.
+18. ✅ **PR 18 — Continuous Improvement:** proposte di miglioramento
+    (migrazione 0017), esperimento baseline-vs-candidato sulle eval suite (PR 16),
+    confronto metriche puro (verdetto improvement/regression/neutral, safety
+    prioritaria), gate di approvazione umano e applicazione governata (imposta il
+    modello di default). API `/improvements/*` + pagina **Improvements**. Vedi
+    [CONTINUOUS_IMPROVEMENT.md](CONTINUOUS_IMPROVEMENT.md).
 19. **PR 19 — Critical Review:** proposer, critic, verifier, judge e consensus adattivo.
 20. **PR 20 — Unified Updater:** comando unico, preflight, snapshot, migrazioni e ripresa.
 21. **PR 21 — Fleet Update:** rolling update, nodi canary, compatibilità e nodi offline.

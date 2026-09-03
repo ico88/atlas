@@ -18,6 +18,8 @@ const ITEMS: Item[] = [
   { label: "Knowledge", hint: "RAG & memory", href: "/knowledge" },
   { label: "Environments", hint: "workspaces", href: "/environments" },
   { label: "Maintenance", hint: "self-healing", href: "/maintenance" },
+  { label: "Evals", hint: "quality & safety", href: "/evals" },
+  { label: "Improvements", hint: "propose & experiment", href: "/improvements" },
   { label: "Escalation", hint: "external help", href: "/escalation" },
   { label: "Settings", hint: "web tools & config", href: "/settings" },
 ];

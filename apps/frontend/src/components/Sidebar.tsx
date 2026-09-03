@@ -18,6 +18,7 @@ const NAV = [
   { href: "/environments", label: "Environments" },
   { href: "/maintenance", label: "Maintenance" },
   { href: "/evals", label: "Evals" },
+  { href: "/improvements", label: "Improvements" },
   { href: "/escalation", label: "Escalation" },
   { href: "/settings", label: "Settings" },
 ];

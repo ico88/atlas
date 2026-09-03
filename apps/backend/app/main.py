@@ -17,6 +17,7 @@ from app.api import (
     enrollment,
     environment,
     escalation,
+    improvement,
     maintenance,
     metrics,
     models,
@@ -110,6 +111,7 @@ def create_app() -> FastAPI:
     app.include_router(metrics.router)
     app.include_router(environment.router)
     app.include_router(eval_api.router)
+    app.include_router(improvement.router)
 
     return app
 

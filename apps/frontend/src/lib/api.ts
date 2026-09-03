@@ -471,6 +471,50 @@ export const fetchEvalRuns = (suiteId: string) =>
     `/api/v1/evals/suites/${encodeURIComponent(suiteId)}/runs`,
   );
 
+// --- Continuous Improvement (PR 18) ---
+
+export interface ImprovementProposal {
+  id: string;
+  title: string;
+  description?: string | null;
+  category: string;
+  suite_id?: string | null;
+  baseline_model?: string | null;
+  candidate_model?: string | null;
+  change?: Record<string, unknown> | null;
+  status: string;
+  baseline_run_id?: string | null;
+  candidate_run_id?: string | null;
+  comparison?: { deltas?: Record<string, number | null>; verdict?: string } | null;
+  recommendation?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export const fetchProposals = () =>
+  getJson<{ items: ImprovementProposal[]; total: number }>(
+    "/api/v1/improvements/proposals",
+  );
+
+export const createProposal = (body: {
+  title: string;
+  description?: string;
+  category?: string;
+  suite_id?: string;
+  baseline_model?: string;
+  candidate_model?: string;
+}) => postJson<ImprovementProposal>("/api/v1/improvements/proposals", body);
+
+export const experimentProposal = (id: string) =>
+  postJson<ImprovementProposal>(
+    `/api/v1/improvements/proposals/${encodeURIComponent(id)}/experiment`,
+  );
+
+export const applyProposal = (id: string) =>
+  postJson<ImprovementProposal>(
+    `/api/v1/improvements/proposals/${encodeURIComponent(id)}/apply`,
+  );
+
 // --- Memory lifecycle (PR 14) ---
 
 export interface MemoryHit {
