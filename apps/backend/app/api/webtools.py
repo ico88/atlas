@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from app.core.config import get_settings
 from app.schemas.webtools import (
     WebFetchRequest,
     WebFetchResponse,
@@ -12,7 +11,7 @@ from app.schemas.webtools import (
     WebSearchRequest,
     WebSearchResponse,
 )
-from app.services import webtools_service
+from app.services import settings_service, webtools_service
 from app.webtools import policy as pol
 
 router = APIRouter(prefix="/api/v1/web", tags=["web-tools"])
@@ -22,7 +21,7 @@ router = APIRouter(prefix="/api/v1/web", tags=["web-tools"])
 async def get_policy() -> WebPolicyResponse:
     """Report the active web-tools policy (no secrets)."""
 
-    settings = get_settings()
+    settings = await settings_service.get_effective_settings()
     p = webtools_service.build_policy(settings)
     return WebPolicyResponse(
         enabled=settings.web_tools_enabled,

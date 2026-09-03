@@ -10,7 +10,8 @@ from __future__ import annotations
 import logging
 from dataclasses import asdict, dataclass
 
-from app.core.config import Settings, get_settings
+from app.core.config import Settings
+from app.services import settings_service
 from app.webtools import policy as pol
 from app.webtools import search as search_mod
 from app.webtools.extract import snippet
@@ -32,8 +33,7 @@ class Citation:
     score: float
 
 
-def build_policy(settings: Settings | None = None) -> pol.UrlPolicy:
-    settings = settings or get_settings()
+def build_policy(settings: Settings) -> pol.UrlPolicy:
     return pol.UrlPolicy(
         allow_private_ips=settings.web_allow_private_ips,
         allowlist=tuple(settings.web_allowlist),
@@ -51,7 +51,7 @@ def _ensure_enabled(settings: Settings) -> None:
 async def fetch(url: str, settings: Settings | None = None) -> FetchResult:
     """Safely fetch a single URL (policy-guarded)."""
 
-    settings = settings or get_settings()
+    settings = settings or await settings_service.get_effective_settings()
     _ensure_enabled(settings)
     return await fetch_url(
         url, build_policy(settings), user_agent=settings.web_user_agent
@@ -67,7 +67,7 @@ async def search(
 ) -> dict[str, object]:
     """Search, optionally fetch the top candidates, rank them, and return citations."""
 
-    settings = settings or get_settings()
+    settings = settings or await settings_service.get_effective_settings()
     _ensure_enabled(settings)
     limit = limit or settings.web_max_results
 

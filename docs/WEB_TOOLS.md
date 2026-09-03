@@ -6,6 +6,14 @@ platform never reaches the internet unless an operator opts in.
 
 ## Enabling
 
+**From the UI (recommended):** open **Settings → Web tools**, flip *Enabled*,
+choose the *searxng* provider and set its URL, then Save. Changes are stored
+server-side (the `app_settings` table) and take effect immediately — no restart
+and no `.env` edit. These runtime overrides take precedence over the environment
+defaults below. The API key is write-only (never shown back).
+
+**From the environment (defaults / headless):**
+
 ```bash
 # .env
 ATLAS_WEB_TOOLS_ENABLED=true
@@ -15,6 +23,9 @@ ATLAS_WEB_SEARCH_URL=http://searxng:8080/search   # your self-hosted SearXNG
 
 Then `./atlas update` (or `docker compose up -d`). With no provider configured
 (`none`), `/fetch` still works for explicit URLs while `/search` returns nothing.
+
+Runtime config API: `GET /api/v1/settings/web`, `PUT /api/v1/settings/web`
+(partial update; unknown fields ignored; `api_key` accepted but never returned).
 
 ## API
 

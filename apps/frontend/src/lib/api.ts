@@ -398,6 +398,33 @@ export interface ChatStreamRequest {
   web?: boolean;
 }
 
+// --- Web tools config (PR 15 settings) ---
+
+export interface WebConfig {
+  enabled: boolean;
+  provider: "none" | "searxng" | "json";
+  url: string;
+  has_api_key: boolean;
+  max_results: number;
+  fetch_timeout: number;
+  max_bytes: number;
+  allow_private_ips: boolean;
+  allowlist: string[];
+  denylist: string[];
+}
+
+export const fetchWebConfig = () => getJson<WebConfig>("/api/v1/settings/web");
+
+export async function updateWebConfig(patch: Partial<WebConfig> & { api_key?: string }) {
+  const res = await fetch("/api/v1/settings/web", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) throw new Error(`update failed (${res.status})`);
+  return (await res.json()) as WebConfig;
+}
+
 // --- Node enrollment (PR 6) ---
 
 export interface Enrollment {

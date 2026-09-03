@@ -7,6 +7,11 @@ export const metadata: Metadata = {
   description: "Adaptive Task & LLM Array System — local-first AI orchestration",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export default function RootLayout({
   children,
 }: {

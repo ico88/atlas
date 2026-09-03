@@ -364,3 +364,133 @@ table.data th {
 }
 .queue-badge.active { background: #16653433; color: #22c55e; }
 .queue-badge.idle { background: var(--panel-2); color: var(--text); }
+
+/* Settings page form rows (ROADMAP PR 15) */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.setting-row > span {
+  flex: 0 0 40%;
+  font-size: 14px;
+}
+.setting-row input[type="text"],
+.setting-row input:not([type]),
+.setting-row input[type="password"],
+.setting-row input[type="number"],
+.setting-row select {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  min-width: 0;
+}
+
+/* ===================================================================== */
+/* Responsive / mobile (added for small screens)                          */
+/* ===================================================================== */
+
+/* Mobile top bar + hamburger — hidden on desktop. */
+.topbar {
+  display: none;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+.topbar-logo {
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+.hamburger {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 18px;
+  line-height: 1;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+.scrim {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  /* Single column: main content full width; sidebar becomes a drawer. */
+  .layout {
+    grid-template-columns: 1fr;
+  }
+  .topbar {
+    display: flex;
+  }
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 260px;
+    max-width: 82vw;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    z-index: 60;
+    overflow-y: auto;
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  .scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 50;
+  }
+  .main {
+    padding: 16px;
+  }
+  /* Stack the chat/queries two-pane layouts. */
+  .chat-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+  .convo-list {
+    max-height: 30vh;
+  }
+  .chat-main {
+    min-height: 60vh;
+  }
+  /* Cards go single-column so nothing overflows. */
+  .cards {
+    grid-template-columns: 1fr;
+  }
+  .page-title {
+    font-size: 22px;
+  }
+  /* Form rows stack their label above the control. */
+  .setting-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+  .setting-row > span {
+    flex-basis: auto;
+  }
+}
+
+/* Wide, un-wrappable content scrolls inside its own box, never the page. */
+pre {
+  max-width: 100%;
+  overflow-x: auto;
+}

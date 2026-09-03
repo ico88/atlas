@@ -25,6 +25,9 @@ from app.api import (
     tasks,
     webtools,
 )
+from app.api import (
+    settings as settings_api,
+)
 from app.api.middleware import RequestContextMiddleware
 from app.core.config import get_settings
 from app.core.logging import configure_logging
@@ -98,6 +101,7 @@ def create_app() -> FastAPI:
     app.include_router(query.router)
     app.include_router(conversation_queue.router)
     app.include_router(enrollment.router)
+    app.include_router(settings_api.router)
 
     return app
 
