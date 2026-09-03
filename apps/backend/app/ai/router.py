@@ -9,6 +9,7 @@ callers.
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass
 
 from app.ai.base import ChatProvider
@@ -18,6 +19,22 @@ from app.core.config import get_settings
 from app.models.conversation import ChatMode
 
 logger = logging.getLogger(__name__)
+
+# Cache the Ollama reachability probe so a chat turn doesn't pay a health round
+# trip every time (refreshed after ai_available_cache_seconds).
+_avail_cache: dict[str, float | bool] = {"ok": False, "ts": 0.0}
+
+
+async def _ollama_available(provider: OllamaProvider) -> bool:
+    settings = get_settings()
+    ttl = settings.ai_available_cache_seconds
+    now = time.monotonic()
+    if ttl > 0 and bool(_avail_cache["ok"]) and (now - float(_avail_cache["ts"])) < ttl:
+        return True
+    ok = await provider.is_available()
+    _avail_cache["ok"] = ok
+    _avail_cache["ts"] = now
+    return ok
 
 
 @dataclass
@@ -41,7 +58,7 @@ async def select(mode: str = ChatMode.AUTO.value, requested_model: str | None = 
 
     if ollama_enabled:
         ollama = OllamaProvider(settings.ollama_url)
-        if await ollama.is_available():
+        if await _ollama_available(ollama):
             model = requested_model or settings.default_model
             if not model:
                 models = await ollama.list_models()

@@ -90,6 +90,12 @@ class Settings(BaseSettings):
     ollama_url: str = "http://ollama:11434"
     default_model: str = ""  # empty => auto-pick the first available model
     chat_stream_delay: float = 0.02  # seconds between echo tokens (0 in tests)
+    # Responsiveness tuning (keeps the model hot and bounds the work per turn).
+    ollama_keep_alive: str = "30m"  # keep the model resident between turns
+    ollama_num_ctx: int = 4096  # context window sent to Ollama (0 = server default)
+    ollama_num_predict: int = 512  # cap reply length (-1 = unlimited)
+    chat_history_limit: int = 20  # max prior messages sent as context (0 = all)
+    ai_available_cache_seconds: float = 30.0  # cache Ollama reachability probe
 
     # RAG / Memory (spec §6, §8, M8).
     embedding_dim: int = 256  # dimension of the local hashing embedder

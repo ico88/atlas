@@ -19,6 +19,7 @@ from sqlalchemy.orm import selectinload
 
 from app.ai import router
 from app.ai.base import ChatMessage
+from app.core.config import get_settings
 from app.db import get_sessionmaker
 from app.models.base import utcnow
 from app.models.conversation import Conversation, Message, MessageRole
@@ -82,13 +83,22 @@ async def get_conversation(session: AsyncSession, conversation_id: str) -> Conve
 
 
 async def _history(session: AsyncSession, conversation_id: str) -> list[ChatMessage]:
-    rows = (
-        await session.execute(
-            select(Message)
-            .where(Message.conversation_id == conversation_id)
-            .order_by(Message.created_at.asc(), Message.id.asc())
-        )
-    ).scalars().all()
+    """Recent conversation turns as model context.
+
+    Only the last ``chat_history_limit`` messages are sent so latency stays flat
+    as a conversation grows (0 = send everything).
+    """
+
+    limit = get_settings().chat_history_limit
+    stmt = (
+        select(Message)
+        .where(Message.conversation_id == conversation_id)
+        .order_by(Message.created_at.desc(), Message.id.desc())
+    )
+    if limit and limit > 0:
+        stmt = stmt.limit(limit)
+    rows = list((await session.execute(stmt)).scalars().all())
+    rows.reverse()  # back to chronological order
     return [ChatMessage(role=m.role, content=m.content) for m in rows]
 
 

@@ -14,6 +14,7 @@ from collections.abc import AsyncIterator
 import httpx
 
 from app.ai.base import ChatMessage, ModelInfo
+from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -58,11 +59,21 @@ class OllamaProvider:
     async def stream_chat(
         self, messages: list[ChatMessage], model: str
     ) -> AsyncIterator[str]:
-        payload = {
+        settings = get_settings()
+        options: dict[str, int] = {}
+        if settings.ollama_num_ctx:
+            options["num_ctx"] = settings.ollama_num_ctx
+        if settings.ollama_num_predict:
+            options["num_predict"] = settings.ollama_num_predict
+        payload: dict[str, object] = {
             "model": model,
             "messages": [{"role": m.role, "content": m.content} for m in messages],
             "stream": True,
+            # Keep the model resident so a follow-up "ciao" doesn't reload it.
+            "keep_alive": settings.ollama_keep_alive,
         }
+        if options:
+            payload["options"] = options
         async with (
             httpx.AsyncClient(timeout=None) as client,
             client.stream("POST", f"{self._base_url}/api/chat", json=payload) as resp,
