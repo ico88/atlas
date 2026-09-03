@@ -7,10 +7,13 @@ import {
   ModelInfo,
   WebCitation,
   addMemory,
+  createTask,
   fetchConversation,
   fetchConversations,
   fetchDefaultModel,
   fetchModels,
+  fetchNodes,
+  fetchSystemStatus,
   searchMemories,
   streamChat,
   webSearch,
@@ -43,6 +46,7 @@ const HELP = [
   "• /remember <text> — save a memory",
   "• /recall <query> — recall saved memories",
   "• /model <name> — pick the model (or /models to list)",
+  "• /task <title> — create a task · /nodes — list nodes · /status — health",
   "• /help — show this help",
 ].join("\n");
 
@@ -190,6 +194,44 @@ export default function ChatPage() {
       if (!arg) return pushBubble("assistant", `Current model: ${model || "Auto"}. Usage: /model <name>`), true;
       setModel(arg);
       pushBubble("assistant", `✅ This chat will use model: ${arg}`);
+      return true;
+    }
+    if (c === "task") {
+      if (!arg) return pushBubble("assistant", "Usage: /task <title>"), true;
+      pushBubble("user", raw);
+      try {
+        const t = await createTask({ title: arg });
+        pushBubble("assistant", `📋 Task created: “${t.title}” (${t.status}).`);
+      } catch (e) {
+        pushBubble("assistant", `⚠️ ${e instanceof Error ? e.message : "task failed"}`);
+      }
+      return true;
+    }
+    if (c === "nodes") {
+      pushBubble("user", raw);
+      try {
+        const n = await fetchNodes();
+        pushBubble(
+          "assistant",
+          n.items.length
+            ? `🖥️ ${n.online}/${n.total} online:\n` +
+                n.items.map((x) => `• ${x.label || x.node_id} — ${x.online ? "online" : "offline"}`).join("\n")
+            : "No nodes registered.",
+        );
+      } catch (e) {
+        pushBubble("assistant", `⚠️ ${e instanceof Error ? e.message : "failed"}`);
+      }
+      return true;
+    }
+    if (c === "status") {
+      pushBubble("user", raw);
+      try {
+        const s = await fetchSystemStatus();
+        const parts = s.components.map((x) => `${x.name}: ${x.status}`).join(" · ");
+        pushBubble("assistant", `⚙️ ${s.status} (v${s.version}) — ${parts}`);
+      } catch (e) {
+        pushBubble("assistant", `⚠️ ${e instanceof Error ? e.message : "failed"}`);
+      }
       return true;
     }
     if (c === "web") {
