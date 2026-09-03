@@ -649,6 +649,12 @@ pre {
   gap: 10px;
   opacity: 0.9;
 }
+.working-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
 .typing {
   display: inline-flex;
   gap: 4px;

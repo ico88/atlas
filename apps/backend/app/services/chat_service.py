@@ -262,13 +262,21 @@ async def _generate_turn(payload: ChatRequest) -> AsyncIterator[dict]:
             "model": decision.model,
         }
 
-        # 4) Stream the reply, accumulating the full text.
+        # 4) Stream the reply, accumulating the full text. The partial text is
+        #    flushed to the DB every ~0.8s so a client that reopens mid-generation
+        #    sees the reply grow instead of a blank "working" bubble.
         started = time.perf_counter()
+        last_flush = started
         parts: list[str] = []
         try:
             async for piece in decision.provider.stream_chat(history, decision.model):
                 parts.append(piece)
                 yield {"type": "token", "content": piece}
+                now = time.perf_counter()
+                if now - last_flush > 0.8:
+                    assistant.content = "".join(parts)
+                    await session.commit()
+                    last_flush = now
         except Exception as exc:  # noqa: BLE001 - surface provider errors to client
             logger.exception("chat stream failed", extra={"event": "chat_stream_error"})
             assistant.content = "".join(parts)

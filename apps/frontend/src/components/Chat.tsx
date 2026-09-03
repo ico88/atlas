@@ -440,20 +440,40 @@ export default function Chat() {
                 </pre>
               </div>
             )}
-            {messages.map((m) => (
-              <div key={m.id} className={`bubble ${m.role}`}>
-                {m.content}
-                {m.role === "assistant" && m.citations && (
-                  <Citations items={m.citations} label={t("chat.sources")} />
-                )}
-                {m.role === "assistant" && m.model && (
-                  <span className="meta">
-                    {m.provider} · {m.model}
-                    {m.latency_ms != null ? ` · ${m.latency_ms} ms` : ""}
-                  </span>
-                )}
-              </div>
-            ))}
+            {messages.map((m) => {
+              // A reply still generating in the background (e.g. resumed after a
+              // reload): show its partial text + a clear "working" indicator.
+              if (m.role === "assistant" && m.status === "pending") {
+                return (
+                  <div key={m.id} className="bubble assistant">
+                    {m.content}
+                    <span className="caret">▌</span>
+                    <span className="working-row">
+                      <span className="typing">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </span>
+                      <span className="meta">{t("chat.working")}</span>
+                    </span>
+                  </div>
+                );
+              }
+              return (
+                <div key={m.id} className={`bubble ${m.role}`}>
+                  {m.content}
+                  {m.role === "assistant" && m.citations && (
+                    <Citations items={m.citations} label={t("chat.sources")} />
+                  )}
+                  {m.role === "assistant" && m.model && (
+                    <span className="meta">
+                      {m.provider} · {m.model}
+                      {m.latency_ms != null ? ` · ${m.latency_ms} ms` : ""}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
 
             {/* Live streaming text once tokens arrive. */}
             {phase === "streaming" && (

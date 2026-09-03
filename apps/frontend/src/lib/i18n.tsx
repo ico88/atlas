@@ -61,6 +61,8 @@ const EN: Dict = {
   "chat.showActive": "Active",
   "chat.confirmDelete": "Delete this chat and all its content? This cannot be undone.",
   "chat.noArchived": "No archived chats.",
+  "chat.working": "Working on your request…",
+  "chat.resuming": "This reply is still being generated — it will keep going even if you leave.",
 
   "common.error": "Error",
   "common.loading": "Loading…",
@@ -113,6 +115,8 @@ const IT: Dict = {
   "chat.showActive": "Attive",
   "chat.confirmDelete": "Eliminare questa chat e tutto il contenuto? Operazione irreversibile.",
   "chat.noArchived": "Nessuna chat archiviata.",
+  "chat.working": "Sto elaborando la tua richiesta…",
+  "chat.resuming": "Questa risposta è ancora in generazione — continua anche se esci.",
 
   "common.error": "Errore",
   "common.loading": "Caricamento…",
