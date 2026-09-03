@@ -692,6 +692,36 @@ pre {
   max-width: 150px;
 }
 
+/* Recommended models grid (Models page) */
+.rec-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+.rec-card {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--panel-2);
+}
+.rec-card.tier-balanced {
+  border-left-color: var(--accent);
+}
+.rec-card.tier-fast {
+  border-left-color: var(--ok);
+}
+.rec-card.tier-quality {
+  border-left-color: var(--warn);
+}
+.rec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 /* Lightweight Markdown rendering (chat replies, query results) */
 .md {
   line-height: 1.55;

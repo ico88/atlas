@@ -13,12 +13,24 @@ import {
   setDefaultModel,
 } from "@/lib/api";
 
+// Curated open models that run locally via Ollama, far better than llama3.2:1b.
+// Sizes are approximate download sizes; on a CPU-only host smaller = faster.
+const RECOMMENDED: { name: string; size: string; note: string; tier: string }[] = [
+  { name: "qwen2.5:3b", size: "~2 GB", note: "★ Recommended — great in Italian, 3B", tier: "balanced" },
+  { name: "llama3.2:3b", size: "~2 GB", note: "Fast and solid, 3B", tier: "fast" },
+  { name: "gemma2:2b", size: "~1.6 GB", note: "Very fast, 2B", tier: "fast" },
+  { name: "phi3.5", size: "~2.2 GB", note: "Strong reasoning for its size, 3.8B", tier: "balanced" },
+  { name: "qwen2.5:7b", size: "~4.7 GB", note: "Best quality, slower on CPU, 7B", tier: "quality" },
+  { name: "mistral:7b", size: "~4.1 GB", note: "Solid generalist, 7B", tier: "quality" },
+];
+
 export default function ModelsPage() {
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [hardware, setHardware] = useState<Record<string, unknown> | null>(null);
   const [defaultModel, setDefault] = useState("");
   const [pullName, setPullName] = useState("");
   const [pulls, setPulls] = useState<Record<string, { state: string; status?: string; completed?: number; total?: number }>>({});
+  const [wantDefault, setWantDefault] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,6 +62,18 @@ export default function ModelsPage() {
       try {
         const st = (await fetchPullStatus()).items;
         setPulls(st);
+        // A "download & use" finished -> make it the default, then stop wanting it.
+        for (const name of wantDefault) {
+          if (st[name]?.state === "done") {
+            try {
+              const r = await setDefaultModel(name);
+              setDefault(r.default_model);
+            } catch {
+              /* ignore */
+            }
+            setWantDefault((w) => w.filter((n) => n !== name));
+          }
+        }
         if (Object.values(st).every((p) => p.state === "done" || p.state === "error")) {
           load();
         }
@@ -58,7 +82,7 @@ export default function ModelsPage() {
       }
     }, 1500);
     return () => clearInterval(id);
-  }, [pulls, load]);
+  }, [pulls, load, wantDefault]);
 
   const makeDefault = async (name: string) => {
     try {
@@ -69,16 +93,25 @@ export default function ModelsPage() {
     }
   };
 
-  const doPull = async () => {
-    if (!pullName.trim()) return;
+  const pull = async (name: string, asDefault = false) => {
+    const clean = name.trim();
+    if (!clean) return;
     try {
-      await pullModel(pullName.trim());
-      setPulls((p) => ({ ...p, [pullName.trim()]: { state: "starting", status: "queued" } }));
-      setPullName("");
+      await pullModel(clean);
+      setPulls((p) => ({ ...p, [clean]: { state: "starting", status: "queued" } }));
+      if (asDefault) setWantDefault((w) => (w.includes(clean) ? w : [...w, clean]));
     } catch (err) {
       setError(err instanceof Error ? err.message : "pull failed");
     }
   };
+
+  const doPull = async () => {
+    await pull(pullName);
+    setPullName("");
+  };
+
+  const isPulling = (name: string) =>
+    pulls[name]?.state === "pulling" || pulls[name]?.state === "starting";
 
   const doDelete = async (name: string) => {
     if (!confirm(`Delete model ${name}?`)) return;
@@ -154,10 +187,59 @@ export default function ModelsPage() {
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <h3 style={{ marginTop: 0 }}>Download a model</h3>
+        <h3 style={{ marginTop: 0 }}>Recommended models</h3>
         <p className="muted" style={{ fontSize: 12 }}>
-          Pull an Ollama model by name (e.g. <code>llama3.2:1b</code>, <code>qwen2.5:0.5b</code>).
-          Small models are much faster on CPU.
+          Better open models than <code>llama3.2:1b</code> that still run locally via
+          Ollama. On a CPU-only host, smaller = faster; 7B gives the best quality but
+          is slower.
+        </p>
+        <div className="rec-grid">
+          {RECOMMENDED.map((r) => {
+            const installed = models.some((m) => m.name === r.name && m.available);
+            const pulling = isPulling(r.name);
+            return (
+              <div key={r.name} className={`rec-card tier-${r.tier}`}>
+                <div className="rec-head">
+                  <strong>{r.name}</strong>
+                  <span className="pill">{r.size}</span>
+                </div>
+                <div className="muted" style={{ fontSize: 12, margin: "4px 0 10px" }}>
+                  {r.note}
+                </div>
+                {installed ? (
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <span className="queue-badge active">installed</span>
+                    {r.name !== defaultModel && (
+                      <button className="btn secondary" onClick={() => makeDefault(r.name)}>
+                        Use as default
+                      </button>
+                    )}
+                    {r.name === defaultModel && <span className="pill">⭐ default</span>}
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <button className="btn" disabled={pulling} onClick={() => pull(r.name, true)}>
+                      {pulling ? "Downloading…" : "Download & use"}
+                    </button>
+                    <button
+                      className="btn secondary"
+                      disabled={pulling}
+                      onClick={() => pull(r.name, false)}
+                    >
+                      Download
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h3 style={{ marginTop: 0 }}>Download any model</h3>
+        <p className="muted" style={{ fontSize: 12 }}>
+          Pull any Ollama model by name (e.g. <code>qwen2.5:3b</code>, <code>gemma2:2b</code>).
         </p>
         <div style={{ display: "flex", gap: 8 }}>
           <input
