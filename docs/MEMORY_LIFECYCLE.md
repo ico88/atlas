@@ -4,6 +4,17 @@ Durable, semantic memories with **provenance**, usage-aware **retrieval**, and
 **retention** — built on the existing memory store (migration 0015 extends
 `memories`).
 
+## Automatic capture from chat
+
+When `ATLAS_CHAT_MEMORY_ENABLED=true` (default), the chat **learns durable facts
+by itself**: a message like "sono Federico" / "my name is Alice" / "ricorda che …"
+/ "preferisco …" is saved as a `user`-scoped memory (`source=chat`). On every
+later turn the top `ATLAS_CHAT_MEMORY_TOP_K` known facts are injected as a short
+profile so the assistant remembers across conversations. Capture is conservative
+(only high-confidence patterns) and best-effort (never blocks a reply). You can
+still add/curate memories manually with `/remember`, `/recall`, or the Knowledge
+page, and turn the whole thing off with the env flag.
+
 ## Capture (provenance)
 
 `POST /api/v1/memories` accepts, besides `content`/`scope`/`scope_id`:

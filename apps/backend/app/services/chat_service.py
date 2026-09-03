@@ -23,8 +23,9 @@ from app.core.config import get_settings
 from app.db import get_sessionmaker
 from app.models.base import utcnow
 from app.models.conversation import Conversation, Message, MessageRole
+from app.rag.memory_capture import extract_facts
 from app.schemas.chat import ChatRequest
-from app.services import webtools_service
+from app.services import memory_service, webtools_service
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,38 @@ def _format_web_context(citations: list[dict]) -> str:
         if snippet:
             lines.append(f"    {snippet}")
     return "\n".join(lines)
+
+
+async def _capture_memories(session: AsyncSession, content: str) -> None:
+    """Auto-save durable facts the user states (e.g. "sono Federico"). Best-effort."""
+
+    if not get_settings().chat_memory_enabled:
+        return
+    facts = extract_facts(content)
+    if not facts:
+        return
+    existing = {
+        m.content.lower() for m in await memory_service.list_memories(session, scope="user")
+    }
+    for fact in facts:
+        if fact.lower() in existing:
+            continue
+        try:
+            await memory_service.add_memory(
+                session, content=fact, scope="user", source="chat", mem_type="fact"
+            )
+        except Exception:  # noqa: BLE001 - memory is best-effort, never break chat
+            logger.warning("auto memory capture failed", extra={"event": "mem_capture_error"})
+
+
+async def _known_facts(session: AsyncSession) -> list[str]:
+    """The small user 'profile' injected so the assistant remembers across chats."""
+
+    if not get_settings().chat_memory_enabled:
+        return []
+    top_k = get_settings().chat_memory_top_k
+    mems = await memory_service.list_memories(session, scope="user")
+    return [m.content for m in mems[:top_k]]
 
 
 async def _web_search(payload: ChatRequest) -> tuple[list[dict], str | None]:
@@ -130,9 +163,20 @@ async def stream_chat(payload: ChatRequest) -> AsyncIterator[str]:
         )
         await session.commit()
 
+        # 2a) Auto-capture durable facts ("sono Federico" -> remembered).
+        await _capture_memories(session, payload.content)
+
         history = await _history(session, conversation.id)
 
-        # 2b) Optional web grounding (ROADMAP PR 15): search and prepend context.
+        # 2b) Prepend known user facts so the assistant remembers across chats.
+        facts = await _known_facts(session)
+        if facts:
+            profile = "Known facts about the user (use them when relevant):\n" + "\n".join(
+                f"- {f}" for f in facts
+            )
+            history = [ChatMessage(role="system", content=profile)] + history
+
+        # 2c) Optional web grounding (ROADMAP PR 15): search and prepend context.
         citations: list[dict] = []
         if payload.web:
             citations, note = await _web_search(payload)

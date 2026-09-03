@@ -96,6 +96,9 @@ class Settings(BaseSettings):
     ollama_num_predict: int = 512  # cap reply length (-1 = unlimited)
     chat_history_limit: int = 20  # max prior messages sent as context (0 = all)
     ai_available_cache_seconds: float = 30.0  # cache Ollama reachability probe
+    # Automatic memory: capture durable facts from chat and recall them as context.
+    chat_memory_enabled: bool = True
+    chat_memory_top_k: int = 5  # how many known facts to inject per turn
 
     # RAG / Memory (spec §6, §8, M8).
     embedding_dim: int = 256  # dimension of the local hashing embedder
