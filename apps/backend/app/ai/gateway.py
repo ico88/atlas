@@ -26,7 +26,7 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai import circuit
+from app.ai import circuit, reservation
 from app.ai.anthropic import AnthropicAdapter
 from app.ai.base import (
     CLOUD_RUNTIME_TYPES,
@@ -150,6 +150,9 @@ def score_candidate(
     # Measured throughput, when we have benchmarked it (Fase 2 fills this in).
     if deployment.estimated_tokens_per_second:
         score += min(deployment.estimated_tokens_per_second, 100.0) * 0.5
+    # Prefer an already-warm model — no load latency (Fase 4, concept §17/§18).
+    if deployment.load_policy in ("ALWAYS_LOADED", "PINNED") or deployment.loaded:
+        score += 8.0
     # An explicit alias order selects the model: it dominates every other term,
     # so a lower-ranked model never beats a higher-ranked one on priority alone.
     # Within one aliased model, the remaining terms pick the best deployment.
@@ -282,6 +285,17 @@ async def resolve(
                 extra={"event": "gateway_skip", "context": {"runtime": cand.runtime.name}},
             )
             continue
+        # Skip deployments already at their concurrency limit (Fase 4).
+        active = await reservation.active(cand.deployment.id)
+        if not reservation.can_admit(active, cand.deployment.max_concurrency):
+            logger.info(
+                "deployment at capacity, skipping",
+                extra={
+                    "event": "gateway_skip",
+                    "context": {"deployment": cand.deployment.id, "active": active},
+                },
+            )
+            continue
         try:
             adapter = adapter_for(cand.runtime)
         except ValueError as exc:
@@ -322,6 +336,7 @@ async def resolve(
             runtime=cand.runtime.name,
             node=cand.runtime.node_id,
             deployment_id=cand.deployment.id,
+            max_concurrency=cand.deployment.max_concurrency,
             score=cand.score,
         )
     return None

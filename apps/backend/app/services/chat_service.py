@@ -18,8 +18,8 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.ai import router
-from app.ai.base import ChatMessage
+from app.ai import reservation, router
+from app.ai.base import ChatMessage, RoutingDecision
 from app.core.config import get_settings
 from app.db import get_sessionmaker
 from app.models.base import utcnow
@@ -33,6 +33,33 @@ logger = logging.getLogger(__name__)
 
 def _sse(data: dict) -> str:
     return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+class _NoReservation:
+    """No-op reservation for the classic path (no gateway deployment)."""
+
+    ok = True
+
+    async def __aenter__(self) -> _NoReservation:
+        return self
+
+    async def __aexit__(self, *exc) -> None:
+        return None
+
+
+def _reserve(decision: RoutingDecision):
+    """Reserve a concurrency slot on the chosen deployment (Fase 4).
+
+    The gateway already avoids deployments at capacity; this holds the slot for
+    the life of the turn so concurrent turns account for each other. Best-effort:
+    if the slot is full by now we still serve (advisory), never blocking the user.
+    """
+
+    if not decision.deployment_id:
+        return _NoReservation()
+    return reservation.Reservation(
+        decision.deployment_id, max_concurrency=decision.max_concurrency
+    )
 
 
 def _format_web_context(citations: list[dict]) -> str:
@@ -261,9 +288,11 @@ async def _generate_anonymous_turn(payload: ChatRequest) -> AsyncIterator[dict]:
         "model": decision.model,
         "anonymous": True,
     }
+    slot = _reserve(decision)
     try:
-        async for piece in decision.provider.stream_chat(history, decision.model):
-            yield {"type": "token", "content": piece}
+        async with slot:
+            async for piece in decision.provider.stream_chat(history, decision.model):
+                yield {"type": "token", "content": piece}
     except Exception as exc:  # noqa: BLE001 - surface provider errors to client
         logger.exception("anon chat stream failed", extra={"event": "chat_stream_error"})
         yield {"type": "error", "detail": str(exc)}
@@ -375,14 +404,15 @@ async def _generate_turn(payload: ChatRequest, user_id: str | None = None) -> As
         last_flush = started
         parts: list[str] = []
         try:
-            async for piece in decision.provider.stream_chat(history, decision.model):
-                parts.append(piece)
-                yield {"type": "token", "content": piece}
-                now = time.perf_counter()
-                if now - last_flush > 0.8:
-                    assistant.content = "".join(parts)
-                    await session.commit()
-                    last_flush = now
+            async with _reserve(decision):
+                async for piece in decision.provider.stream_chat(history, decision.model):
+                    parts.append(piece)
+                    yield {"type": "token", "content": piece}
+                    now = time.perf_counter()
+                    if now - last_flush > 0.8:
+                        assistant.content = "".join(parts)
+                        await session.commit()
+                        last_flush = now
         except Exception as exc:  # noqa: BLE001 - surface provider errors to client
             logger.exception("chat stream failed", extra={"event": "chat_stream_error"})
             assistant.content = "".join(parts)

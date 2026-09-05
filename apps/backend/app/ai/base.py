@@ -89,6 +89,7 @@ class RoutingDecision:
     runtime: str | None = None  # runtime name/type that will serve the request
     node: str | None = None  # node the runtime runs on (None = control plane)
     deployment_id: str | None = None
+    max_concurrency: int = 0  # 0 = unlimited (used for slot reservation, Fase 4)
     score: float | None = None
 
 

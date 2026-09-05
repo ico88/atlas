@@ -43,7 +43,7 @@ export default function RuntimesPage() {
 
   // Forms
   const [rt, setRt] = useState({ name: "", runtime_type: "ollama", endpoint: "" });
-  const [dep, setDep] = useState({ model_key: "", runtime_id: "", runtime_model_name: "", priority: "100" });
+  const [dep, setDep] = useState({ model_key: "", runtime_id: "", runtime_model_name: "", priority: "100", load_policy: "ON_DEMAND" });
   const [alias, setAlias] = useState({ alias: "", targets: "" });
   const [pol, setPol] = useState({ task_type: "", capabilities: "", preferred_alias: "", privacy: "LOCAL_PREFERRED", fallback: "" });
 
@@ -213,6 +213,15 @@ export default function RuntimesPage() {
             style={{ width: 90 }}
             onChange={(e) => setDep({ ...dep, priority: e.target.value })}
           />
+          <select
+            value={dep.load_policy}
+            onChange={(e) => setDep({ ...dep, load_policy: e.target.value })}
+          >
+            <option>ON_DEMAND</option>
+            <option>ALWAYS_LOADED</option>
+            <option>PINNED</option>
+            <option>AUTO_UNLOAD</option>
+          </select>
           <button
             className="btn"
             disabled={!dep.model_key.trim() || !dep.runtime_id || !dep.runtime_model_name.trim()}
@@ -223,8 +232,9 @@ export default function RuntimesPage() {
                   runtime_id: dep.runtime_id,
                   runtime_model_name: dep.runtime_model_name.trim(),
                   priority: Number(dep.priority) || 100,
+                  load_policy: dep.load_policy,
                 });
-                setDep({ model_key: "", runtime_id: "", runtime_model_name: "", priority: "100" });
+                setDep({ model_key: "", runtime_id: "", runtime_model_name: "", priority: "100", load_policy: "ON_DEMAND" });
               })
             }
           >
@@ -240,6 +250,7 @@ export default function RuntimesPage() {
               <th>runtime</th>
               <th>model name</th>
               <th>priority</th>
+              <th>load</th>
               <th>tok/s</th>
               <th />
             </tr>
@@ -251,6 +262,7 @@ export default function RuntimesPage() {
                 <td>{runtimes.find((r) => r.id === d.runtime_id)?.name || d.runtime_id}</td>
                 <td>{d.runtime_model_name}</td>
                 <td>{d.priority}</td>
+                <td>{d.load_policy}</td>
                 <td>{d.estimated_tokens_per_second ?? "—"}</td>
                 <td style={{ display: "flex", gap: 6 }}>
                   <button
@@ -267,7 +279,7 @@ export default function RuntimesPage() {
             ))}
             {deployments.length === 0 && (
               <tr>
-                <td colSpan={6} className="muted">
+                <td colSpan={7} className="muted">
                   {t("runtimes.none")}
                 </td>
               </tr>

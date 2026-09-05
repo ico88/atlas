@@ -64,6 +64,8 @@ class ModelDeployment(Base):
     runtime_model_name: Mapped[str] = mapped_column(String(128), nullable=False)
     loaded: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="READY")
+    # Loading strategy (Fase 4): ALWAYS_LOADED | ON_DEMAND | PINNED | AUTO_UNLOAD.
+    load_policy: Mapped[str] = mapped_column(String(16), nullable=False, default="ON_DEMAND")
     priority: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
     max_context: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_concurrency: Mapped[int] = mapped_column(Integer, nullable=False, default=1)

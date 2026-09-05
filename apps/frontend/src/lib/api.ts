@@ -1228,7 +1228,9 @@ export interface ModelDeployment {
   runtime_model_name: string;
   loaded: boolean;
   status: string;
+  load_policy: string;
   priority: number;
+  max_concurrency: number;
   estimated_tokens_per_second?: number | null;
   enabled: boolean;
   updated_at: string;
@@ -1291,6 +1293,8 @@ export async function createModelDeployment(body: {
   runtime_model_name: string;
   node_id?: string;
   priority?: number;
+  load_policy?: string;
+  max_concurrency?: number;
 }): Promise<ModelDeployment> {
   return sendJson("/api/v1/model-deployments", "POST", body);
 }

@@ -81,6 +81,7 @@ class DeploymentCreate(BaseModel):
     priority: int = 100
     max_context: int | None = None
     max_concurrency: int = Field(default=1, ge=1)
+    load_policy: str = Field(default="ON_DEMAND", max_length=16)
     enabled: bool = True
     meta: dict[str, Any] | None = None
 
@@ -90,6 +91,7 @@ class DeploymentUpdate(BaseModel):
     priority: int | None = None
     max_context: int | None = None
     max_concurrency: int | None = Field(default=None, ge=1)
+    load_policy: str | None = Field(default=None, max_length=16)
     enabled: bool | None = None
     loaded: bool | None = None
     estimated_tokens_per_second: float | None = None
@@ -106,6 +108,7 @@ class ModelDeploymentRead(BaseModel):
     runtime_model_name: str
     loaded: bool
     status: str
+    load_policy: str
     priority: int
     max_context: int | None
     max_concurrency: int

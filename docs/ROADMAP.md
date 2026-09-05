@@ -318,7 +318,14 @@ comportamento classico (nessuna regressione). Vedi [MULTI_RUNTIME.md](MULTI_RUNT
   `gateway.resolve_for_task` con **escalation** locale→cloud lungo gli alias di
   fallback, API `/routing-policies`. Il cloud è raggiunto solo se un runtime è
   registrato E la privacy/policy lo consentono (`LOCAL_ONLY` esclude sempre).
-- **Fase 4** ⬜ prenotazione risorse, load/unload dei modelli, preemption.
+- **Fase 4** ✅ (parziale) **prenotazione risorse**: slot di concorrenza per
+  deployment in Redis (`app/ai/reservation.py`), il gateway salta i deployment al
+  limite `max_concurrency` e la chat prenota/rilascia lo slot per la durata del
+  turno; **strategia di caricamento** (`load_policy`: ON_DEMAND/ALWAYS_LOADED/
+  PINNED/AUTO_UNLOAD, migrazione 0024) con bonus di score ai modelli già caldi;
+  decisione di **preemption** pura (`should_preempt`). La cancellazione reale
+  dell'inferenza in corso e l'auto-unload effettivo dipendono dal supporto del
+  runtime (documentato). Restano i termini VRAM (serve telemetria GPU per nodo).
 
 ## Definition of Done globale
 

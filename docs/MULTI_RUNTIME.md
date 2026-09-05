@@ -100,7 +100,14 @@ that runtime is stopped.
   excludes cloud). To enable M9: register an `openai`/`anthropic` runtime with an
   API key, add a deployment + alias, set `ATLAS_ROUTING_CLOUD_ALLOWED=true`, and a
   policy whose fallback points at the cloud alias.
-- **Fase 4** — resource reservation, model load/unload strategy, preemption.
+- **Fase 4** ✅ (partial) — **concurrency reservation** (`app/ai/reservation.py`,
+  Redis slot counter per deployment): the gateway skips deployments at their
+  `max_concurrency`, and a chat turn reserves/releases a slot for its duration so
+  concurrent turns account for each other. **Loading strategy** (`load_policy`:
+  ON_DEMAND / ALWAYS_LOADED / PINNED / AUTO_UNLOAD) with a warm-model score bonus.
+  A pure **preemption** decision (`should_preempt`). Actual cancellation of an
+  in-flight generation and true auto-unload depend on runtime support (honest
+  scope); VRAM accounting still needs per-node GPU telemetry.
 
 Distributing a **single** LLM across nodes over WAN is intentionally out of scope
 (a different, harder problem); ATLAS uses distributed *task* execution instead.
