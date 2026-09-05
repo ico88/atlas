@@ -32,6 +32,7 @@ from app.api import (
     tasks,
     users,
     webtools,
+    zerotier,
 )
 from app.api import (
     eval as eval_api,
@@ -159,6 +160,7 @@ def create_app() -> FastAPI:
     app.include_router(deployment.router)
     app.include_router(fleet.router)
     app.include_router(cluster.router)
+    app.include_router(zerotier.router)
 
     return app
 

@@ -116,6 +116,30 @@ export interface ClusterStatus {
 }
 export const fetchCluster = () => getJson<ClusterStatus>("/api/v1/cluster");
 
+export interface ZeroTierMember {
+  id: string;
+  name: string;
+  authorized: boolean;
+  online: boolean;
+  ip_assignments: string[];
+  last_seen?: number | string | null;
+}
+export interface ZeroTierStatus {
+  controller_enabled: boolean;
+  network_id: string | null;
+  auto_authorize: boolean;
+  members: ZeroTierMember[];
+  member_count: number;
+  authorized_count: number;
+  error?: string | null;
+}
+export const fetchZeroTier = () => getJson<ZeroTierStatus>("/api/v1/zerotier/status");
+export const authorizeZeroTier = (id: string, authorized: boolean) =>
+  postJson<ZeroTierMember>(
+    `/api/v1/zerotier/members/${encodeURIComponent(id)}/authorize`,
+    { authorized },
+  );
+
 export const fetchSystemStatus = () =>
   getJson<SystemStatus>("/api/v1/system/status");
 

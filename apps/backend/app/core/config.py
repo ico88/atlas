@@ -115,6 +115,18 @@ class Settings(BaseSettings):
     instance_id: str = ""  # stable id for this instance (defaults to host+pid)
     ha_lease_ttl: int = 30  # seconds; leader renews within this, failover after it
 
+    # ZeroTier controller (ROADMAP PR 7). OFF by default: the overlay works via
+    # the installer's join flow without the control plane touching ZeroTier
+    # Central. Enable to let ATLAS list/authorize members of a network through the
+    # ZeroTier Central API (member authorization is audited).
+    zerotier_controller_enabled: bool = False
+    zerotier_api_token: str = ""
+    zerotier_network_id: str = ""
+    zerotier_api: str = "https://api.zerotier.com/api/v1"
+    # When true, a member joining the network is auto-authorized by the controller
+    # (convenience); when false, an operator authorizes each member explicitly.
+    zerotier_auto_authorize: bool = False
+
     # Node federation (spec §8). A shared join token authenticates nodes against
     # the control plane (least privilege, §13). Empty => open (development only).
     node_join_token: str = ""

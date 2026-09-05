@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import ZeroTierCard from "@/components/ZeroTierCard";
 import {
   Enrollment,
   Node,
@@ -145,6 +146,8 @@ export default function NodesPage() {
           </div>
         ))}
       </div>
+
+      <ZeroTierCard />
 
       <h2 className="page-title" style={{ fontSize: 20, marginTop: 28 }}>
         Enrollment

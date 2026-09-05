@@ -164,7 +164,11 @@ Stato: ✅ = consegnata.
     `/api/v1/enrollments` + sezione Enrollment nella pagina Nodes. mTLS resta
     hardening di trasporto complementare (Caddy/ZeroTier). Vedi
     [NODE_ENROLLMENT.md](NODE_ENROLLMENT.md).
-7. **PR 7 — ZeroTier integration:** stato, policy, API controller opzionale e audit.
+7. ✅ **PR 7 — ZeroTier integration:** controller lato control-plane opzionale
+   (off di default) sopra la ZeroTier Central API — stato rete, lista/summary
+   membri (`summarize_member` puro), authorize/deauthorize **auditati**
+   (`event: zt_authorize`), API `/api/v1/zerotier/*` + card overlay in Nodi. Il
+   join base è nell'installer (PR 5). Vedi [ZEROTIER.md](ZEROTIER.md).
 8. ✅ **PR 8 — Resilient scheduler:** lease temporizzato + fencing token sui task
     RUNNING (worker locale e claim nodo), heartbeat/checkpoint per ripresa,
     `reclaim_expired` (failover: locali→RETRYING ri-accodati, remoti→QUEUED,
