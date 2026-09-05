@@ -245,7 +245,11 @@ Stato: ✅ = consegnata.
     HEALTHY → rollout), promozione a ondata e **rollback automatico** (ripristino
     `desired_version` precedente) su qualsiasi fallimento; API `/advance` e
     `/report`, pagina **Fleet Update**. Vedi [FLEET_DEPLOYMENT.md](FLEET_DEPLOYMENT.md).
-23. **PR 23 — UI:** Nodi, Risorse, Memoria, Miglioramenti, Aggiornamenti, code e fonti.
+23. ✅ **PR 23 — UI di consolidamento:** navigazione raggruppata in sezioni
+    (Area di lavoro / Fleet / Governance / Amministrazione), **Dashboard** hub con
+    KPI live (salute, nodi online, conformità, task, approvazioni) e collegamenti
+    rapidi, controlli/tipografia uniformi. Le aree (Nodi, Risorse, Memoria,
+    Miglioramenti, aggiornamenti fleet, code, fonti web) hanno pagine dedicate.
 24. ✅ **PR 24 — Fleet Compliance:** desired state (settings `fleet_desired`), drift
     puro (`compute_drift`: versione/capability/offline/quarantena) con % di
     conformità e check min-online, API `/fleet/compliance|desired`, dashboard
