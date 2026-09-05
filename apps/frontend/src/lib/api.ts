@@ -100,6 +100,22 @@ export async function login(email: string, password: string): Promise<string> {
 
 export const fetchMe = () => getJson<AuthUser>("/api/v1/auth/me");
 
+export interface ClusterMember {
+  id: string;
+  last_seen?: string | null;
+  leader: boolean;
+  self: boolean;
+}
+export interface ClusterStatus {
+  instance_id: string;
+  leader: string | null;
+  is_leader: boolean;
+  ha_enabled: boolean;
+  lease_ttl: number;
+  members: ClusterMember[];
+}
+export const fetchCluster = () => getJson<ClusterStatus>("/api/v1/cluster");
+
 export const fetchSystemStatus = () =>
   getJson<SystemStatus>("/api/v1/system/status");
 

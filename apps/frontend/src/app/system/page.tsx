@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
+  ClusterStatus,
   ComponentStatus,
   SystemMetrics,
   SystemStatus,
+  fetchCluster,
   fetchSystemMetrics,
   fetchSystemStatus,
 } from "@/lib/api";
@@ -16,16 +18,19 @@ function StatusDot({ status }: { status: ComponentStatus["status"] }) {
 export default function SystemStatusPage() {
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
+  const [cluster, setCluster] = useState<ClusterStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const [s, m] = await Promise.all([
+      const [s, m, c] = await Promise.all([
         fetchSystemStatus(),
         fetchSystemMetrics(),
+        fetchCluster(),
       ]);
       setStatus(s);
       setMetrics(m);
+      setCluster(c);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load status");
@@ -116,6 +121,39 @@ export default function SystemStatusPage() {
               <span>Approvals pending</span>
               <span className="pill">{metrics.approvals_pending}</span>
             </div>
+          )}
+        </div>
+
+        <div className="card">
+          <h3>Cluster (HA)</h3>
+          {cluster && (
+            <>
+              <div className="status-row">
+                <span>Mode</span>
+                <span className="pill">
+                  {cluster.ha_enabled ? "HA (leader election)" : "single-node"}
+                </span>
+              </div>
+              <div className="status-row">
+                <span>This instance</span>
+                <span className="badge">
+                  {cluster.instance_id}
+                  {cluster.is_leader && (
+                    <span className="queue-badge active" style={{ marginLeft: 6 }}>
+                      leader
+                    </span>
+                  )}
+                </span>
+              </div>
+              {cluster.members.map((m) => (
+                <div className="status-row" key={m.id}>
+                  <span>{m.id}{m.self ? " (you)" : ""}</span>
+                  <span className={`queue-badge ${m.leader ? "active" : "idle"}`}>
+                    {m.leader ? "leader" : "follower"}
+                  </span>
+                </div>
+              ))}
+            </>
           )}
         </div>
       </div>

@@ -141,9 +141,14 @@ async def _autonomous_loop() -> None:
         "autonomous proposer started",
         extra={"event": "auto_propose_start", "context": {"interval_s": interval}},
     )
+    from app.services import leadership_service
+
     while True:
         await asyncio.sleep(interval)
         try:
+            # In an HA cluster only the leader runs this singleton work.
+            if not await leadership_service.is_leader():
+                continue
             await autonomous_propose()
         except Exception:  # noqa: BLE001 - a bad sweep must not kill the loop
             logger.warning("autonomous proposer sweep failed", extra={"event": "auto_propose_err"})

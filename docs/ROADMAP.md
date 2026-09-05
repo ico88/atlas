@@ -172,7 +172,11 @@ Stato: ✅ = consegnata.
     Migrazione 0012; config `ATLAS_TASK_LEASE_SECONDS`/
     `ATLAS_SCHEDULER_RECLAIM_ENABLED`. Vedi
     [RESILIENT_SCHEDULER.md](RESILIENT_SCHEDULER.md).
-9. **PR 9 — Control plane HA:** replica, leader election e disaster recovery.
+9. ✅ **PR 9 — Control plane HA:** leader election via lease Redis con TTL e
+   **failover automatico**, registro istanze/membri, gate del lavoro singleton
+   (proposer) sul leader, API `/api/v1/cluster` + card **Cluster** in System
+   Status. Single-node = sempre leader. Vedi [HA.md](HA.md). (Nota onesta: la
+   HA reale richiede anche Postgres/Redis in HA — infrastruttura fuori dal repo.)
 10. ✅ **PR 10 — Query lifecycle:** modello `queries`/`query_events` (migrazione
     0008), esecuzione in background con proprio session, stati
     PENDING→RUNNING→COMPLETED/FAILED/CANCELLED, cancellazione cooperativa (flag

@@ -13,6 +13,7 @@ from app.api import (
     approvals,
     auth,
     chat,
+    cluster,
     conversation_queue,
     deployment,
     enrollment,
@@ -45,6 +46,9 @@ from app.db import get_sessionmaker
 from app.services import chat_service, query_service, user_service
 
 logger = logging.getLogger(__name__)
+
+# Strong refs so the HA background loop is not garbage-collected.
+_HA_TASKS: set[object] = set()
 
 
 async def _seed_admin() -> None:
@@ -98,6 +102,28 @@ def create_app() -> FastAPI:
             automation_service.start_autonomous_proposer()
         except Exception:  # noqa: BLE001 - never block startup on the proposer
             logger.exception("proposer start failed", extra={"event": "auto_propose_start_err"})
+        try:
+            # HA: register this instance and run leader election (no-op single-node).
+            if settings.ha_enabled:
+                import asyncio
+
+                from app.services import leadership_service
+
+                async def _ha_loop() -> None:
+                    ttl = get_settings().ha_lease_ttl
+                    while True:
+                        try:
+                            await leadership_service.register_instance()
+                            await leadership_service.try_acquire_leadership(ttl)
+                        except Exception:  # noqa: BLE001 - never kill the loop
+                            logger.warning("ha loop error", extra={"event": "ha_loop_err"})
+                        await asyncio.sleep(max(5, ttl // 2))
+
+                _ha_task = asyncio.create_task(_ha_loop())
+                _HA_TASKS.add(_ha_task)
+                _ha_task.add_done_callback(_HA_TASKS.discard)
+        except Exception:  # noqa: BLE001 - never block startup on HA
+            logger.exception("ha start failed", extra={"event": "ha_start_err"})
         yield
         logger.info("backend stopping", extra={"event": "shutdown"})
 
@@ -132,6 +158,7 @@ def create_app() -> FastAPI:
     app.include_router(review.router)
     app.include_router(deployment.router)
     app.include_router(fleet.router)
+    app.include_router(cluster.router)
 
     return app
 

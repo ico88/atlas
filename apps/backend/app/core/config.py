@@ -108,6 +108,13 @@ class Settings(BaseSettings):
     review_revise_threshold: float = 0.5  # score >= this => revise, else reject
     review_min_answer_chars: int = 40  # shorter candidates are flagged as thin
 
+    # Control-plane HA (ROADMAP PR 9). When enabled, instances elect a leader via
+    # a Redis lease; only the leader runs singleton background work (e.g. the
+    # autonomous proposer). Off => single-node: this instance is always leader.
+    ha_enabled: bool = False
+    instance_id: str = ""  # stable id for this instance (defaults to host+pid)
+    ha_lease_ttl: int = 30  # seconds; leader renews within this, failover after it
+
     # Node federation (spec §8). A shared join token authenticates nodes against
     # the control plane (least privilege, §13). Empty => open (development only).
     node_join_token: str = ""
