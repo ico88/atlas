@@ -54,6 +54,12 @@ The **Users** page lists users, creates them, toggles admin/user, and
 activates/deactivates — and shows whether enforcement is currently on, with the
 open-mode bootstrap hint.
 
+A **/login** page signs in (email + password) and stores the JWT; the token is
+attached to every API call automatically. The sidebar shows who is signed in and
+a **Log out** button (or a **Log in** link when signed out). In open mode login
+is optional (used for per-user scoping / attribution); with enforcement on it is
+required for admin-gated actions.
+
 ## Dependencies
 
 `app/api/deps.py` exposes `require_admin` / `require_user` (from `require_role`)

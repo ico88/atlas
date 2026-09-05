@@ -39,13 +39,66 @@ export interface NodeList {
   online: number;
 }
 
+// --- Auth token (PR 27/28 login) --------------------------------------------
+// A single in-memory token, mirrored to localStorage, attached to every request.
+let authToken: string | null = null;
+
+export function setAuthToken(token: string | null): void {
+  authToken = token;
+  try {
+    if (token) localStorage.setItem("atlas.token", token);
+    else localStorage.removeItem("atlas.token");
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+export function loadAuthToken(): string | null {
+  if (authToken) return authToken;
+  try {
+    authToken = localStorage.getItem("atlas.token");
+  } catch {
+    authToken = null;
+  }
+  return authToken;
+}
+
+export function authHeaders(): Record<string, string> {
+  const t = authToken ?? loadAuthToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
+
 async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(path, { cache: "no-store" });
+  const res = await fetch(path, { cache: "no-store", headers: { ...authHeaders() } });
   if (!res.ok) {
     throw new Error(`Request to ${path} failed with ${res.status}`);
   }
   return (await res.json()) as T;
 }
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  full_name?: string | null;
+  role: string;
+  is_active: boolean;
+}
+
+export async function login(email: string, password: string): Promise<string> {
+  const res = await fetch("/api/v1/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    throw new Error(res.status === 401 ? "Invalid credentials" : `Login failed (${res.status})`);
+  }
+  const data = (await res.json()) as { access_token: string };
+  setAuthToken(data.access_token);
+  return data.access_token;
+}
+
+export const fetchMe = () => getJson<AuthUser>("/api/v1/auth/me");
 
 export const fetchSystemStatus = () =>
   getJson<SystemStatus>("/api/v1/system/status");
@@ -278,7 +331,7 @@ export const fetchApprovals = () =>
 async function postJson<T>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) {
@@ -394,6 +447,7 @@ export const archiveConversation = (id: string, archived = true) =>
 export async function deleteConversation(id: string): Promise<void> {
   const res = await fetch(`/api/v1/conversations/${encodeURIComponent(id)}`, {
     method: "DELETE",
+    headers: { ...authHeaders() },
   });
   if (!res.ok && res.status !== 204) {
     throw new Error(`delete failed (${res.status})`);
@@ -521,7 +575,7 @@ export async function updateUser(
 ): Promise<AppUser> {
   const res = await fetch(`/api/v1/users/${encodeURIComponent(id)}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(body),
   });
   if (!res.ok) {
@@ -885,7 +939,7 @@ export async function streamChat(
 ): Promise<void> {
   const res = await fetch("/api/v1/chat/stream", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(req),
     signal,
   });

@@ -35,6 +35,13 @@ const EN: Dict = {
   "sidebar.tagline": "Adaptive Task & LLM Array System",
   "sidebar.footer": "Local-first · Human-governed",
   "sidebar.language": "Language",
+  "auth.login": "Log in",
+  "auth.logout": "Log out",
+  "auth.email": "Email",
+  "auth.password": "Password",
+  "auth.title": "Sign in to ATLAS",
+  "auth.signedInAs": "Signed in as",
+  "auth.guest": "Not signed in",
 
   "chat.title": "Chat",
   "chat.subtitle":
@@ -93,6 +100,13 @@ const IT: Dict = {
   "sidebar.tagline": "Sistema adattivo di attività e modelli LLM",
   "sidebar.footer": "Locale · Governato dall'uomo",
   "sidebar.language": "Lingua",
+  "auth.login": "Accedi",
+  "auth.logout": "Esci",
+  "auth.email": "Email",
+  "auth.password": "Password",
+  "auth.title": "Accedi ad ATLAS",
+  "auth.signedInAs": "Accesso come",
+  "auth.guest": "Non autenticato",
 
   "chat.title": "Chat",
   "chat.subtitle":

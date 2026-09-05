@@ -771,6 +771,16 @@ pre {
   background: var(--panel-2);
 }
 
+/* Account section in the sidebar */
+.account {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
 /* Language switcher in the sidebar */
 .lang-switch {
   display: flex;

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Logo from "@/components/Logo";
 import { Lang, useI18n } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth";
 
 const NAV = [
   { href: "/", key: "nav.chat" },
@@ -30,6 +31,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const { t, lang, setLang } = useI18n();
+  const { user, logout } = useAuth();
 
   // Close the mobile drawer whenever the route changes.
   useEffect(() => {
@@ -87,6 +89,23 @@ export default function Sidebar() {
               <option value="en">English</option>
             </select>
           </label>
+          <div className="account">
+            {user ? (
+              <>
+                <span className="muted" style={{ fontSize: 12 }}>
+                  {t("auth.signedInAs")} <strong>{user.email}</strong>
+                  {user.role === "admin" ? " · admin" : ""}
+                </span>
+                <button className="btn secondary" style={{ fontSize: 12 }} onClick={logout}>
+                  {t("auth.logout")}
+                </button>
+              </>
+            ) : (
+              <Link href="/login" className="btn secondary" style={{ fontSize: 12, textAlign: "center" }}>
+                {t("auth.login")}
+              </Link>
+            )}
+          </div>
           <div className="muted" style={{ marginTop: 8, fontSize: 12 }}>
             {t("sidebar.footer")}
           </div>
