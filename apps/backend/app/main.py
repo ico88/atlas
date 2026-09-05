@@ -28,6 +28,7 @@ from app.api import (
     query,
     rag,
     review,
+    runtimes,
     system,
     tasks,
     users,
@@ -161,6 +162,7 @@ def create_app() -> FastAPI:
     app.include_router(fleet.router)
     app.include_router(cluster.router)
     app.include_router(zerotier.router)
+    app.include_router(runtimes.router)
 
     return app
 

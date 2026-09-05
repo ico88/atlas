@@ -1194,3 +1194,122 @@ export async function streamChat(
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Multi-runtime: runtimes, model deployments, aliases (Fase 1)
+// ---------------------------------------------------------------------------
+export interface Runtime {
+  id: string;
+  name: string;
+  runtime_type: string;
+  version?: string | null;
+  endpoint?: string | null;
+  node_id?: string | null;
+  enabled: boolean;
+  status: string;
+  max_concurrency: number;
+  updated_at: string;
+}
+
+export interface RuntimeHealth {
+  id: string;
+  name: string;
+  runtime_type: string;
+  state: string;
+  detail: string;
+}
+
+export interface ModelDeployment {
+  id: string;
+  model_key: string;
+  runtime_id: string;
+  node_id?: string | null;
+  runtime_model_name: string;
+  loaded: boolean;
+  status: string;
+  priority: number;
+  estimated_tokens_per_second?: number | null;
+  enabled: boolean;
+  updated_at: string;
+}
+
+export interface ModelAlias {
+  id: string;
+  alias: string;
+  targets?: string[] | null;
+  description?: string | null;
+  enabled: boolean;
+  updated_at: string;
+}
+
+async function sendJson<T>(path: string, method: string, body?: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method,
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`${method} ${path} failed with ${res.status}`);
+  return (await res.json()) as T;
+}
+
+export async function fetchRuntimes(): Promise<{ items: Runtime[]; total: number }> {
+  return getJson("/api/v1/runtimes");
+}
+
+export async function fetchRuntimeHealth(): Promise<RuntimeHealth[]> {
+  return getJson("/api/v1/runtimes-health");
+}
+
+export async function createRuntime(body: {
+  name: string;
+  runtime_type: string;
+  endpoint?: string;
+  node_id?: string;
+}): Promise<Runtime> {
+  return sendJson("/api/v1/runtimes", "POST", body);
+}
+
+export async function updateRuntime(id: string, body: Partial<Runtime>): Promise<Runtime> {
+  return sendJson(`/api/v1/runtimes/${id}`, "PATCH", body);
+}
+
+export async function deleteRuntime(id: string): Promise<void> {
+  await sendJson(`/api/v1/runtimes/${id}`, "DELETE");
+}
+
+export async function fetchModelDeployments(): Promise<{
+  items: ModelDeployment[];
+  total: number;
+}> {
+  return getJson("/api/v1/model-deployments");
+}
+
+export async function createModelDeployment(body: {
+  model_key: string;
+  runtime_id: string;
+  runtime_model_name: string;
+  node_id?: string;
+  priority?: number;
+}): Promise<ModelDeployment> {
+  return sendJson("/api/v1/model-deployments", "POST", body);
+}
+
+export async function deleteModelDeployment(id: string): Promise<void> {
+  await sendJson(`/api/v1/model-deployments/${id}`, "DELETE");
+}
+
+export async function fetchAliases(): Promise<{ items: ModelAlias[]; total: number }> {
+  return getJson("/api/v1/model-aliases");
+}
+
+export async function upsertAlias(body: {
+  alias: string;
+  targets: string[];
+  description?: string;
+}): Promise<ModelAlias> {
+  return sendJson("/api/v1/model-aliases", "PUT", body);
+}
+
+export async function deleteAlias(alias: string): Promise<void> {
+  await sendJson(`/api/v1/model-aliases/${alias}`, "DELETE");
+}

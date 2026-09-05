@@ -32,6 +32,7 @@ const NAV_GROUPS: { section?: string; items: { href: string; key: string }[] }[]
       { href: "/compliance", key: "nav.compliance" },
       { href: "/resources", key: "nav.resources" },
       { href: "/models", key: "nav.models" },
+      { href: "/runtimes", key: "nav.runtimes" },
       { href: "/system", key: "nav.system" },
     ],
   },

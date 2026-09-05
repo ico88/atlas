@@ -54,6 +54,7 @@ from app.models.rag import (
 )
 from app.models.remediation import RemediationAction, RemediationEvent
 from app.models.review import CriticalReview, ReviewDecision
+from app.models.runtime import ModelAlias, ModelDeployment, Runtime
 from app.models.task import Task, TaskDependency, TaskEvent, TaskStatus
 from app.models.user import User
 
@@ -113,4 +114,7 @@ __all__ = [
     "TargetStatus",
     "RemediationEvent",
     "RemediationAction",
+    "Runtime",
+    "ModelDeployment",
+    "ModelAlias",
 ]

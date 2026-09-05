@@ -167,6 +167,17 @@ class Settings(BaseSettings):
     chat_memory_enabled: bool = True
     chat_memory_top_k: int = 5  # how many known facts to inject per turn
 
+    # Multi-runtime routing (Fase 1). When runtimes + deployments are registered,
+    # the Model Gateway scores candidates and picks model×runtime×node. Absent any
+    # deployment, chat keeps the classic Ollama-or-echo behaviour (no regression).
+    # Prefer local deployments over cloud when both qualify.
+    routing_local_first: bool = True
+    # Global default: are cloud runtimes (OpenAI/Anthropic) eligible at all?
+    # Privacy LOCAL_ONLY on a request always overrides this to False.
+    routing_cloud_allowed: bool = False
+    # Runtime-type preference, most-preferred first (a soft bias, not absolute).
+    runtime_priority: list[str] = ["llama_cpp", "ollama", "openai_compat", "vllm"]
+
     # RAG / Memory (spec §6, §8, M8).
     embedding_dim: int = 256  # dimension of the local hashing embedder
     embedding_model: str = "nomic-embed-text"  # Ollama model when available

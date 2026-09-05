@@ -97,6 +97,21 @@ const EN: Dict = {
 
   "common.error": "Error",
   "common.loading": "Loading…",
+  "common.delete": "Delete",
+  "common.save": "Save",
+
+  "nav.runtimes": "AI Runtimes",
+  "runtimes.subtitle":
+    "Runtimes, model deployments and aliases. ATLAS routes each request to the best model × runtime × node — Ollama, llama.cpp, vLLM, cloud.",
+  "runtimes.runtimes": "Runtimes",
+  "runtimes.deployments": "Model deployments",
+  "runtimes.deployments.help": "A model made available through a runtime (a model can be deployed on many).",
+  "runtimes.aliases": "Model aliases",
+  "runtimes.aliases.help": "Stable names ALMA uses (atlas.general) mapped to an ordered list of model keys.",
+  "runtimes.name": "name",
+  "runtimes.type": "Type",
+  "runtimes.add": "Add",
+  "runtimes.none": "Nothing yet.",
 };
 
 const IT: Dict = {
@@ -182,6 +197,21 @@ const IT: Dict = {
 
   "common.error": "Errore",
   "common.loading": "Caricamento…",
+  "common.delete": "Elimina",
+  "common.save": "Salva",
+
+  "nav.runtimes": "Runtime AI",
+  "runtimes.subtitle":
+    "Runtime, deployment dei modelli e alias. ATLAS instrada ogni richiesta al miglior modello × runtime × nodo — Ollama, llama.cpp, vLLM, cloud.",
+  "runtimes.runtimes": "Runtime",
+  "runtimes.deployments": "Deployment dei modelli",
+  "runtimes.deployments.help": "Un modello reso disponibile tramite un runtime (un modello può stare su più runtime).",
+  "runtimes.aliases": "Alias dei modelli",
+  "runtimes.aliases.help": "Nomi stabili usati da ALMA (atlas.general) mappati a un elenco ordinato di model key.",
+  "runtimes.name": "nome",
+  "runtimes.type": "Tipo",
+  "runtimes.add": "Aggiungi",
+  "runtimes.none": "Ancora niente.",
 };
 
 const DICT: Record<Lang, Dict> = { en: EN, it: IT };

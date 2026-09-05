@@ -13,7 +13,7 @@ from collections.abc import AsyncIterator
 
 import httpx
 
-from app.ai.base import ChatMessage, ModelInfo
+from app.ai.base import ChatMessage, ModelInfo, RuntimeHealth, RuntimeState
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -33,6 +33,11 @@ class OllamaProvider:
                 return resp.status_code == 200
         except (httpx.HTTPError, OSError):
             return False
+
+    async def health(self) -> RuntimeHealth:
+        if await self.is_available():
+            return RuntimeHealth(RuntimeState.UP, self._base_url)
+        return RuntimeHealth(RuntimeState.DOWN, f"unreachable at {self._base_url}")
 
     async def pull_model(self, name: str, on_progress=None) -> bool:
         """Pull a model, consuming the streamed progress. Returns success."""

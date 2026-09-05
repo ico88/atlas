@@ -294,6 +294,24 @@ Stato: ✅ = consegnata.
     l'admin tutte). Nessuna migrazione (riusa `conversations.user_id` /
     `memories.scope_id`). Vedi [PRIVACY_MODES.md](PRIVACY_MODES.md).
 
+### Architettura multi-runtime / multi-modello (aggiunta su richiesta)
+
+**Fase 1 — Fondazione multi-runtime** ✅ ATLAS non è un front-end per Ollama ma una
+piattaforma di orchestrazione: ALMA chiede *capacità* (o un alias) al **Model
+Gateway**, che sceglie modello × runtime × nodo. Consegnato: interfaccia
+`RuntimeAdapter` (+ `health`), `OpenAICompatAdapter` unico per llama.cpp/LocalAI/
+vLLM/OpenAI, registri `runtimes`/`model_deployments`/`model_aliases` (migrazione
+0022), gateway con filtro capacità+privacy, scoring e fallback su runtime DOWN,
+API `/runtimes` · `/model-deployments` · `/model-aliases`, pagina **AI Runtimes**.
+`router.select()` usa il gateway quando esistono deployment, altrimenti mantiene il
+comportamento classico (nessuna regressione). Vedi [MULTI_RUNTIME.md](MULTI_RUNTIME.md).
+
+- **Fase 2** ⬜ benchmark per nodo/runtime (nello score), termini carico/VRAM,
+  circuit breaker + retry per runtime.
+- **Fase 3** ⬜ adapter cloud (OpenAI/Anthropic) sotto policy privacy +
+  `routing_policies` + escalation nel router (**M9**).
+- **Fase 4** ⬜ prenotazione risorse, load/unload dei modelli, preemption.
+
 ## Definition of Done globale
 
 Una funzionalità o release è completata soltanto se:

@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 
-from app.ai.base import ChatMessage, ModelInfo
+from app.ai.base import ChatMessage, ModelInfo, RuntimeHealth, RuntimeState
 from app.core.config import get_settings
 
 ECHO_MODEL = "echo-local"
@@ -21,6 +21,9 @@ class EchoProvider:
 
     async def is_available(self) -> bool:
         return True
+
+    async def health(self) -> RuntimeHealth:
+        return RuntimeHealth(RuntimeState.UP, "echo fallback always available")
 
     async def list_models(self) -> list[ModelInfo]:
         return [ModelInfo(name=ECHO_MODEL, provider=self.name, context_length=8192)]
