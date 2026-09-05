@@ -62,6 +62,30 @@ smoke_test_model() {
   _ollama run "$name" "Reply with exactly: OK" >/dev/null 2>&1
 }
 
+# list_installed_models — one model name per line (no header).
+list_installed_models() {
+  _ollama list 2>/dev/null | awk 'NR>1 && $1!="" {print $1}'
+}
+
+# models_to_prune PROTECTED... — read candidate names on stdin, print those NOT
+# in the protected set. Pure (no ollama needed) so it is unit-testable.
+models_to_prune() {
+  local keep=" $* " m
+  while IFS= read -r m; do
+    [ -n "$m" ] || continue
+    case "$keep" in
+      *" $m "*) continue ;;   # protected
+    esac
+    printf '%s\n' "$m"
+  done
+}
+
+# ollama_uses_gpu — 0 (true) if a currently-loaded model is running on the GPU.
+# Real verification: `ollama ps` reports the PROCESSOR (e.g. "100% GPU"/"100% CPU").
+ollama_uses_gpu() {
+  _ollama ps 2>/dev/null | awk 'NR>1' | grep -qi 'gpu'
+}
+
 # refresh_atlas_models — update the model registry via the backend API.
 refresh_atlas_models() {
   # shellcheck disable=SC2086

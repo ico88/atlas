@@ -73,12 +73,28 @@ resolved dynamically) and sets `OLLAMA_VULKAN=1`. All compose commands
 ./atlas model-update llama3.3   # pull -> smoke test -> activate (keeps previous)
 ./atlas model-rollback          # revert to the previous model
 ./atlas model-list              # installed models + active one
+./atlas model-prune             # remove models except protected ones (--yes to skip prompt)
+./atlas gpu-status              # detected vs configured backend + real GPU-in-use check
 ```
 
 A new model becomes active **only after** a successful pull and smoke test; on
 failure the previous model stays active. State is recorded in
 `.atlas/state/models.env`. Pinning a version (`name:1b`) is preferred over
 moving tags like `latest`.
+
+### Pruning & GPU verification (PR 3)
+
+`./atlas model-prune` frees disk by removing installed Ollama models **except the
+protected ones**: the active model (`ATLAS_DEFAULT_MODEL`), the rollback-previous
+model (from `.atlas/state/models.env`), and the embedding model
+(`ATLAS_EMBEDDING_MODEL`). It lists what it will remove and asks to confirm
+(`--yes` skips the prompt), then refreshes the registry.
+
+`./atlas gpu-status` shows the host backend detected by the installer, the backend
+ATLAS is actually configured to use for Ollama (from the generated compose
+override), and — via `ollama ps` — whether a loaded model is really running on the
+GPU. If it says CPU with a model that should be on the GPU, send one chat message
+to load it and re-run.
 
 ## Update everything
 

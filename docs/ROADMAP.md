@@ -138,11 +138,12 @@ Stato: ✅ = consegnata.
    `--gpu ...`), profilo `ai`, override GPU generato (`.atlas/docker-compose.gpu.yml`),
    configurazione `.env`, pull + readiness + smoke test. Libreria shell condivisa
    (`infrastructure/scripts/lib/`). Vedi [MODEL_OPERATIONS.md](MODEL_OPERATIONS.md).
-3. 🟡 **PR 3 — Model lifecycle:** `./atlas model-update`/`model-rollback` atomici
-   con smoke test e stato in `.atlas/state/models.env` (fatto); restano
-   `model-prune` protetto e la verifica accelerazione GPU (`ollama ps`).
-   Updater unificato base: `./atlas update` (backup + rebuild + migrazioni +
-   health check, preserva `.env` e volumi).
+3. ✅ **PR 3 — Model lifecycle:** `./atlas model-update`/`model-rollback` atomici
+   con smoke test e stato in `.atlas/state/models.env`; **`model-prune`**
+   protetto (mantiene attivo + rollback-precedente + embedding) e **`gpu-status`**
+   (backend rilevato vs configurato + verifica reale via `ollama ps`). Helper puri
+   testati (`models_to_prune`, `gpu_backend_configured`). Vedi
+   [MODEL_OPERATIONS.md](MODEL_OPERATIONS.md).
 4. **PR 4 — Operations:** pruning protetto, Makefile, logging e documentazione.
 5. ✅ **PR 5 — Node Setup UI:** UI locale di stato/diagnostica servita dal node
    agent (identità, hardware, capabilities, rete/ZeroTier, raggiungibilità del
@@ -229,7 +230,13 @@ Stato: ✅ = consegnata.
     judge = qualità+grounding), consensus adattivo (stop anticipato oltre soglia),
     API `/api/v1/reviews` + pagina **Critical Review**. Vedi
     [CRITICAL_REVIEW.md](CRITICAL_REVIEW.md).
-20. **PR 20 — Unified Updater:** comando unico, preflight, snapshot, migrazioni e ripresa.
+20. ✅ **PR 20 — Unified Updater:** `./atlas update` transazionale — preflight
+    (docker, compose config, spazio disco), snapshot (`.env` + dump DB), pull
+    ff-only, rebuild+migrazioni (volumi preservati), health check e
+    **auto-rollback** (`git reset` alla revisione precedente + rebuild) con un
+    unico esito (completed / rolled-back / aborted / manual) ed exit code
+    corrispondente; `--resume` dopo un tentativo interrotto. Vedi
+    [UPDATER.md](UPDATER.md).
 21. **PR 21 — Fleet Update:** rolling update, nodi canary, compatibilità e nodi offline.
 22. **PR 22 — Safe deployment:** health gate, promozione e rollback.
 23. **PR 23 — UI:** Nodi, Risorse, Memoria, Miglioramenti, Aggiornamenti, code e fonti.

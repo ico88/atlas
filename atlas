@@ -2,9 +2,11 @@
 # ===========================================================================
 # atlas — one-command operations for ATLAS.
 #
-#   ./atlas update            Update the whole stack (code, images, migrations)
-#                             WITHOUT losing settings (.env) or data (volumes).
-#                             Takes a backup first; never runs `down -v`.
+#   ./atlas update            Update the whole stack transactionally: preflight,
+#                             snapshot (settings+DB), pull, rebuild, migrate,
+#                             health-check — and auto-rollback on failure. One
+#                             clear result (completed / rolled-back / manual).
+#   ./atlas update --resume   Re-run update after an interrupted attempt.
 #   ./atlas update-status     Show the last update log.
 #   ./atlas backup            Back up .env + a PostgreSQL dump to .atlas/backups.
 #   ./atlas status            docker compose ps
@@ -13,6 +15,10 @@
 #                             (keeps the previous model for rollback).
 #   ./atlas model-rollback    Re-activate the previous model.
 #   ./atlas model-list        Show installed models and the active one.
+#   ./atlas model-prune [--yes]  Remove installed models except the protected
+#                             ones (active, rollback-previous, embedding).
+#   ./atlas gpu-status        Show detected vs configured GPU backend and whether
+#                             Ollama is actually running on the GPU.
 #
 # Settings and memory are safe across updates: `.env` is git-ignored (never
 # overwritten by `git pull`) and PostgreSQL/Redis/Ollama data live in named
@@ -31,6 +37,8 @@ UPDATE_LOG="${STATE_DIR}/update.log"
 source "${ROOT}/infrastructure/scripts/lib/atlas-lib.sh"
 # shellcheck source=/dev/null
 source "${ROOT}/infrastructure/scripts/lib/ollama.sh"
+# shellcheck source=/dev/null
+source "${ROOT}/infrastructure/scripts/lib/gpu.sh"
 
 mkdir -p "$STATE_DIR" "$BACKUP_DIR"
 
@@ -85,43 +93,102 @@ cmd_backup() {
   echo "$dir"
 }
 
-# --- update ---------------------------------------------------------------
+# --- update (transactional, ROADMAP PR 20) --------------------------------
+update_preflight() {
+  log "Preflight checks..."
+  local ok=0
+  if ! docker info >/dev/null 2>&1 && ! ${SUDO:-} docker info >/dev/null 2>&1; then
+    err "Docker is not available."; ok=1
+  fi
+  if ! _compose config >/dev/null 2>&1; then
+    err "docker compose configuration is invalid."; ok=1
+  fi
+  local avail_kb
+  avail_kb="$(df -Pk "$ROOT" 2>/dev/null | awk 'NR==2{print $4}')"
+  if [ -n "$avail_kb" ] && [ "$avail_kb" -lt 2097152 ]; then
+    err "Low disk space (<2GB free on $(dirname "$ROOT")). Free space and retry."; ok=1
+  fi
+  [ "$ok" -eq 0 ] && log "Preflight OK."
+  return "$ok"
+}
+
+update_rollback() {
+  local prev_rev="$1" pulled="$2"
+  if [ "$pulled" -eq 1 ] && [ -n "$prev_rev" ] && [ -d "${ROOT}/.git" ]; then
+    log "Reverting code to ${prev_rev}..."
+    (cd "$ROOT" && git reset --hard "$prev_rev") || { err "Code revert failed."; return 1; }
+  fi
+  log "Rebuilding the previous version..."
+  _compose up -d --build || { err "Rollback rebuild failed."; return 1; }
+  wait_healthy 180 || return 1
+  return 0
+}
+
 cmd_update() {
+  local resume=0
+  [ "${1:-}" = "--resume" ] && resume=1
   if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-    err "Another update is in progress (lock: $LOCK_DIR). Use './atlas update-status'."
-    exit 1
+    if [ "$resume" -eq 1 ]; then
+      warn "Resuming a previous update (stale lock cleared)."
+      rmdir "$LOCK_DIR" 2>/dev/null || true
+      mkdir "$LOCK_DIR" 2>/dev/null || true
+    else
+      err "Another update is in progress (lock: $LOCK_DIR). Use './atlas update --resume'."
+      exit 1
+    fi
   fi
   trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
   : > "$UPDATE_LOG"
   {
     log "ATLAS update starting ($(date -u +%FT%TZ))."
-    log "Backing up settings and database first..."
-    cmd_backup >/dev/null
+    local result="manual"
 
-    if [ -d "${ROOT}/.git" ]; then
-      log "Fetching latest code (fast-forward only; .env is never touched)..."
-      if ! (cd "$ROOT" && git pull --ff-only); then
-        warn "git pull --ff-only failed (local commits or conflicts). Keeping current code."
+    if ! update_preflight; then
+      result="aborted"
+    else
+      local prev_rev="" pulled=0
+      [ -d "${ROOT}/.git" ] && prev_rev="$(cd "$ROOT" && git rev-parse HEAD 2>/dev/null || true)"
+
+      log "Snapshot: backing up settings and database..."
+      cmd_backup >/dev/null
+
+      if [ -d "${ROOT}/.git" ]; then
+        log "Fetching latest code (fast-forward only; .env is never touched)..."
+        if (cd "$ROOT" && git pull --ff-only); then
+          pulled=1
+        else
+          warn "git pull --ff-only skipped (local commits/conflicts). Keeping current code."
+        fi
+      fi
+
+      # NEVER 'down -v'; 'up -d --build' preserves pgdata/redisdata/ollamadata.
+      # Migrations run via the backend entrypoint on start.
+      log "Rebuilding and migrating (data volumes preserved)..."
+      if _compose up -d --build && wait_healthy 180; then
+        [ -f "${STATE_DIR}/ollama.enabled" ] && { refresh_atlas_models && log "Model registry refreshed." || true; }
+        result="completed"
+      else
+        warn "Update did not become healthy; rolling back..."
+        if update_rollback "$prev_rev" "$pulled"; then result="rolled-back"; else result="manual"; fi
       fi
     fi
 
-    log "Rebuilding and restarting services (data volumes preserved)..."
-    # NEVER use 'down -v'; 'up -d --build' recreates only changed services and
-    # keeps pgdata/redisdata/ollamadata. Migrations run via the backend entrypoint.
-    _compose up -d --build
-
-    log "Waiting for the backend to become healthy..."
-    if wait_healthy 180; then
-      log "Health check OK."
-    else
-      warn "Backend did not report healthy in time; check './atlas logs backend'."
-    fi
-
-    if [ -f "${STATE_DIR}/ollama.enabled" ]; then
-      refresh_atlas_models && log "Model registry refreshed." || warn "Registry refresh skipped."
-    fi
-    log "ATLAS update complete — operational."
+    echo ""
+    case "$result" in
+      completed)   log  "RESULT: completed — ATLAS is updated and operational." ;;
+      rolled-back) warn "RESULT: rolled-back — update failed; previous version restored and healthy." ;;
+      aborted)     err  "RESULT: aborted — preflight failed; nothing was changed." ;;
+      *)           err  "RESULT: manual intervention needed — see './atlas logs backend' and './atlas update-status'." ;;
+    esac
+    echo "$result" > "${STATE_DIR}/last-result"
   } 2>&1 | tee -a "$UPDATE_LOG"
+
+  local r; r="$(cat "${STATE_DIR}/last-result" 2>/dev/null || echo manual)"
+  case "$r" in
+    completed) return 0 ;;
+    rolled-back|aborted) return 1 ;;
+    *) return 2 ;;
+  esac
 }
 
 cmd_update_status() {
@@ -187,10 +254,65 @@ cmd_model_list() {
   _compose exec -T ollama ollama list 2>/dev/null || warn "Ollama not running."
 }
 
+# Remove installed models except the protected ones (active, rollback-previous,
+# embedding). Never removes a model ATLAS may still need.
+cmd_model_prune() {
+  local yes=0
+  [ "${1:-}" = "--yes" ] && yes=1
+  if [ ! -f "${STATE_DIR}/ollama.enabled" ]; then
+    err "Local AI (Ollama) is not enabled."; exit 1
+  fi
+  wait_for_ollama 60 || { err "Ollama is not reachable."; exit 1; }
+
+  local active prev embed
+  active="$(get_env_var ATLAS_DEFAULT_MODEL)"
+  prev="$(get_env_var PREVIOUS_MODEL "${STATE_DIR}/models.env" 2>/dev/null || true)"
+  embed="$(get_env_var ATLAS_EMBEDDING_MODEL)"
+
+  local victims
+  victims="$(list_installed_models | models_to_prune "$active" "$prev" "$embed")"
+  log "Protected: active='${active:-none}' previous='${prev:-none}' embedding='${embed:-none}'"
+  if [ -z "$victims" ]; then
+    log "Nothing to prune."
+    return 0
+  fi
+  log "Models to remove:"
+  printf '%s\n' "$victims" | sed 's/^/  - /'
+  if [ "$yes" -ne 1 ]; then
+    printf "Proceed with removal? [y/N] "
+    read -r ans
+    case "$ans" in y|Y|yes|YES) : ;; *) log "Aborted; nothing removed."; return 0 ;; esac
+  fi
+  local m
+  while IFS= read -r m; do
+    [ -n "$m" ] || continue
+    log "Removing '$m'..."
+    _ollama rm "$m" || warn "Could not remove '$m'."
+  done <<< "$victims"
+  refresh_atlas_models || true
+  log "Prune complete."
+}
+
+# Show detected vs configured GPU backend, and whether Ollama really uses the GPU.
+cmd_gpu_status() {
+  echo "Detected host backend:  $(detect_gpu_backend)"
+  echo "Configured for Ollama:  $(gpu_backend_configured "$ROOT")"
+  if [ -f "${STATE_DIR}/ollama.enabled" ] && wait_for_ollama 10; then
+    if ollama_uses_gpu; then
+      echo "Ollama runtime:         GPU in use ✅"
+    else
+      echo "Ollama runtime:         CPU (no model currently loaded on GPU)."
+      echo "  Tip: send a chat message to load the model, then re-run this."
+    fi
+  else
+    echo "Ollama runtime:         not running (enable with --with-ollama)."
+  fi
+}
+
 usage() { sed -n '2,/^# ===/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 case "${1:-help}" in
-  update) cmd_update ;;
+  update) shift; cmd_update "${1:-}" ;;
   update-status) cmd_update_status ;;
   backup) cmd_backup >/dev/null ;;
   status) _compose ps ;;
@@ -198,6 +320,8 @@ case "${1:-help}" in
   model-update) shift; cmd_model_update "${1:-}" ;;
   model-rollback) cmd_model_rollback ;;
   model-list) cmd_model_list ;;
+  model-prune) shift; cmd_model_prune "${1:-}" ;;
+  gpu-status) cmd_gpu_status ;;
   help|-h|--help) usage ;;
   *) err "Unknown command: $1"; usage; exit 1 ;;
 esac

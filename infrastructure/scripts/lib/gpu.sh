@@ -80,6 +80,17 @@ YAML
   esac
 }
 
+# gpu_backend_configured ROOT — the backend ATLAS is configured to use for Ollama,
+# read from the generated compose override (cpu when none). Pure/testable.
+gpu_backend_configured() {
+  local f="$1/.atlas/docker-compose.gpu.yml"
+  if [ ! -f "$f" ]; then echo cpu; return; fi
+  if grep -q "driver: nvidia" "$f"; then echo nvidia
+  elif grep -q "OLLAMA_VULKAN" "$f"; then echo vulkan
+  elif grep -q "/dev/kfd" "$f"; then echo rocm
+  else echo custom; fi
+}
+
 # check_render_permissions — warn if the user cannot access the render node.
 check_render_permissions() {
   local target_user="${1:-$(id -un)}"
