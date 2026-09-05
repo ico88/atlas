@@ -388,6 +388,11 @@ table.data th {
   user-select: none;
   color: var(--text);
 }
+.composer-toggles {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 
 /* Conversation queue page (ROADMAP PR 11) */
 .queue-item {
@@ -593,7 +598,7 @@ table.data th {
     max-width: none;
     width: 100%;
   }
-  .chat-input .web-toggle {
+  .chat-input .composer-toggles {
     grid-area: web;
     justify-self: end;
   }

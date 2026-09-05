@@ -7,7 +7,9 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import current_user_optional
 from app.db import get_session
+from app.models.user import User
 from app.schemas.chat import (
     ChatRequest,
     ConversationList,
@@ -21,11 +23,14 @@ router = APIRouter(prefix="/api/v1", tags=["chat"])
 
 
 @router.post("/chat/stream")
-async def chat_stream(payload: ChatRequest) -> StreamingResponse:
+async def chat_stream(
+    payload: ChatRequest,
+    user: User | None = Depends(current_user_optional),
+) -> StreamingResponse:
     """Stream a chat reply as Server-Sent Events (text/event-stream)."""
 
     return StreamingResponse(
-        chat_service.stream_chat(payload),
+        chat_service.stream_chat(payload, user_id=user.id if user else None),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
@@ -39,8 +44,14 @@ class ArchiveRequest(BaseModel):
 async def list_conversations(
     archived: bool = Query(default=False),
     session: AsyncSession = Depends(get_session),
+    user: User | None = Depends(current_user_optional),
 ) -> ConversationList:
-    items, total = await chat_service.list_conversations(session, archived=archived)
+    items, total = await chat_service.list_conversations(
+        session,
+        archived=archived,
+        user_id=user.id if user else None,
+        all_users=bool(user and user.role == "admin"),
+    )
     return ConversationList(
         items=[ConversationSummary.model_validate(c) for c in items], total=total
     )

@@ -67,6 +67,7 @@ export default function Chat() {
   const [statusLine, setStatusLine] = useState("");
   const [elapsed, setElapsed] = useState(0);
   const [webOn, setWebOn] = useState(false);
+  const [anon, setAnon] = useState(false);
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [model, setModel] = useState("");  // "" = Auto (server default)
   const [webNote, setWebNote] = useState<string | null>(null);
@@ -323,11 +324,13 @@ export default function Chat() {
         conversation_id: activeId ?? undefined,
         web: forceWeb || webOn,
         model: model || undefined,
+        anonymous: anon || undefined,
       },
       {
         onStart: (e) => {
           setStatusLine(`${e.provider} · ${e.model} — ${t("chat.generating")}`);
-          if (!activeId) setActiveId(e.conversation_id);
+          // Anonymous turns have no persisted conversation id.
+          if (!activeId && e.conversation_id) setActiveId(e.conversation_id);
         },
         onToken: (t) => {
           acc += t;
@@ -346,7 +349,7 @@ export default function Chat() {
           setLiveCitations([]);
           setPhase("idle");
           abortRef.current = null;
-          loadConversations();
+          if (!anon) loadConversations();
         },
         onError: (detail) => {
           stopTimer();
@@ -524,15 +527,26 @@ export default function Chat() {
                 </option>
               ))}
             </select>
-            <label className="web-toggle" title="Ground the reply with a web search">
-              <input
-                type="checkbox"
-                checked={webOn}
-                onChange={(e) => setWebOn(e.target.checked)}
-                disabled={streaming}
-              />
-              🌐 {t("chat.web")}
-            </label>
+            <span className="composer-toggles">
+              <label className="web-toggle" title="Ground the reply with a web search">
+                <input
+                  type="checkbox"
+                  checked={webOn}
+                  onChange={(e) => setWebOn(e.target.checked)}
+                  disabled={streaming}
+                />
+                🌐 {t("chat.web")}
+              </label>
+              <label className="web-toggle" title={t("chat.anonHint")}>
+                <input
+                  type="checkbox"
+                  checked={anon}
+                  onChange={(e) => setAnon(e.target.checked)}
+                  disabled={streaming}
+                />
+                🕶 {t("chat.anon")}
+              </label>
+            </span>
             <input
               value={draft}
               placeholder={webOn ? t("chat.placeholderWeb") : t("chat.placeholder")}

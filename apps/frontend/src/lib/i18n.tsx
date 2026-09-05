@@ -65,6 +65,8 @@ const EN: Dict = {
   "chat.working": "Working on your request…",
   "chat.resuming": "This reply is still being generated — it will keep going even if you leave.",
   "chat.interrupted": "⚠ interrupted — send the message again",
+  "chat.anon": "Incognito",
+  "chat.anonHint": "Incognito: this turn is not saved (no history, no memory).",
 
   "common.error": "Error",
   "common.loading": "Loading…",
@@ -121,6 +123,8 @@ const IT: Dict = {
   "chat.working": "Sto elaborando la tua richiesta…",
   "chat.resuming": "Questa risposta è ancora in generazione — continua anche se esci.",
   "chat.interrupted": "⚠ interrotta — reinvia il messaggio",
+  "chat.anon": "Incognito",
+  "chat.anonHint": "Incognito: questo turno non viene salvato (né cronologia né memoria).",
 
   "common.error": "Errore",
   "common.loading": "Caricamento…",

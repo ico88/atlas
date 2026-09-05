@@ -52,8 +52,14 @@ def _format_web_context(citations: list[dict]) -> str:
     return "\n".join(lines)
 
 
-async def _capture_memories(session: AsyncSession, content: str) -> None:
-    """Auto-save durable facts the user states (e.g. "sono Federico"). Best-effort."""
+async def _capture_memories(
+    session: AsyncSession, content: str, user_id: str | None = None
+) -> None:
+    """Auto-save durable facts the user states (e.g. "sono Federico"). Best-effort.
+
+    Memories are scoped to the authenticated user (scope_id=user_id) so each
+    user's profile stays their own; in open mode (no user) they are unscoped.
+    """
 
     if not get_settings().chat_memory_enabled:
         return
@@ -61,26 +67,32 @@ async def _capture_memories(session: AsyncSession, content: str) -> None:
     if not facts:
         return
     existing = {
-        m.content.lower() for m in await memory_service.list_memories(session, scope="user")
+        m.content.lower()
+        for m in await memory_service.list_memories(session, scope="user", scope_id=user_id)
     }
     for fact in facts:
         if fact.lower() in existing:
             continue
         try:
             await memory_service.add_memory(
-                session, content=fact, scope="user", source="chat", mem_type="fact"
+                session,
+                content=fact,
+                scope="user",
+                scope_id=user_id,
+                source="chat",
+                mem_type="fact",
             )
         except Exception:  # noqa: BLE001 - memory is best-effort, never break chat
             logger.warning("auto memory capture failed", extra={"event": "mem_capture_error"})
 
 
-async def _known_facts(session: AsyncSession) -> list[str]:
+async def _known_facts(session: AsyncSession, user_id: str | None = None) -> list[str]:
     """The small user 'profile' injected so the assistant remembers across chats."""
 
     if not get_settings().chat_memory_enabled:
         return []
     top_k = get_settings().chat_memory_top_k
-    mems = await memory_service.list_memories(session, scope="user")
+    mems = await memory_service.list_memories(session, scope="user", scope_id=user_id)
     return [m.content for m in mems[:top_k]]
 
 
@@ -134,21 +146,31 @@ async def recover_pending_replies() -> int:
 
 
 async def list_conversations(
-    session: AsyncSession, *, archived: bool = False
+    session: AsyncSession,
+    *,
+    archived: bool = False,
+    user_id: str | None = None,
+    all_users: bool = False,
 ) -> tuple[list[Conversation], int]:
-    query = (
-        select(Conversation)
-        .where(Conversation.archived == archived)
-        .order_by(Conversation.updated_at.desc())
-    )
+    """List conversations, scoped per user (ROADMAP PR 28).
+
+    - ``all_users`` (admin): every conversation.
+    - a ``user_id``: only that user's conversations.
+    - otherwise (open mode / no auth): only unowned conversations — the
+      single-operator's history.
+    """
+
+    conds = [Conversation.archived == archived]
+    if not all_users:
+        if user_id is not None:
+            conds.append(Conversation.user_id == user_id)
+        else:
+            conds.append(Conversation.user_id.is_(None))
+    query = select(Conversation).where(*conds).order_by(Conversation.updated_at.desc())
     items = list((await session.execute(query)).scalars().all())
     total = int(
         (
-            await session.execute(
-                select(func.count())
-                .select_from(Conversation)
-                .where(Conversation.archived == archived)
-            )
+            await session.execute(select(func.count()).select_from(Conversation).where(*conds))
         ).scalar_one()
     )
     return items, total
@@ -213,13 +235,60 @@ async def _history(session: AsyncSession, conversation_id: str) -> list[ChatMess
 _BACKGROUND_TURNS: set[asyncio.Task] = set()
 
 
-async def _generate_turn(payload: ChatRequest) -> AsyncIterator[dict]:
+async def _generate_anonymous_turn(payload: ChatRequest) -> AsyncIterator[dict]:
+    """Anonymous mode (ROADMAP PR 28): a single turn that persists nothing.
+
+    No conversation, no messages, no memory capture/recall — a clean, private
+    reply. The web-grounding option still works for the turn itself.
+    """
+
+    history: list[ChatMessage] = []
+    citations: list[dict] = []
+    if payload.web:
+        citations, note = await _web_search(payload)
+        if citations:
+            history = [ChatMessage(role="system", content=_format_web_context(citations))]
+        yield {"type": "citations", "citations": citations, "note": note}
+    history.append(ChatMessage(role="user", content=payload.content))
+
+    decision = await router.select(mode=payload.mode.value, requested_model=payload.model)
+    started = time.perf_counter()
+    yield {
+        "type": "start",
+        "conversation_id": None,
+        "message_id": None,
+        "provider": decision.provider.name,
+        "model": decision.model,
+        "anonymous": True,
+    }
+    try:
+        async for piece in decision.provider.stream_chat(history, decision.model):
+            yield {"type": "token", "content": piece}
+    except Exception as exc:  # noqa: BLE001 - surface provider errors to client
+        logger.exception("anon chat stream failed", extra={"event": "chat_stream_error"})
+        yield {"type": "error", "detail": str(exc)}
+        return
+    yield {
+        "type": "done",
+        "conversation_id": None,
+        "message_id": None,
+        "latency_ms": int((time.perf_counter() - started) * 1000),
+    }
+
+
+async def _generate_turn(payload: ChatRequest, user_id: str | None = None) -> AsyncIterator[dict]:
     """Run one chat turn, yielding event dicts and persisting both messages.
 
     This owns its own DB session and does not depend on the HTTP request, so it
     runs to completion (persisting the assistant reply) even if the client that
-    started it disconnects.
+    started it disconnects. When ``payload.anonymous`` is set, nothing is
+    persisted (see :func:`_generate_anonymous_turn`).
     """
+
+    if payload.anonymous:
+        async for event in _generate_anonymous_turn(payload):
+            yield event
+        return
 
     sessionmaker = get_sessionmaker()
     async with sessionmaker() as session:
@@ -232,7 +301,9 @@ async def _generate_turn(payload: ChatRequest) -> AsyncIterator[dict]:
                 return
         if conversation is None:
             title = payload.content.strip()[:60] or "New conversation"
-            conversation = Conversation(title=title, mode=payload.mode.value)
+            conversation = Conversation(
+                title=title, mode=payload.mode.value, user_id=user_id
+            )
             session.add(conversation)
             await session.flush()
 
@@ -247,12 +318,12 @@ async def _generate_turn(payload: ChatRequest) -> AsyncIterator[dict]:
         await session.commit()
 
         # 2a) Auto-capture durable facts ("sono Federico" -> remembered).
-        await _capture_memories(session, payload.content)
+        await _capture_memories(session, payload.content, user_id)
 
         history = await _history(session, conversation.id)
 
         # 2b) Prepend known user facts so the assistant remembers across chats.
-        facts = await _known_facts(session)
+        facts = await _known_facts(session, user_id)
         if facts:
             profile = "Known facts about the user (use them when relevant):\n" + "\n".join(
                 f"- {f}" for f in facts
@@ -338,7 +409,7 @@ async def _generate_turn(payload: ChatRequest) -> AsyncIterator[dict]:
         }
 
 
-async def _drive_turn(payload: ChatRequest, out: asyncio.Queue) -> None:
+async def _drive_turn(payload: ChatRequest, out: asyncio.Queue, user_id: str | None) -> None:
     """Background worker: run the turn to completion, pushing events to ``out``.
 
     Runs independently of the HTTP stream so that closing the browser does not
@@ -346,7 +417,7 @@ async def _drive_turn(payload: ChatRequest, out: asyncio.Queue) -> None:
     """
 
     try:
-        async for event in _generate_turn(payload):
+        async for event in _generate_turn(payload, user_id):
             await out.put(event)
     except Exception as exc:  # noqa: BLE001 - never leave the reader hanging
         logger.exception("chat turn worker failed", extra={"event": "chat_turn_error"})
@@ -355,7 +426,7 @@ async def _drive_turn(payload: ChatRequest, out: asyncio.Queue) -> None:
         await out.put(None)  # sentinel: stream complete
 
 
-async def stream_chat(payload: ChatRequest) -> AsyncIterator[str]:
+async def stream_chat(payload: ChatRequest, user_id: str | None = None) -> AsyncIterator[str]:
     """Stream a chat turn as SSE, backed by a detached worker.
 
     The generation happens in a background task that keeps running even if this
@@ -364,7 +435,7 @@ async def stream_chat(payload: ChatRequest) -> AsyncIterator[str]:
     """
 
     out: asyncio.Queue = asyncio.Queue()
-    task = asyncio.create_task(_drive_turn(payload, out))
+    task = asyncio.create_task(_drive_turn(payload, out, user_id))
     _BACKGROUND_TURNS.add(task)
     task.add_done_callback(_BACKGROUND_TURNS.discard)
 

@@ -240,12 +240,12 @@ Stato: ✅ = consegnata.
     dependency `require_admin`/`require_user` + `current_user_optional`, API
     `/api/v1/users` (lista/crea/patch) admin-gated con guardia sull'ultimo admin,
     pagina **Users**. Vedi [USERS_RBAC.md](USERS_RBAC.md).
-28. **PR 28 — Modalità anonima & tracciata:** *anonima* → nessuna persistenza
-    dell'esperienza utente (conversazioni/memoria effimere, purgate a fine
-    sessione); *tracciata* → ogni utente registra la propria esperienza, con
-    dati (conversazioni, memoria, query) isolati per `user_id` e visibili
-    all'utente stesso; l'admin vede gli aggregati. Toggle di modalità + scoping
-    per-utente dei dati esistenti.
+28. ✅ **PR 28 — Modalità anonima & tracciata:** *anonima* (`anonymous:true`) →
+    nessuna persistenza (né conversazione, né messaggi, né memoria), toggle
+    **🕶 Incognito** in chat; *tracciata* → conversazioni possedute per `user_id`
+    e memoria auto-catturata con `scope_id=user_id` (ognuno vede le proprie,
+    l'admin tutte). Nessuna migrazione (riusa `conversations.user_id` /
+    `memories.scope_id`). Vedi [PRIVACY_MODES.md](PRIVACY_MODES.md).
 
 ## Definition of Done globale
 

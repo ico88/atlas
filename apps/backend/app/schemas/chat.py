@@ -16,6 +16,9 @@ class ChatRequest(BaseModel):
     model: str | None = None
     mode: ChatMode = ChatMode.AUTO
     web: bool = False  # ground the reply with a web search (ROADMAP PR 15)
+    # Anonymous mode (ROADMAP PR 28): run the turn but persist nothing — no
+    # conversation, no messages, no memory capture/recall. A clean, private turn.
+    anonymous: bool = False
 
 
 class MessageRead(BaseModel):

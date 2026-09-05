@@ -208,3 +208,48 @@ async def test_recover_pending_replies_after_crash(session):
     assistant = [m for m in convo2.messages if m.role == "assistant"][0]
     assert assistant.status == "error"
     assert assistant.content == "partial answer so f"
+
+
+@pytest.mark.asyncio
+async def test_anonymous_turn_persists_nothing(client):
+    """Anonymous mode streams a reply but saves no conversation and no memory."""
+    async with client.stream(
+        "POST",
+        "/api/v1/chat/stream",
+        json={"content": "ciao, sono Riservato", "anonymous": True},
+    ) as r:
+        body = "".join([c async for c in r.aiter_text()])
+    events = _parse_sse(body)
+    types = [e["type"] for e in events]
+    assert types[0] == "start" and types[-1] == "done"
+    assert events[0]["conversation_id"] is None
+    # Nothing persisted.
+    assert (await client.get("/api/v1/conversations")).json()["total"] == 0
+    mems = (await client.get("/api/v1/memories?scope=user")).json()
+    assert all("Riservato" not in m["content"] for m in mems)
+
+
+@pytest.mark.asyncio
+async def test_conversations_scoped_per_user(client, session):
+    from app.core.security import create_access_token
+    from app.services import user_service
+
+    alice = await user_service.create_user(
+        session, email="alice@example.com", password="secret123", role="user"
+    )
+    bob = await user_service.create_user(
+        session, email="bob@example.com", password="secret123", role="user"
+    )
+    atok = {"Authorization": f"Bearer {create_access_token(subject=alice.id, role='user')}"}
+    btok = {"Authorization": f"Bearer {create_access_token(subject=bob.id, role='user')}"}
+
+    async with client.stream(
+        "POST", "/api/v1/chat/stream", json={"content": "alice note"}, headers=atok
+    ) as r:
+        async for _ in r.aiter_text():
+            pass
+
+    # Alice sees her conversation; Bob sees none; anonymous (no token) sees none.
+    assert (await client.get("/api/v1/conversations", headers=atok)).json()["total"] == 1
+    assert (await client.get("/api/v1/conversations", headers=btok)).json()["total"] == 0
+    assert (await client.get("/api/v1/conversations")).json()["total"] == 0

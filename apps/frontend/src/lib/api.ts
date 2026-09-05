@@ -445,6 +445,7 @@ export interface ChatStreamRequest {
   model?: string;
   mode?: string;
   web?: boolean;
+  anonymous?: boolean;
 }
 
 // --- Evals (PR 16) ---
