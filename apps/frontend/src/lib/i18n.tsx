@@ -113,6 +113,8 @@ const EN: Dict = {
   "runtimes.add": "Add",
   "runtimes.none": "Nothing yet.",
   "runtimes.benchmark": "Benchmark",
+  "runtimes.policies": "Routing policies",
+  "runtimes.policies.help": "Route a task type to capabilities, a preferred alias, a privacy level and a fallback chain (local → cloud).",
 };
 
 const IT: Dict = {
@@ -214,6 +216,8 @@ const IT: Dict = {
   "runtimes.add": "Aggiungi",
   "runtimes.none": "Ancora niente.",
   "runtimes.benchmark": "Benchmark",
+  "runtimes.policies": "Politiche di routing",
+  "runtimes.policies.help": "Instrada un tipo di task a capacità, alias preferito, livello di privacy e catena di fallback (locale → cloud).",
 };
 
 const DICT: Record<Lang, Dict> = { en: EN, it: IT };

@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai import circuit, gateway
-from app.models.runtime import ModelAlias, ModelDeployment, Runtime
+from app.models.runtime import ModelAlias, ModelDeployment, RoutingPolicy, Runtime
 
 logger = logging.getLogger(__name__)
 
@@ -161,4 +161,51 @@ async def upsert_alias(
 
 async def delete_alias(session: AsyncSession, alias_row: ModelAlias) -> None:
     await session.delete(alias_row)
+    await session.commit()
+
+
+# --------------------------------------------------------------------------- #
+# Routing policies (Fase 3 / M9)
+# --------------------------------------------------------------------------- #
+async def list_policies(session: AsyncSession) -> list[RoutingPolicy]:
+    rows = await session.execute(
+        select(RoutingPolicy).order_by(RoutingPolicy.task_type.asc())
+    )
+    return list(rows.scalars().all())
+
+
+async def upsert_policy(
+    session: AsyncSession,
+    *,
+    task_type: str,
+    required_capabilities: list[str],
+    preferred_alias: str | None,
+    privacy: str,
+    fallback: list[str],
+    max_latency_ms: int | None,
+    priority: int,
+    enabled: bool,
+) -> RoutingPolicy:
+    row = (
+        await session.execute(
+            select(RoutingPolicy).where(RoutingPolicy.task_type == task_type)
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        row = RoutingPolicy(task_type=task_type)
+        session.add(row)
+    row.required_capabilities = list(required_capabilities)
+    row.preferred_alias = preferred_alias
+    row.privacy = privacy
+    row.fallback = list(fallback)
+    row.max_latency_ms = max_latency_ms
+    row.priority = priority
+    row.enabled = enabled
+    await session.commit()
+    await session.refresh(row)
+    return row
+
+
+async def delete_policy(session: AsyncSession, policy: RoutingPolicy) -> None:
+    await session.delete(policy)
     await session.commit()

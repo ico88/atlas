@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ModelAlias,
   ModelDeployment,
+  RoutingPolicy,
   Runtime,
   RuntimeHealth,
   benchmarkDeployment,
@@ -11,12 +12,15 @@ import {
   createRuntime,
   deleteAlias,
   deleteModelDeployment,
+  deletePolicy,
   deleteRuntime,
   fetchAliases,
   fetchModelDeployments,
+  fetchPolicies,
   fetchRuntimeHealth,
   fetchRuntimes,
   upsertAlias,
+  upsertPolicy,
 } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 
@@ -34,23 +38,27 @@ export default function RuntimesPage() {
   const [health, setHealth] = useState<Record<string, RuntimeHealth>>({});
   const [deployments, setDeployments] = useState<ModelDeployment[]>([]);
   const [aliases, setAliases] = useState<ModelAlias[]>([]);
+  const [policies, setPolicies] = useState<RoutingPolicy[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   // Forms
   const [rt, setRt] = useState({ name: "", runtime_type: "ollama", endpoint: "" });
   const [dep, setDep] = useState({ model_key: "", runtime_id: "", runtime_model_name: "", priority: "100" });
   const [alias, setAlias] = useState({ alias: "", targets: "" });
+  const [pol, setPol] = useState({ task_type: "", capabilities: "", preferred_alias: "", privacy: "LOCAL_PREFERRED", fallback: "" });
 
   const load = useCallback(async () => {
     try {
-      const [r, d, a] = await Promise.all([
+      const [r, d, a, p] = await Promise.all([
         fetchRuntimes(),
         fetchModelDeployments(),
         fetchAliases(),
+        fetchPolicies(),
       ]);
       setRuntimes(r.items);
       setDeployments(d.items);
       setAliases(a.items);
+      setPolicies(p.items);
       setError(null);
       try {
         const h = await fetchRuntimeHealth();
@@ -323,6 +331,94 @@ export default function RuntimesPage() {
           </div>
         ))}
         {aliases.length === 0 && <p className="muted">{t("runtimes.none")}</p>}
+      </div>
+
+      {/* Routing policies (M9) */}
+      <h2 className="page-title" style={{ fontSize: 20, marginTop: 24 }}>
+        {t("runtimes.policies")}
+      </h2>
+      <p className="page-subtitle">{t("runtimes.policies.help")}</p>
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <input
+            value={pol.task_type}
+            placeholder="task type (es. coding)"
+            onChange={(e) => setPol({ ...pol, task_type: e.target.value })}
+            style={{ flex: "1 1 120px" }}
+          />
+          <input
+            value={pol.capabilities}
+            placeholder="capabilities (CODING, REASONING)"
+            onChange={(e) => setPol({ ...pol, capabilities: e.target.value })}
+            style={{ flex: "1 1 180px" }}
+          />
+          <input
+            value={pol.preferred_alias}
+            placeholder="alias preferito"
+            onChange={(e) => setPol({ ...pol, preferred_alias: e.target.value })}
+            style={{ flex: "1 1 140px" }}
+          />
+          <select value={pol.privacy} onChange={(e) => setPol({ ...pol, privacy: e.target.value })}>
+            <option>LOCAL_ONLY</option>
+            <option>LOCAL_PREFERRED</option>
+            <option>CLOUD_ALLOWED</option>
+            <option>CLOUD_REQUIRED</option>
+          </select>
+          <input
+            value={pol.fallback}
+            placeholder="fallback alias (in ordine)"
+            onChange={(e) => setPol({ ...pol, fallback: e.target.value })}
+            style={{ flex: "1 1 160px" }}
+          />
+          <button
+            className="btn"
+            disabled={!pol.task_type.trim()}
+            onClick={() =>
+              act(async () => {
+                await upsertPolicy({
+                  task_type: pol.task_type.trim(),
+                  required_capabilities: pol.capabilities
+                    .split(",")
+                    .map((s) => s.trim().toUpperCase())
+                    .filter(Boolean),
+                  preferred_alias: pol.preferred_alias.trim() || undefined,
+                  privacy: pol.privacy,
+                  fallback: pol.fallback
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean),
+                });
+                setPol({ task_type: "", capabilities: "", preferred_alias: "", privacy: "LOCAL_PREFERRED", fallback: "" });
+              })
+            }
+          >
+            {t("common.save")}
+          </button>
+        </div>
+      </div>
+      <div className="cards">
+        {policies.map((p) => (
+          <div className="card" key={p.id}>
+            <div className="status-row">
+              <strong>{p.task_type}</strong>
+              <span className="pill">{p.privacy}</span>
+            </div>
+            <div className="status-row">
+              <span className="muted">capabilities</span>
+              <span>{(p.required_capabilities || []).join(", ") || "—"}</span>
+            </div>
+            <div className="status-row">
+              <span className="muted">route</span>
+              <span>
+                {[p.preferred_alias, ...(p.fallback || [])].filter(Boolean).join(" → ") || "—"}
+              </span>
+            </div>
+            <button className="btn secondary" onClick={() => act(() => deletePolicy(p.task_type))}>
+              {t("common.delete")}
+            </button>
+          </div>
+        ))}
+        {policies.length === 0 && <p className="muted">{t("runtimes.none")}</p>}
       </div>
     </div>
   );

@@ -26,7 +26,7 @@ prodotto. Stato attuale:
 | M6 Maintenance Core (dry-run, approval gate) | ✅ done | **R6** (self-healing reale, canary) |
 | M7 Manual Escalation (ChatGPT/Claude) | ✅ done | **R5/R6** (revisione critica, provider) |
 | M8 RAG/Memory (embeddings, citazioni) | ✅ done | **R3** (memoria/ambienti) + **R4** (web) |
-| M9 Optional Cloud (LiteLLM, OpenAI/Anthropic) | ⬜ | consegnato con **R1/R5** nell'AI Router |
+| M9 Optional Cloud (LiteLLM, OpenAI/Anthropic) | ✅ (Fase 3) | AI Router: adapter OpenAI/Anthropic, routing_policies, escalation |
 | M10 Optimization (router learning, eval) | ⬜ | consegnato con **R5 evals** + **R6** |
 
 Mappa sintetica release → milestone: R1←M2 · R2←M4 · R3←M3+M5+M8 · R4←M8(nuovo web)
@@ -312,8 +312,12 @@ comportamento classico (nessuna regressione). Vedi [MULTI_RUNTIME.md](MULTI_RUNT
   di recupero; il gateway salta i runtime OPEN), retry configurabile, badge Circuit
   e pulsante Benchmark nella UI. Restano a Fase 4 i termini carico/VRAM (serve
   telemetria live).
-- **Fase 3** ⬜ adapter cloud (OpenAI/Anthropic) sotto policy privacy +
-  `routing_policies` + escalation nel router (**M9**).
+- **Fase 3** ✅ (**M9**) adapter **Anthropic** (Messages API) + **OpenAI** via
+  `OpenAICompatAdapter`, tabella **`routing_policies`** (migrazione 0023: per tipo
+  di task → capacità, alias preferito, privacy, catena di fallback),
+  `gateway.resolve_for_task` con **escalation** locale→cloud lungo gli alias di
+  fallback, API `/routing-policies`. Il cloud è raggiunto solo se un runtime è
+  registrato E la privacy/policy lo consentono (`LOCAL_ONLY` esclude sempre).
 - **Fase 4** ⬜ prenotazione risorse, load/unload dei modelli, preemption.
 
 ## Definition of Done globale

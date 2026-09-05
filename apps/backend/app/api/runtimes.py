@@ -18,6 +18,9 @@ from app.schemas.runtime import (
     DeploymentUpdate,
     ModelAliasRead,
     ModelDeploymentRead,
+    PolicyList,
+    PolicyUpsert,
+    RoutingPolicyRead,
     RuntimeCreate,
     RuntimeHealthRead,
     RuntimeList,
@@ -167,4 +170,33 @@ async def delete_alias(alias: str, session: AsyncSession = Depends(get_session))
     if match is None:
         raise HTTPException(status_code=404, detail="alias not found")
     await runtime_service.delete_alias(session, match)
+    return {"status": "deleted"}
+
+
+# --------------------------------------------------------------------------- #
+# Routing policies (Fase 3 / M9)
+# --------------------------------------------------------------------------- #
+@router.get("/routing-policies", response_model=PolicyList)
+async def list_policies(session: AsyncSession = Depends(get_session)) -> PolicyList:
+    items = await runtime_service.list_policies(session)
+    return PolicyList(items=[RoutingPolicyRead.model_validate(p) for p in items], total=len(items))
+
+
+@router.put("/routing-policies", response_model=RoutingPolicyRead)
+async def upsert_policy(
+    payload: PolicyUpsert, session: AsyncSession = Depends(get_session)
+) -> RoutingPolicyRead:
+    row = await runtime_service.upsert_policy(session, **payload.model_dump())
+    return RoutingPolicyRead.model_validate(row)
+
+
+@router.delete("/routing-policies/{task_type}")
+async def delete_policy(
+    task_type: str, session: AsyncSession = Depends(get_session)
+) -> dict[str, str]:
+    rows = await runtime_service.list_policies(session)
+    match = next((p for p in rows if p.task_type == task_type), None)
+    if match is None:
+        raise HTTPException(status_code=404, detail="policy not found")
+    await runtime_service.delete_policy(session, match)
     return {"status": "deleted"}

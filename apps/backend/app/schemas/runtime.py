@@ -144,3 +144,37 @@ class ModelAliasRead(BaseModel):
 class AliasList(BaseModel):
     items: list[ModelAliasRead]
     total: int
+
+
+# --------------------------------------------------------------------------- #
+# Routing policies (Fase 3 / M9)
+# --------------------------------------------------------------------------- #
+class PolicyUpsert(BaseModel):
+    task_type: str = Field(min_length=1, max_length=64)
+    required_capabilities: list[str] = Field(default_factory=list)
+    preferred_alias: str | None = Field(default=None, max_length=64)
+    privacy: str = Field(default="LOCAL_PREFERRED", max_length=24)
+    fallback: list[str] = Field(default_factory=list)
+    max_latency_ms: int | None = None
+    priority: int = 100
+    enabled: bool = True
+
+
+class RoutingPolicyRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    task_type: str
+    required_capabilities: list[Any] | None
+    preferred_alias: str | None
+    privacy: str
+    fallback: list[Any] | None
+    max_latency_ms: int | None
+    priority: int
+    enabled: bool
+    updated_at: datetime
+
+
+class PolicyList(BaseModel):
+    items: list[RoutingPolicyRead]
+    total: int

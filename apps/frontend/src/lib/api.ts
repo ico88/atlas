@@ -1322,3 +1322,34 @@ export async function upsertAlias(body: {
 export async function deleteAlias(alias: string): Promise<void> {
   await sendJson(`/api/v1/model-aliases/${alias}`, "DELETE");
 }
+
+export interface RoutingPolicy {
+  id: string;
+  task_type: string;
+  required_capabilities?: string[] | null;
+  preferred_alias?: string | null;
+  privacy: string;
+  fallback?: string[] | null;
+  max_latency_ms?: number | null;
+  priority: number;
+  enabled: boolean;
+  updated_at: string;
+}
+
+export async function fetchPolicies(): Promise<{ items: RoutingPolicy[]; total: number }> {
+  return getJson("/api/v1/routing-policies");
+}
+
+export async function upsertPolicy(body: {
+  task_type: string;
+  required_capabilities: string[];
+  preferred_alias?: string;
+  privacy: string;
+  fallback: string[];
+}): Promise<RoutingPolicy> {
+  return sendJson("/api/v1/routing-policies", "PUT", body);
+}
+
+export async function deletePolicy(taskType: string): Promise<void> {
+  await sendJson(`/api/v1/routing-policies/${taskType}`, "DELETE");
+}

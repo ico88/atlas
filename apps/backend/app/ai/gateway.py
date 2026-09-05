@@ -27,6 +27,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai import circuit
+from app.ai.anthropic import AnthropicAdapter
 from app.ai.base import (
     CLOUD_RUNTIME_TYPES,
     RoutingDecision,
@@ -38,7 +39,7 @@ from app.ai.ollama import OllamaProvider
 from app.ai.openai_compat import OpenAICompatAdapter
 from app.core.config import get_settings
 from app.models.provider import LLMModel
-from app.models.runtime import ModelAlias, ModelDeployment, Runtime
+from app.models.runtime import ModelAlias, ModelDeployment, RoutingPolicy, Runtime
 
 logger = logging.getLogger(__name__)
 
@@ -73,12 +74,18 @@ def adapter_for(runtime: Runtime) -> RuntimeAdapter:
     if rtype == RuntimeType.OLLAMA.value:
         return OllamaProvider(runtime.endpoint or get_settings().ollama_url)
     if rtype in _OPENAI_COMPAT_TYPES:
-        if not runtime.endpoint:
-            raise ValueError(f"runtime '{runtime.name}' has no endpoint")
-        return OpenAICompatAdapter(
-            runtime.endpoint, name=runtime.name, api_key=runtime.api_key
+        # OpenAI itself has a fixed endpoint; a self-hosted server needs one.
+        endpoint = runtime.endpoint or (
+            "https://api.openai.com" if rtype == RuntimeType.OPENAI.value else None
         )
-    # Anthropic (and any future native format) — Fase 3.
+        if not endpoint:
+            raise ValueError(f"runtime '{runtime.name}' has no endpoint")
+        return OpenAICompatAdapter(endpoint, name=runtime.name, api_key=runtime.api_key)
+    if rtype == RuntimeType.ANTHROPIC.value:
+        return AnthropicAdapter(
+            runtime.api_key, base_url=runtime.endpoint or "https://api.anthropic.com",
+            name=runtime.name,
+        )
     raise ValueError(f"unsupported runtime_type: {rtype}")
 
 
@@ -318,3 +325,36 @@ async def resolve(
             score=cand.score,
         )
     return None
+
+
+async def resolve_for_task(
+    session: AsyncSession, task_type: str
+) -> RoutingDecision | None:
+    """Route by task type using its RoutingPolicy (Fase 3 / M9).
+
+    Applies the policy's capabilities + privacy, tries the preferred alias, then
+    each fallback alias in order — the router-level escalation chain (e.g.
+    local → OpenAI → Anthropic when the policy allows cloud).
+    """
+
+    policy = (
+        await session.execute(
+            select(RoutingPolicy).where(RoutingPolicy.task_type == task_type)
+        )
+    ).scalar_one_or_none()
+    if policy is None or not policy.enabled:
+        return await resolve(session)  # no policy -> default routing
+
+    required = {str(c).upper() for c in (policy.required_capabilities or [])}
+    aliases: list[str | None] = [policy.preferred_alias]
+    aliases += [str(a) for a in (policy.fallback or [])]
+    for alias in aliases:
+        decision = await resolve(
+            session, required_capabilities=required, privacy=policy.privacy, alias=alias
+        )
+        if decision is not None:
+            return decision
+    # Last resort: any deployment satisfying the capabilities/privacy.
+    return await resolve(
+        session, required_capabilities=required, privacy=policy.privacy
+    )

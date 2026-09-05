@@ -90,8 +90,16 @@ that runtime is stopped.
   gateway skips OPEN runtimes and records health failures). A configurable retry
   budget rounds it out. UI: a Circuit badge and a per-deployment Benchmark button.
   Node-load and VRAM score terms still need live telemetry — deferred to Fase 4.
-- **Fase 3** — cloud adapters (OpenAI/Anthropic) under the privacy policy, a
-  `routing_policies` table, and escalation folded into the router (this *is* M9).
+- **Fase 3** ✅ (**M9**) — the **Anthropic** adapter (Messages API) plus **OpenAI**
+  through `OpenAICompatAdapter`; a **`routing_policies`** table (per task type:
+  capabilities, preferred alias, privacy, ordered fallback) and
+  `gateway.resolve_for_task`, which tries the preferred alias then each fallback —
+  the router-level **escalation** chain (e.g. local → OpenAI → Anthropic when the
+  policy allows cloud). API `/routing-policies`. Cloud is reached only when a
+  runtime is registered for it AND privacy/policy allow (`LOCAL_ONLY` always
+  excludes cloud). To enable M9: register an `openai`/`anthropic` runtime with an
+  API key, add a deployment + alias, set `ATLAS_ROUTING_CLOUD_ALLOWED=true`, and a
+  policy whose fallback points at the cloud alias.
 - **Fase 4** — resource reservation, model load/unload strategy, preemption.
 
 Distributing a **single** LLM across nodes over WAN is intentionally out of scope

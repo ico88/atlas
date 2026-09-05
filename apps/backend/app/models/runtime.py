@@ -81,6 +81,33 @@ class ModelDeployment(Base):
     )
 
 
+class RoutingPolicy(Base):
+    """How a *kind of task* should be routed (Fase 3 / M9).
+
+    Maps a task type ("coding", "translation", "chat") to the capabilities it
+    needs, a preferred alias, a privacy level and an ordered fallback of aliases.
+    ALMA names a task type; the gateway turns it into a concrete deployment.
+    """
+
+    __tablename__ = "routing_policies"
+
+    id: Mapped[str] = pk_column()
+    task_type: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    required_capabilities: Mapped[list[Any] | None] = mapped_column(JSON, nullable=True)
+    preferred_alias: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    privacy: Mapped[str] = mapped_column(String(24), nullable=False, default="LOCAL_PREFERRED")
+    max_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    fallback: Mapped[list[Any] | None] = mapped_column(JSON, nullable=True)
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
+    )
+
+
 class ModelAlias(Base):
     """A stable name ALMA uses ("atlas.general") mapped to an ordered list of
     preferred ``model_key`` values. Swapping a model needs no code change."""
