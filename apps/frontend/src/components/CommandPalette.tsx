@@ -20,6 +20,7 @@ const ITEMS: Item[] = [
   { label: "Maintenance", hint: "self-healing", href: "/maintenance" },
   { label: "Evals", hint: "quality & safety", href: "/evals" },
   { label: "Improvements", hint: "propose & experiment", href: "/improvements" },
+  { label: "Critical Review", hint: "critic · verify · judge", href: "/reviews" },
   { label: "Escalation", hint: "external help", href: "/escalation" },
   { label: "Users", hint: "roles & access", href: "/users" },
   { label: "Settings", hint: "web tools & config", href: "/settings" },

@@ -543,6 +543,55 @@ export const fetchEvalRuns = (suiteId: string) =>
     `/api/v1/evals/suites/${encodeURIComponent(suiteId)}/runs`,
   );
 
+// --- Critical Review (PR 19) ---
+
+export interface ReviewRound {
+  attempt: number;
+  answer: string;
+  findings: { role: string; severity: string; code: string; message: string }[];
+  verification: { grounding: number | null; supported: string[]; unsupported: string[] };
+  score: number;
+  decision: string;
+  reasons: string[];
+}
+
+export interface Review {
+  id: string;
+  prompt: string;
+  references?: string[] | null;
+  best_answer?: string | null;
+  best_score: number;
+  decision: string;
+  rounds?: ReviewRound[] | null;
+  consensus?: { best_index: number; agreement: number; rounds: number } | null;
+  provider?: string | null;
+  model?: string | null;
+  round_count: number;
+  created_at: string;
+}
+
+export interface ReviewSummary {
+  id: string;
+  prompt: string;
+  best_score: number;
+  decision: string;
+  round_count: number;
+  created_at: string;
+}
+
+export const runReview = (body: {
+  prompt: string;
+  references?: string[];
+  max_rounds?: number;
+  model?: string;
+}) => postJson<Review>("/api/v1/reviews", body);
+
+export const fetchReviews = () =>
+  getJson<{ items: ReviewSummary[]; total: number }>("/api/v1/reviews");
+
+export const fetchReview = (id: string) =>
+  getJson<Review>(`/api/v1/reviews/${encodeURIComponent(id)}`);
+
 // --- Users & RBAC (PR 27) ---
 
 export interface AppUser {

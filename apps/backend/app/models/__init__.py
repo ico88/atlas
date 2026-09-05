@@ -46,6 +46,7 @@ from app.models.rag import (
     KnowledgeBase,
     Memory,
 )
+from app.models.review import CriticalReview, ReviewDecision
 from app.models.task import Task, TaskDependency, TaskEvent, TaskStatus
 from app.models.user import User
 
@@ -97,4 +98,6 @@ __all__ = [
     "ImprovementProposal",
     "ProposalStatus",
     "ProposalCategory",
+    "CriticalReview",
+    "ReviewDecision",
 ]

@@ -24,6 +24,7 @@ from app.api import (
     nodes,
     query,
     rag,
+    review,
     system,
     tasks,
     users,
@@ -126,6 +127,7 @@ def create_app() -> FastAPI:
     app.include_router(environment.router)
     app.include_router(eval_api.router)
     app.include_router(improvement.router)
+    app.include_router(review.router)
 
     return app
 

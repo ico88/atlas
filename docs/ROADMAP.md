@@ -224,7 +224,11 @@ Stato: ✅ = consegnata.
     prioritaria), gate di approvazione umano e applicazione governata (imposta il
     modello di default). API `/improvements/*` + pagina **Improvements**. Vedi
     [CONTINUOUS_IMPROVEMENT.md](CONTINUOUS_IMPROVEMENT.md).
-19. **PR 19 — Critical Review:** proposer, critic, verifier, judge e consensus adattivo.
+19. ✅ **PR 19 — Critical Review:** pipeline proposer/critic/verifier/judge
+    (migrazione 0019), scoring puro (critic euristico, verifier su reference,
+    judge = qualità+grounding), consensus adattivo (stop anticipato oltre soglia),
+    API `/api/v1/reviews` + pagina **Critical Review**. Vedi
+    [CRITICAL_REVIEW.md](CRITICAL_REVIEW.md).
 20. **PR 20 — Unified Updater:** comando unico, preflight, snapshot, migrazioni e ripresa.
 21. **PR 21 — Fleet Update:** rolling update, nodi canary, compatibilità e nodi offline.
 22. **PR 22 — Safe deployment:** health gate, promozione e rollback.

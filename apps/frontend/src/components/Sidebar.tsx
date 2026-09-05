@@ -22,6 +22,7 @@ const NAV = [
   { href: "/maintenance", key: "nav.maintenance" },
   { href: "/evals", key: "nav.evals" },
   { href: "/improvements", key: "nav.improvements" },
+  { href: "/reviews", key: "nav.reviews" },
   { href: "/escalation", key: "nav.escalation" },
   { href: "/users", key: "nav.users" },
   { href: "/settings", key: "nav.settings" },

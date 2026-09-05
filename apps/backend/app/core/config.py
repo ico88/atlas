@@ -100,6 +100,14 @@ class Settings(BaseSettings):
     improvement_auto_propose_enabled: bool = True
     improvement_auto_propose_interval: float = 3600.0  # seconds between sweeps
 
+    # Critical review (ROADMAP PR 19). A proposer/critic/verifier/judge pipeline
+    # runs up to N rounds and stops early once a candidate clears the accept
+    # threshold (adaptive consensus).
+    review_max_rounds: int = 3  # candidates to try before picking the best
+    review_accept_threshold: float = 0.8  # score >= this => accept (stop early)
+    review_revise_threshold: float = 0.5  # score >= this => revise, else reject
+    review_min_answer_chars: int = 40  # shorter candidates are flagged as thin
+
     # Node federation (spec §8). A shared join token authenticates nodes against
     # the control plane (least privilege, §13). Empty => open (development only).
     node_join_token: str = ""
