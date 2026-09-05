@@ -5,6 +5,8 @@
 # validate_model_name NAME[:TAG] — accept only safe names/tags, no shell metachars.
 validate_model_name() {
   local name="$1"
+  # Reject any shell metacharacter (each '...' is a literal, incl. a backslash).
+  # shellcheck disable=SC1003
   case "$name" in
     *' '*|*';'*|*'|'*|*'&'*|*'$'*|'`'*|*'`'*|*'('*|*')'*|*'<'*|*'>'*|*'\'*|*'"'*|*"'"*)
       return 1 ;;

@@ -270,7 +270,15 @@ Stato: ✅ = consegnata.
     reintegro) con audit (`remediation_events`, migrazione 0021), quarantena che
     esclude il nodo dallo scheduling, `/fleet/remediate` e `/fleet/auto-remediate`
     (solo version-drift, sicuro). Vedi [FLEET_COMPLIANCE.md](FLEET_COMPLIANCE.md).
-26. **PR 26 — Quality:** upgrade, failover, fault injection, recovery, CI e prova AMD.
+26. ✅ **PR 26 — Quality:** suite di *fault injection* end-to-end (`test_resilience.py`):
+    crash di un worker → reclaim + fencing del lease, crash ripetuti → FAILED (niente
+    loop infinito), nodo remoto caduto → task rimesso in pool, backend caduto a metà
+    chat → recovery delle risposte `pending`, leader HA caduto → failover automatico
+    allo standby. **Prova AMD** reale (`test_shell_scripts.py`): `generate_gpu_override`
+    genera un mapping Ollama funzionante per Vulkan/ROCm e `gpu_backend_configured` lo
+    rilegge. **CI** completa: lint+type+test hermetici, migrazione su PostgreSQL,
+    node-agent, frontend, build Docker, **shellcheck** su CLI/lib/installer, secret scan.
+    Vedi [QUALITY.md](QUALITY.md).
 
 ### Estensioni utenti & privacy (aggiunte su richiesta)
 

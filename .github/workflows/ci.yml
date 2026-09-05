@@ -122,6 +122,18 @@ jobs:
       - name: Build node-agent image
         run: docker build -t atlas-node-agent:ci ./services/node-agent
 
+  shell:
+    name: Shell scripts (shellcheck)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: ShellCheck the CLI, libs and installer
+        run: |
+          shellcheck --version
+          # -x follows `source`d files; the libs declare `# shellcheck shell=bash`.
+          shellcheck -x atlas infrastructure/scripts/install.sh
+          shellcheck infrastructure/scripts/lib/*.sh
+
   secret-scan:
     name: Secret scan
     runs-on: ubuntu-latest

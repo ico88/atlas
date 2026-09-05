@@ -87,3 +87,48 @@ def test_cli_help_lists_new_commands():
     r = _bash("./atlas help")
     for token in ("model-prune", "gpu-status", "update --resume"):
         assert token in r.stdout, f"'{token}' missing from atlas help"
+
+
+# --------------------------------------------------------------------------- #
+# AMD acceleration proof (ROADMAP PR 26 — Quality).
+# The AMD path is real, not a stub: generate_gpu_override writes a working Ollama
+# device mapping for Vulkan and ROCm, and gpu_backend_configured reads it back.
+# --------------------------------------------------------------------------- #
+def _gpu(tmp_path, cmd):
+    return _bash(
+        "source infrastructure/scripts/lib/atlas-lib.sh 2>/dev/null; "
+        "source infrastructure/scripts/lib/gpu.sh; " + cmd
+    )
+
+
+def test_amd_vulkan_override_is_generated_and_detected(tmp_path):
+    r = _gpu(tmp_path, f"generate_gpu_override {tmp_path} vulkan")
+    assert r.returncode == 0, r.stderr
+    out = (tmp_path / ".atlas" / "docker-compose.gpu.yml").read_text()
+    # A real Ollama GPU mapping: the render device is passed through and Vulkan on.
+    assert "/dev/dri:/dev/dri" in out
+    assert 'OLLAMA_VULKAN: "1"' in out
+    # And it round-trips back to the same backend.
+    r = _gpu(tmp_path, f"gpu_backend_configured {tmp_path}")
+    assert r.stdout.strip() == "vulkan"
+
+
+def test_amd_rocm_override_maps_kfd_when_present(tmp_path):
+    r = _gpu(tmp_path, f"generate_gpu_override {tmp_path} rocm")
+    assert r.returncode == 0, r.stderr
+    out = (tmp_path / ".atlas" / "docker-compose.gpu.yml").read_text()
+    assert "/dev/dri:/dev/dri" in out
+    # ROCm needs /dev/kfd; it is mapped only when the host actually exposes it.
+    if Path("/dev/kfd").exists():
+        assert "/dev/kfd:/dev/kfd" in out
+        r = _gpu(tmp_path, f"gpu_backend_configured {tmp_path}")
+        assert r.stdout.strip() == "rocm"
+
+
+def test_cpu_backend_removes_override(tmp_path):
+    _gpu(tmp_path, f"generate_gpu_override {tmp_path} nvidia")
+    assert (tmp_path / ".atlas" / "docker-compose.gpu.yml").exists()
+    _gpu(tmp_path, f"generate_gpu_override {tmp_path} cpu")
+    assert not (tmp_path / ".atlas" / "docker-compose.gpu.yml").exists()
+    r = _gpu(tmp_path, f"gpu_backend_configured {tmp_path}")
+    assert r.stdout.strip() == "cpu"

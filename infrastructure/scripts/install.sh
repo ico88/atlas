@@ -344,8 +344,11 @@ post_start_ollama() {
     if [ "$WITH_OLLAMA_EMB" = "1" ]; then
       pull_model "$EMBEDDING_MODEL" || warn "Embedding model pull failed."
     fi
-    smoke_test_model "$OLLAMA_MODEL" && log "Model '$OLLAMA_MODEL' responded." \
-      || warn "Smoke test did not confirm a response (model may still be loading)."
+    if smoke_test_model "$OLLAMA_MODEL"; then
+      log "Model '$OLLAMA_MODEL' responded."
+    else
+      warn "Smoke test did not confirm a response (model may still be loading)."
+    fi
     refresh_atlas_models || warn "Could not refresh the model registry (backend starting?)."
   else
     warn "Model pull failed; the app runs with the echo provider until a model is available."

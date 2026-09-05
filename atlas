@@ -76,7 +76,7 @@ wait_healthy() {
 
 # --- backup ---------------------------------------------------------------
 cmd_backup() {
-  local ts stamp dir
+  local ts dir
   ts="$(date -u +%Y%m%dT%H%M%SZ)"
   dir="${BACKUP_DIR}/${ts}"
   mkdir -p "$dir"
@@ -246,7 +246,7 @@ cmd_model_rollback() {
   log "Rolling back to '$prev'..."
   set_env_var ATLAS_DEFAULT_MODEL "$prev" "$ENV_FILE"
   _compose up -d --no-deps backend worker
-  wait_healthy 120 && log "Rolled back to '$prev'." || warn "Backend not healthy after rollback."
+  if wait_healthy 120; then log "Rolled back to '$prev'."; else warn "Backend not healthy after rollback."; fi
 }
 
 cmd_model_list() {
