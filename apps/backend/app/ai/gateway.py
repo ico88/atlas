@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai import circuit
 from app.ai.base import (
     CLOUD_RUNTIME_TYPES,
     RoutingDecision,
@@ -267,6 +268,13 @@ async def resolve(
         session, required=required, privacy=privacy, alias=alias, model_key=model_key
     )
     for cand in candidates:
+        # Skip runtimes whose circuit breaker is open (Fase 2).
+        if await circuit.is_open(cand.runtime.name):
+            logger.info(
+                "runtime circuit open, skipping",
+                extra={"event": "gateway_skip", "context": {"runtime": cand.runtime.name}},
+            )
+            continue
         try:
             adapter = adapter_for(cand.runtime)
         except ValueError as exc:
@@ -274,6 +282,7 @@ async def resolve(
             continue
         health = await adapter.health()
         if not health.usable:
+            await circuit.record_failure(cand.runtime.name)
             logger.info(
                 "runtime unhealthy, trying next candidate",
                 extra={
@@ -282,6 +291,7 @@ async def resolve(
                 },
             )
             continue
+        await circuit.record_success(cand.runtime.name)
         reason = (
             f"{cand.runtime.runtime_type}:{cand.deployment.runtime_model_name}"
             f" on {cand.runtime.node_id or 'control-plane'} (score {cand.score:.1f})"

@@ -24,7 +24,7 @@ from app.schemas.runtime import (
     RuntimeRead,
     RuntimeUpdate,
 )
-from app.services import runtime_service
+from app.services import benchmark_service, runtime_service
 
 router = APIRouter(prefix="/api/v1", tags=["runtimes"])
 
@@ -122,6 +122,19 @@ async def delete_deployment(
         raise HTTPException(status_code=404, detail="deployment not found")
     await runtime_service.delete_deployment(session, dep)
     return {"status": "deleted"}
+
+
+@router.post("/model-deployments/{dep_id}/benchmark")
+async def benchmark_deployment(
+    dep_id: str, session: AsyncSession = Depends(get_session)
+) -> dict:
+    dep = await runtime_service.get_deployment(session, dep_id)
+    if dep is None:
+        raise HTTPException(status_code=404, detail="deployment not found")
+    runtime = await runtime_service.get_runtime(session, dep.runtime_id)
+    if runtime is None:
+        raise HTTPException(status_code=400, detail="deployment has no runtime")
+    return await benchmark_service.benchmark_deployment(session, dep, runtime)
 
 
 # --------------------------------------------------------------------------- #

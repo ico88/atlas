@@ -6,6 +6,7 @@ import {
   ModelDeployment,
   Runtime,
   RuntimeHealth,
+  benchmarkDeployment,
   createModelDeployment,
   createRuntime,
   deleteAlias,
@@ -151,6 +152,12 @@ export default function RuntimesPage() {
                 <span className="muted">Node</span>
                 <span>{r.node_id || "control-plane"}</span>
               </div>
+              {h?.circuit === "OPEN" && (
+                <div className="status-row">
+                  <span className="muted">Circuit</span>
+                  <span className="queue-badge idle">OPEN</span>
+                </div>
+              )}
               {h?.detail && <p className="muted" style={{ fontSize: 12 }}>{h.detail}</p>}
               <button
                 className="btn secondary"
@@ -237,7 +244,13 @@ export default function RuntimesPage() {
                 <td>{d.runtime_model_name}</td>
                 <td>{d.priority}</td>
                 <td>{d.estimated_tokens_per_second ?? "—"}</td>
-                <td>
+                <td style={{ display: "flex", gap: 6 }}>
+                  <button
+                    className="btn secondary"
+                    onClick={() => act(() => benchmarkDeployment(d.id))}
+                  >
+                    {t("runtimes.benchmark")}
+                  </button>
                   <button className="btn secondary" onClick={() => act(() => deleteModelDeployment(d.id))}>
                     {t("common.delete")}
                   </button>

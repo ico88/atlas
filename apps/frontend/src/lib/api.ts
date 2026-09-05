@@ -1217,6 +1217,7 @@ export interface RuntimeHealth {
   runtime_type: string;
   state: string;
   detail: string;
+  circuit?: string;
 }
 
 export interface ModelDeployment {
@@ -1296,6 +1297,14 @@ export async function createModelDeployment(body: {
 
 export async function deleteModelDeployment(id: string): Promise<void> {
   await sendJson(`/api/v1/model-deployments/${id}`, "DELETE");
+}
+
+export async function benchmarkDeployment(id: string): Promise<{
+  ok: boolean;
+  tokens_per_second?: number;
+  first_token_ms?: number | null;
+}> {
+  return sendJson(`/api/v1/model-deployments/${id}/benchmark`, "POST");
 }
 
 export async function fetchAliases(): Promise<{ items: ModelAlias[]; total: number }> {

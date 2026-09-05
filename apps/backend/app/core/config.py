@@ -177,6 +177,15 @@ class Settings(BaseSettings):
     routing_cloud_allowed: bool = False
     # Runtime-type preference, most-preferred first (a soft bias, not absolute).
     runtime_priority: list[str] = ["llama_cpp", "ollama", "openai_compat", "vllm"]
+    # Circuit breaker (Fase 2): after N consecutive failures a runtime is skipped
+    # for a cooldown, then probed to recover — a repeatedly-failing engine is
+    # routed around instead of retried forever.
+    runtime_circuit_threshold: int = 5
+    runtime_circuit_cooldown: float = 30.0
+    # Best-effort retries against transient runtime errors (0 = none).
+    runtime_max_retries: int = 1
+    # Benchmark probe: max tokens to generate when measuring tokens/sec.
+    runtime_benchmark_max_tokens: int = 64
 
     # RAG / Memory (spec §6, §8, M8).
     embedding_dim: int = 256  # dimension of the local hashing embedder

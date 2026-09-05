@@ -83,8 +83,13 @@ brief (#47/#48). It is real, not a stub: the acceptance test registers two runti
 on one node, routes a chat request to the winning deployment, and falls back when
 that runtime is stopped.
 
-- **Fase 2** — measured benchmarks per node/runtime (feeding the score), node-load
-  and VRAM terms, circuit breaker + retry per runtime.
+- **Fase 2** ✅ (partial) — **benchmarks** (`benchmark_service`: measured
+  tokens/sec + first-token latency, persisted on the deployment and fed into the
+  score) and a per-runtime **circuit breaker** (`app/ai/circuit.py`, Redis-backed:
+  opens after N consecutive failures, cools down, then probes to recover; the
+  gateway skips OPEN runtimes and records health failures). A configurable retry
+  budget rounds it out. UI: a Circuit badge and a per-deployment Benchmark button.
+  Node-load and VRAM score terms still need live telemetry — deferred to Fase 4.
 - **Fase 3** — cloud adapters (OpenAI/Anthropic) under the privacy policy, a
   `routing_policies` table, and escalation folded into the router (this *is* M9).
 - **Fase 4** — resource reservation, model load/unload strategy, preemption.

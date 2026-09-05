@@ -67,6 +67,7 @@ class RuntimeHealthRead(BaseModel):
     runtime_type: str
     state: str
     detail: str
+    circuit: str = "CLOSED"
 
 
 # --------------------------------------------------------------------------- #

@@ -7,7 +7,7 @@ import logging
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai import gateway
+from app.ai import circuit, gateway
 from app.models.runtime import ModelAlias, ModelDeployment, Runtime
 
 logger = logging.getLogger(__name__)
@@ -74,6 +74,7 @@ async def health_all(session: AsyncSession) -> list[dict]:
             except ValueError as exc:
                 state, detail = "DOWN", str(exc)
         runtime.status = state
+        breaker = await circuit.state(runtime.name)
         out.append(
             {
                 "id": runtime.id,
@@ -81,6 +82,7 @@ async def health_all(session: AsyncSession) -> list[dict]:
                 "runtime_type": runtime.runtime_type,
                 "state": state,
                 "detail": detail,
+                "circuit": breaker,
             }
         )
     await session.commit()

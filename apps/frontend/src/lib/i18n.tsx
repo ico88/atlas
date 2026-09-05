@@ -112,6 +112,7 @@ const EN: Dict = {
   "runtimes.type": "Type",
   "runtimes.add": "Add",
   "runtimes.none": "Nothing yet.",
+  "runtimes.benchmark": "Benchmark",
 };
 
 const IT: Dict = {
@@ -212,6 +213,7 @@ const IT: Dict = {
   "runtimes.type": "Tipo",
   "runtimes.add": "Aggiungi",
   "runtimes.none": "Ancora niente.",
+  "runtimes.benchmark": "Benchmark",
 };
 
 const DICT: Record<Lang, Dict> = { en: EN, it: IT };

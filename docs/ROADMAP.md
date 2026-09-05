@@ -306,8 +306,12 @@ API `/runtimes` · `/model-deployments` · `/model-aliases`, pagina **AI Runtime
 `router.select()` usa il gateway quando esistono deployment, altrimenti mantiene il
 comportamento classico (nessuna regressione). Vedi [MULTI_RUNTIME.md](MULTI_RUNTIME.md).
 
-- **Fase 2** ⬜ benchmark per nodo/runtime (nello score), termini carico/VRAM,
-  circuit breaker + retry per runtime.
+- **Fase 2** ✅ (parziale) **benchmark** reale per deployment (`benchmark_service`,
+  tokens/sec + first-token, persistiti e usati nello score), **circuit breaker**
+  per runtime (`app/ai/circuit.py`, Redis: apre dopo N fallimenti, cooldown, probe
+  di recupero; il gateway salta i runtime OPEN), retry configurabile, badge Circuit
+  e pulsante Benchmark nella UI. Restano a Fase 4 i termini carico/VRAM (serve
+  telemetria live).
 - **Fase 3** ⬜ adapter cloud (OpenAI/Anthropic) sotto policy privacy +
   `routing_policies` + escalation nel router (**M9**).
 - **Fase 4** ⬜ prenotazione risorse, load/unload dei modelli, preemption.
