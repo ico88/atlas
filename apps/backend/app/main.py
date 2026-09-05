@@ -18,6 +18,7 @@ from app.api import (
     enrollment,
     environment,
     escalation,
+    fleet,
     improvement,
     maintenance,
     metrics,
@@ -130,6 +131,7 @@ def create_app() -> FastAPI:
     app.include_router(improvement.router)
     app.include_router(review.router)
     app.include_router(deployment.router)
+    app.include_router(fleet.router)
 
     return app
 

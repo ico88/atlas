@@ -543,6 +543,63 @@ export const fetchEvalRuns = (suiteId: string) =>
     `/api/v1/evals/suites/${encodeURIComponent(suiteId)}/runs`,
   );
 
+// --- Fleet compliance & remediation (PR 24/25) ---
+
+export interface NodeCompliance {
+  node_ref: string | null;
+  online: boolean;
+  quarantined: boolean;
+  version: string | null;
+  compliant: boolean;
+  issues: string[];
+  diagnosis?: string | null;
+  recommended_action?: string | null;
+}
+
+export interface DesiredState {
+  target_version: string;
+  required_capabilities: string[];
+  min_online: number;
+}
+
+export interface ComplianceReport {
+  summary: Record<string, number | boolean>;
+  desired: DesiredState;
+  nodes: NodeCompliance[];
+}
+
+export interface RemediationEvent {
+  id: string;
+  node_ref: string;
+  action: string;
+  reason?: string | null;
+  automatic: boolean;
+  created_at: string;
+}
+
+export const fetchCompliance = () => getJson<ComplianceReport>("/api/v1/fleet/compliance");
+
+export const fetchDesiredState = () => getJson<DesiredState>("/api/v1/fleet/desired");
+
+export async function setDesiredState(body: DesiredState): Promise<DesiredState> {
+  const res = await fetch("/api/v1/fleet/desired", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`save failed (${res.status})`);
+  return (await res.json()) as DesiredState;
+}
+
+export const remediateNode = (node_ref: string, action: string, reason?: string) =>
+  postJson<RemediationEvent>("/api/v1/fleet/remediate", { node_ref, action, reason });
+
+export const autoRemediate = () =>
+  postJson<ComplianceReport>("/api/v1/fleet/auto-remediate");
+
+export const fetchRemediationEvents = () =>
+  getJson<RemediationEvent[]>("/api/v1/fleet/remediation-events");
+
 // --- Fleet deployments (PR 21/22) ---
 
 export interface DeploymentTarget {

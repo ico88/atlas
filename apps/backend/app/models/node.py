@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, String
+from sqlalchemy import JSON, Boolean, DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, pk_column, utcnow
@@ -23,6 +23,8 @@ class Node(Base):
     # The node agent applies it and reports back via `version` on the next heartbeat.
     desired_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="unknown")
+    # Quarantined nodes are excluded from scheduling until reinstated (PR 25).
+    quarantined: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     capabilities: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     hardware: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     last_heartbeat: Mapped[datetime | None] = mapped_column(

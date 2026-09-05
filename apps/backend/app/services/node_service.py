@@ -88,6 +88,10 @@ async def claim_task(session: AsyncSession, node: Node) -> Task | None:
     multiple nodes never double-assign a task (portable across PostgreSQL/SQLite).
     """
 
+    # Quarantined nodes (PR 25) are excluded from scheduling until reinstated.
+    if getattr(node, "quarantined", False):
+        return None
+
     caps = node_capabilities(node)
     if not caps:
         return None

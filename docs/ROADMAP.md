@@ -246,8 +246,14 @@ Stato: ✅ = consegnata.
     `desired_version` precedente) su qualsiasi fallimento; API `/advance` e
     `/report`, pagina **Fleet Update**. Vedi [FLEET_DEPLOYMENT.md](FLEET_DEPLOYMENT.md).
 23. **PR 23 — UI:** Nodi, Risorse, Memoria, Miglioramenti, Aggiornamenti, code e fonti.
-24. **PR 24 — Fleet Compliance:** inventario, desired state, drift e dashboard.
-25. **PR 25 — Auto-remediation:** rimedi, quarantena, diagnosi guidata e reintegro.
+24. ✅ **PR 24 — Fleet Compliance:** desired state (settings `fleet_desired`), drift
+    puro (`compute_drift`: versione/capability/offline/quarantena) con % di
+    conformità e check min-online, API `/fleet/compliance|desired`, dashboard
+    **Fleet Health**. Vedi [FLEET_COMPLIANCE.md](FLEET_COMPLIANCE.md).
+25. ✅ **PR 25 — Auto-remediation:** diagnosi guidata + rimedi (remediate/quarantena/
+    reintegro) con audit (`remediation_events`, migrazione 0021), quarantena che
+    esclude il nodo dallo scheduling, `/fleet/remediate` e `/fleet/auto-remediate`
+    (solo version-drift, sicuro). Vedi [FLEET_COMPLIANCE.md](FLEET_COMPLIANCE.md).
 26. **PR 26 — Quality:** upgrade, failover, fault injection, recovery, CI e prova AMD.
 
 ### Estensioni utenti & privacy (aggiunte su richiesta)

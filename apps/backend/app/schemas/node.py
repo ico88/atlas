@@ -30,6 +30,8 @@ class NodeRead(BaseModel):
     hostname: str | None
     label: str | None
     version: str | None
+    desired_version: str | None = None
+    quarantined: bool = False
     status: str
     online: bool = False
     capabilities: dict[str, Any] | None

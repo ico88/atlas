@@ -14,6 +14,7 @@ const ITEMS: Item[] = [
   { label: "System Status", hint: "health", href: "/system" },
   { label: "Nodes", hint: "workers & enrollment", href: "/nodes" },
   { label: "Fleet Update", hint: "canary rollout", href: "/fleet" },
+  { label: "Fleet Health", hint: "compliance & remediation", href: "/compliance" },
   { label: "Resources", hint: "telemetry", href: "/resources" },
   { label: "Models", hint: "download / default", href: "/models" },
   { label: "Knowledge", hint: "RAG & memory", href: "/knowledge" },

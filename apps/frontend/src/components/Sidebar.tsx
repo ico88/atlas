@@ -16,6 +16,7 @@ const NAV = [
   { href: "/system", key: "nav.system" },
   { href: "/nodes", key: "nav.nodes" },
   { href: "/fleet", key: "nav.fleet" },
+  { href: "/compliance", key: "nav.compliance" },
   { href: "/resources", key: "nav.resources" },
   { href: "/models", key: "nav.models" },
   { href: "/knowledge", key: "nav.knowledge" },
