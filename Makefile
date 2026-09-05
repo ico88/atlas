@@ -48,6 +48,31 @@ model-rollback: ## Roll back to the previous model
 model-list: ## List installed models and the active one
 	./atlas model-list
 
+.PHONY: model-prune
+model-prune: ## Remove models except protected (active/rollback/embedding)
+	./atlas model-prune
+
+.PHONY: gpu-status
+gpu-status: ## Show detected vs configured GPU backend + real GPU-in-use check
+	./atlas gpu-status
+
+.PHONY: backup
+backup: ## Back up settings (.env) + a PostgreSQL dump
+	./atlas backup
+
+.PHONY: status
+status: ## Show running services (docker compose ps)
+	./atlas status
+
+.PHONY: update-status
+update-status: ## Show the last update log + result
+	./atlas update-status
+
+.PHONY: health
+health: ## Curl the backend health endpoint
+	@curl -fsS "http://localhost:$${ATLAS_HTTP_PORT:-80}/health" && echo "" || \
+		echo "backend not healthy"
+
 .PHONY: down
 down: ## Stop the stack
 	$(COMPOSE) down
@@ -68,6 +93,9 @@ test: ## Run backend tests
 .PHONY: lint
 lint: ## Run backend lint + type check
 	cd $(BACKEND) && . .venv/bin/activate && ruff check app tests && mypy app
+
+.PHONY: check
+check: lint test ## Run lint + type check + tests (CI parity)
 
 .PHONY: fmt
 fmt: ## Auto-fix backend lint issues

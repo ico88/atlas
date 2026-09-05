@@ -144,7 +144,11 @@ Stato: ✅ = consegnata.
    (backend rilevato vs configurato + verifica reale via `ollama ps`). Helper puri
    testati (`models_to_prune`, `gpu_backend_configured`). Vedi
    [MODEL_OPERATIONS.md](MODEL_OPERATIONS.md).
-4. **PR 4 — Operations:** pruning protetto, Makefile, logging e documentazione.
+4. ✅ **PR 4 — Operations:** pruning protetto (PR 3), Makefile completo
+   (up/dev/ai-up, update/backup/status/health, model-*, gpu-status, check),
+   logging JSON strutturato con `request_id` e audit trail su DB
+   (`git_actions`, `remediation_events`, `approvals`, `deployments`, …).
+   Vedi [OPERATIONS.md](OPERATIONS.md).
 5. ✅ **PR 5 — Node Setup UI:** UI locale di stato/diagnostica servita dal node
    agent (identità, hardware, capabilities, rete/ZeroTier, raggiungibilità del
    control plane) su `127.0.0.1:8971`, con codice bootstrap monouso per le
