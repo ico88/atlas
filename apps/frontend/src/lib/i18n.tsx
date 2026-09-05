@@ -64,6 +64,7 @@ const EN: Dict = {
   "chat.noArchived": "No archived chats.",
   "chat.working": "Working on your request…",
   "chat.resuming": "This reply is still being generated — it will keep going even if you leave.",
+  "chat.interrupted": "⚠ interrupted — send the message again",
 
   "common.error": "Error",
   "common.loading": "Loading…",
@@ -119,6 +120,7 @@ const IT: Dict = {
   "chat.noArchived": "Nessuna chat archiviata.",
   "chat.working": "Sto elaborando la tua richiesta…",
   "chat.resuming": "Questa risposta è ancora in generazione — continua anche se esci.",
+  "chat.interrupted": "⚠ interrotta — reinvia il messaggio",
 
   "common.error": "Errore",
   "common.loading": "Caricamento…",

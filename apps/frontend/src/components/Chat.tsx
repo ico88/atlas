@@ -463,6 +463,11 @@ export default function Chat() {
               return (
                 <div key={m.id} className={`bubble ${m.role}`}>
                   {m.role === "assistant" ? <Markdown text={m.content} /> : m.content}
+                  {m.role === "assistant" && m.status === "error" && (
+                    <span className="meta" style={{ color: "var(--bad)" }}>
+                      {t("chat.interrupted")}
+                    </span>
+                  )}
                   {m.role === "assistant" && m.citations && (
                     <Citations items={m.citations} label={t("chat.sources")} />
                   )}

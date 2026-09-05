@@ -98,6 +98,41 @@ async def _web_search(payload: ChatRequest) -> tuple[list[dict], str | None]:
         return [], "web search failed"
 
 
+async def recover_pending_replies() -> int:
+    """Fail any assistant replies left 'pending' by a crashed backend.
+
+    A detached turn worker persists partial text as it streams; if the process
+    dies mid-generation the row would otherwise stay 'pending' forever and the UI
+    would show "working" indefinitely. On startup we mark such orphans as 'error'
+    (keeping any partial text) so the user sees it was interrupted and can resend.
+    Returns how many replies were recovered.
+    """
+
+    sessionmaker = get_sessionmaker()
+    async with sessionmaker() as session:
+        rows = list(
+            (
+                await session.execute(
+                    select(Message).where(
+                        Message.role == MessageRole.ASSISTANT.value,
+                        Message.status == "pending",
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for m in rows:
+            m.status = "error"
+        if rows:
+            await session.commit()
+            logger.warning(
+                "recovered interrupted chat replies",
+                extra={"event": "chat_recover", "context": {"count": len(rows)}},
+            )
+        return len(rows)
+
+
 async def list_conversations(
     session: AsyncSession, *, archived: bool = False
 ) -> tuple[list[Conversation], int]:

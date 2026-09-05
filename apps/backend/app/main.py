@@ -39,7 +39,7 @@ from app.api.middleware import RequestContextMiddleware
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db import get_sessionmaker
-from app.services import query_service, user_service
+from app.services import chat_service, query_service, user_service
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +83,11 @@ def create_app() -> FastAPI:
             await query_service.recover_and_resume()
         except Exception:  # noqa: BLE001 - never block startup on recovery
             logger.exception("query recovery failed", extra={"event": "query_recover_error"})
+        try:
+            # Fail chat replies left mid-generation by a crash (no stuck spinner).
+            await chat_service.recover_pending_replies()
+        except Exception:  # noqa: BLE001 - never block startup on recovery
+            logger.exception("chat recovery failed", extra={"event": "chat_recover_error"})
         try:
             # Fully autonomous improvement proposer (no-op unless enabled).
             from app.services import automation_service

@@ -177,3 +177,34 @@ async def test_archive_and_delete_conversation(client):
     assert deleted.status_code == 204
     gone = await client.get(f"/api/v1/conversations/{convo_id}")
     assert gone.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_recover_pending_replies_after_crash(session):
+    """A reply left 'pending' by a crash is marked 'error' on startup recovery."""
+
+    from app.models.conversation import Conversation, Message, MessageRole
+    from app.services import chat_service
+
+    convo = Conversation(title="crashed", mode="auto")
+    session.add(convo)
+    await session.flush()
+    session.add(
+        Message(
+            conversation_id=convo.id,
+            role=MessageRole.ASSISTANT.value,
+            content="partial answer so f",
+            status="pending",
+        )
+    )
+    await session.commit()
+
+    recovered = await chat_service.recover_pending_replies()
+    assert recovered >= 1
+
+    session.expunge_all()
+    convo2 = await chat_service.get_conversation(session, convo.id)
+    assert convo2 is not None
+    assistant = [m for m in convo2.messages if m.role == "assistant"][0]
+    assert assistant.status == "error"
+    assert assistant.content == "partial answer so f"
