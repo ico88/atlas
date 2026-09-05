@@ -21,6 +21,7 @@ const ITEMS: Item[] = [
   { label: "Evals", hint: "quality & safety", href: "/evals" },
   { label: "Improvements", hint: "propose & experiment", href: "/improvements" },
   { label: "Escalation", hint: "external help", href: "/escalation" },
+  { label: "Users", hint: "roles & access", href: "/users" },
   { label: "Settings", hint: "web tools & config", href: "/settings" },
 ];
 

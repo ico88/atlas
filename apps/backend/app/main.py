@@ -26,6 +26,7 @@ from app.api import (
     rag,
     system,
     tasks,
+    users,
     webtools,
 )
 from app.api import (
@@ -101,6 +102,7 @@ def create_app() -> FastAPI:
     app.add_middleware(RequestContextMiddleware)
 
     app.include_router(auth.router)
+    app.include_router(users.router)
     app.include_router(system.router)
     app.include_router(tasks.router)
     app.include_router(nodes.router)

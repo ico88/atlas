@@ -22,6 +22,7 @@ const NAV = [
   { href: "/evals", key: "nav.evals" },
   { href: "/improvements", key: "nav.improvements" },
   { href: "/escalation", key: "nav.escalation" },
+  { href: "/users", key: "nav.users" },
   { href: "/settings", key: "nav.settings" },
 ];
 

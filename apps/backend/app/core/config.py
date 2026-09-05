@@ -114,6 +114,11 @@ class Settings(BaseSettings):
     jwt_secret: str = ""
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 12
+    # RBAC enforcement (ROADMAP PR 27). Off by default keeps the local-first,
+    # single-operator experience (endpoints open, everyone treated as admin).
+    # Turn on for multi-user: management endpoints then require an admin token
+    # and roles are enforced (admin manages everything, user just uses the app).
+    auth_enforce: bool = False
 
     # Optional bootstrap admin, seeded on startup if it does not exist.
     admin_email: str = ""

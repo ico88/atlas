@@ -488,6 +488,53 @@ export const fetchEvalRuns = (suiteId: string) =>
     `/api/v1/evals/suites/${encodeURIComponent(suiteId)}/runs`,
   );
 
+// --- Users & RBAC (PR 27) ---
+
+export interface AppUser {
+  id: string;
+  email: string;
+  full_name?: string | null;
+  role: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface UserList {
+  items: AppUser[];
+  total: number;
+  auth_enforced: boolean;
+}
+
+export const fetchUsers = () => getJson<UserList>("/api/v1/users");
+
+export const createUser = (body: {
+  email: string;
+  password: string;
+  full_name?: string;
+  role?: string;
+}) => postJson<AppUser>("/api/v1/users", body);
+
+export async function updateUser(
+  id: string,
+  body: { role?: string; is_active?: boolean },
+): Promise<AppUser> {
+  const res = await fetch(`/api/v1/users/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let detail = "";
+    try {
+      detail = ((await res.json()) as { detail?: string }).detail ?? "";
+    } catch {
+      /* non-JSON */
+    }
+    throw new Error(detail || `update failed (${res.status})`);
+  }
+  return (await res.json()) as AppUser;
+}
+
 // --- Continuous Improvement (PR 18) ---
 
 export interface ImprovementProposal {

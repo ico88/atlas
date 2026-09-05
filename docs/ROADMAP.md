@@ -235,12 +235,11 @@ Stato: ✅ = consegnata.
 
 ### Estensioni utenti & privacy (aggiunte su richiesta)
 
-27. **PR 27 — Utenti & RBAC:** modello ruoli `admin` (gestisce tutto: utenti,
-    nodi, modelli, impostazioni, approvazioni) e `user` (utilizza: chat, query,
-    la propria memoria/cronologia); dependency `require_admin`/`require_user`
-    sugli endpoint di gestione; API + pagina **Users** (crea/lista/disattiva,
-    cambia ruolo). Base già presente (modello `User.role`, login JWT con ruolo,
-    bootstrap admin — spec §15).
+27. ✅ **PR 27 — Utenti & RBAC:** ruoli `admin`/`user`, flag `ATLAS_AUTH_ENFORCE`
+    (off = locale/single-operator aperto; on = login richiesto e ruoli imposti),
+    dependency `require_admin`/`require_user` + `current_user_optional`, API
+    `/api/v1/users` (lista/crea/patch) admin-gated con guardia sull'ultimo admin,
+    pagina **Users**. Vedi [USERS_RBAC.md](USERS_RBAC.md).
 28. **PR 28 — Modalità anonima & tracciata:** *anonima* → nessuna persistenza
     dell'esperienza utente (conversazioni/memoria effimere, purgate a fine
     sessione); *tracciata* → ogni utente registra la propria esperienza, con
