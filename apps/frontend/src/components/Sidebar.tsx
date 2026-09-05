@@ -7,27 +7,51 @@ import Logo from "@/components/Logo";
 import { Lang, useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 
-const NAV = [
-  { href: "/", key: "nav.chat" },
-  { href: "/dashboard", key: "nav.dashboard" },
-  { href: "/queries", key: "nav.queries" },
-  { href: "/queue", key: "nav.queue" },
-  { href: "/tasks", key: "nav.tasks" },
-  { href: "/system", key: "nav.system" },
-  { href: "/nodes", key: "nav.nodes" },
-  { href: "/fleet", key: "nav.fleet" },
-  { href: "/compliance", key: "nav.compliance" },
-  { href: "/resources", key: "nav.resources" },
-  { href: "/models", key: "nav.models" },
-  { href: "/knowledge", key: "nav.knowledge" },
-  { href: "/environments", key: "nav.environments" },
-  { href: "/maintenance", key: "nav.maintenance" },
-  { href: "/evals", key: "nav.evals" },
-  { href: "/improvements", key: "nav.improvements" },
-  { href: "/reviews", key: "nav.reviews" },
-  { href: "/escalation", key: "nav.escalation" },
-  { href: "/users", key: "nav.users" },
-  { href: "/settings", key: "nav.settings" },
+const NAV_GROUPS: { section?: string; items: { href: string; key: string }[] }[] = [
+  {
+    items: [
+      { href: "/", key: "nav.chat" },
+      { href: "/dashboard", key: "nav.dashboard" },
+    ],
+  },
+  {
+    section: "nav.section.work",
+    items: [
+      { href: "/queries", key: "nav.queries" },
+      { href: "/queue", key: "nav.queue" },
+      { href: "/tasks", key: "nav.tasks" },
+      { href: "/knowledge", key: "nav.knowledge" },
+      { href: "/environments", key: "nav.environments" },
+    ],
+  },
+  {
+    section: "nav.section.fleet",
+    items: [
+      { href: "/nodes", key: "nav.nodes" },
+      { href: "/fleet", key: "nav.fleet" },
+      { href: "/compliance", key: "nav.compliance" },
+      { href: "/resources", key: "nav.resources" },
+      { href: "/models", key: "nav.models" },
+      { href: "/system", key: "nav.system" },
+    ],
+  },
+  {
+    section: "nav.section.govern",
+    items: [
+      { href: "/maintenance", key: "nav.maintenance" },
+      { href: "/improvements", key: "nav.improvements" },
+      { href: "/reviews", key: "nav.reviews" },
+      { href: "/evals", key: "nav.evals" },
+      { href: "/escalation", key: "nav.escalation" },
+    ],
+  },
+  {
+    section: "nav.section.admin",
+    items: [
+      { href: "/users", key: "nav.users" },
+      { href: "/settings", key: "nav.settings" },
+    ],
+  },
 ];
 
 export default function Sidebar() {
@@ -70,14 +94,19 @@ export default function Sidebar() {
           <span className="tagline">{t("sidebar.tagline")}</span>
         </div>
         <nav className="nav">
-          {NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={pathname === item.href ? "active" : ""}
-            >
-              {t(item.key)}
-            </Link>
+          {NAV_GROUPS.map((group, gi) => (
+            <div key={group.section ?? gi} className="nav-group">
+              {group.section && <div className="nav-section">{t(group.section)}</div>}
+              {group.items.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={pathname === item.href ? "active" : ""}
+                >
+                  {t(item.key)}
+                </Link>
+              ))}
+            </div>
           ))}
         </nav>
         <div style={{ marginTop: "auto" }}>
