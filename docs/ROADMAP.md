@@ -237,8 +237,14 @@ Stato: ✅ = consegnata.
     unico esito (completed / rolled-back / aborted / manual) ed exit code
     corrispondente; `--resume` dopo un tentativo interrotto. Vedi
     [UPDATER.md](UPDATER.md).
-21. **PR 21 — Fleet Update:** rolling update, nodi canary, compatibilità e nodi offline.
-22. **PR 22 — Safe deployment:** health gate, promozione e rollback.
+21. ✅ **PR 21 — Fleet Update:** deployment del fleet (migrazione 0020) con
+    pianificazione a ondate (canary + rollout), skip nodi offline e nodi sotto la
+    soglia di compatibilità, `nodes.desired_version` applicato dagli agent.
+    Vedi [FLEET_DEPLOYMENT.md](FLEET_DEPLOYMENT.md).
+22. ✅ **PR 22 — Safe deployment:** health gate prima della promozione (canary tutti
+    HEALTHY → rollout), promozione a ondata e **rollback automatico** (ripristino
+    `desired_version` precedente) su qualsiasi fallimento; API `/advance` e
+    `/report`, pagina **Fleet Update**. Vedi [FLEET_DEPLOYMENT.md](FLEET_DEPLOYMENT.md).
 23. **PR 23 — UI:** Nodi, Risorse, Memoria, Miglioramenti, Aggiornamenti, code e fonti.
 24. **PR 24 — Fleet Compliance:** inventario, desired state, drift e dashboard.
 25. **PR 25 — Auto-remediation:** rimedi, quarantena, diagnosi guidata e reintegro.

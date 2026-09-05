@@ -19,6 +19,9 @@ class Node(Base):
     hostname: Mapped[str | None] = mapped_column(String(255), nullable=True)
     label: Mapped[str | None] = mapped_column(String(255), nullable=True)
     version: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # Version the control plane wants this node on (fleet deployments, PR 21/22).
+    # The node agent applies it and reports back via `version` on the next heartbeat.
+    desired_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="unknown")
     capabilities: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     hardware: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)

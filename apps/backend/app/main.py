@@ -14,6 +14,7 @@ from app.api import (
     auth,
     chat,
     conversation_queue,
+    deployment,
     enrollment,
     environment,
     escalation,
@@ -128,6 +129,7 @@ def create_app() -> FastAPI:
     app.include_router(eval_api.router)
     app.include_router(improvement.router)
     app.include_router(review.router)
+    app.include_router(deployment.router)
 
     return app
 

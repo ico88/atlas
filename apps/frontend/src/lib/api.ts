@@ -543,6 +543,59 @@ export const fetchEvalRuns = (suiteId: string) =>
     `/api/v1/evals/suites/${encodeURIComponent(suiteId)}/runs`,
   );
 
+// --- Fleet deployments (PR 21/22) ---
+
+export interface DeploymentTarget {
+  id: string;
+  node_ref: string;
+  from_version?: string | null;
+  wave: string;
+  status: string;
+  detail?: string | null;
+}
+
+export interface Deployment {
+  id: string;
+  target_version: string;
+  previous_version?: string | null;
+  strategy: string;
+  canary_count: number;
+  status: string;
+  note?: string | null;
+  created_at: string;
+  updated_at: string;
+  targets: DeploymentTarget[];
+}
+
+export interface DeploymentSummary {
+  id: string;
+  target_version: string;
+  status: string;
+  canary_count: number;
+  created_at: string;
+}
+
+export const createDeployment = (body: {
+  target_version: string;
+  canary_count?: number;
+  min_compatible?: string;
+  note?: string;
+}) => postJson<Deployment>("/api/v1/deployments", body);
+
+export const fetchDeployments = () =>
+  getJson<{ items: DeploymentSummary[]; total: number }>("/api/v1/deployments");
+
+export const fetchDeployment = (id: string) =>
+  getJson<Deployment>(`/api/v1/deployments/${encodeURIComponent(id)}`);
+
+export const advanceDeployment = (id: string) =>
+  postJson<Deployment>(`/api/v1/deployments/${encodeURIComponent(id)}/advance`);
+
+export const reportDeployment = (
+  id: string,
+  body: { node_ref: string; version: string; healthy: boolean },
+) => postJson<Deployment>(`/api/v1/deployments/${encodeURIComponent(id)}/report`, body);
+
 // --- Critical Review (PR 19) ---
 
 export interface ReviewRound {

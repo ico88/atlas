@@ -4,6 +4,12 @@ from app.models.app_setting import AppSetting
 from app.models.approval import Approval, ApprovalStatus
 from app.models.base import Base
 from app.models.conversation import ChatMode, Conversation, Message, MessageRole
+from app.models.deployment import (
+    Deployment,
+    DeploymentStatus,
+    DeploymentTarget,
+    TargetStatus,
+)
 from app.models.environment import (
     Environment,
     EnvironmentSnapshot,
@@ -100,4 +106,8 @@ __all__ = [
     "ProposalCategory",
     "CriticalReview",
     "ReviewDecision",
+    "Deployment",
+    "DeploymentStatus",
+    "DeploymentTarget",
+    "TargetStatus",
 ]

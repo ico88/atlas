@@ -13,6 +13,7 @@ const ITEMS: Item[] = [
   { label: "Tasks", hint: "task engine", href: "/tasks" },
   { label: "System Status", hint: "health", href: "/system" },
   { label: "Nodes", hint: "workers & enrollment", href: "/nodes" },
+  { label: "Fleet Update", hint: "canary rollout", href: "/fleet" },
   { label: "Resources", hint: "telemetry", href: "/resources" },
   { label: "Models", hint: "download / default", href: "/models" },
   { label: "Knowledge", hint: "RAG & memory", href: "/knowledge" },
