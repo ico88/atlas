@@ -801,16 +801,23 @@ table.data th {
   .bubble {
     max-width: 92%;
   }
-  /* Composer: model + web on one row, full-width input, full-width Send —
-     big tap targets, nothing clipped. */
+  /* Composer stacks cleanly on mobile: [📎 attach | model] row, a toggles row,
+     a full-width input, a full-width Send. Big tap targets, nothing clipped or
+     overlapping. */
   .chat-input {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: auto 1fr;
     grid-template-areas:
-      "model web"
-      "text  text"
-      "send  send";
+      "attach model"
+      "toggles toggles"
+      "text   text"
+      "send   send";
     gap: 8px;
+    align-items: center;
+  }
+  .chat-input .attach-btn {
+    grid-area: attach;
+    width: auto;
   }
   .chat-input .model-select {
     grid-area: model;
@@ -818,17 +825,26 @@ table.data th {
     width: 100%;
   }
   .chat-input .composer-toggles {
-    grid-area: web;
-    justify-self: end;
+    grid-area: toggles;
+    justify-self: start;
+    flex-wrap: wrap;
+    gap: 16px;
   }
-  .chat-input input {
+  .chat-input input:not([type="file"]) {
     grid-area: text;
     width: 100%;
     font-size: 16px; /* >=16px stops iOS Safari from zooming on focus */
   }
-  .chat-input .btn {
+  /* Send / Stop button (but NOT the attach button, which also carries .btn). */
+  .chat-input > .btn {
     grid-area: send;
     width: 100%;
+  }
+  .chat-input .attach-btn.btn {
+    grid-area: attach;
+  }
+  .attach-chips.pending {
+    padding: 0;
   }
   /* Cards go single-column so nothing overflows. */
   .cards {

@@ -17,10 +17,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.ollama import OllamaProvider
+from app.core.config import get_settings
 from app.core.hardware import scan_hardware
 from app.db import get_session
+from app.models.base import utcnow
+from app.models.node import Node
 from app.models.provider import LLMModel
-from app.models.runtime import ModelDeployment
+from app.models.runtime import ModelDeployment, Runtime
 from app.services import (
     autoconfig_service,
     recommend_service,
@@ -36,6 +39,12 @@ _MODEL_RE = re.compile(r"^[a-zA-Z0-9._:/-]{1,128}$")
 
 class ModelChoice(BaseModel):
     model: str = Field(min_length=1, max_length=128)
+
+
+class NodeAttach(BaseModel):
+    node_id: str = Field(min_length=1, max_length=128)
+    model: str = Field(min_length=1, max_length=128)
+    endpoint: str = Field(min_length=1, max_length=255)
 
 
 @router.get("/status")
@@ -112,3 +121,65 @@ async def setup_activate(
     if llm is None:
         await registry_service.refresh_models(session)
     return await autoconfig_service.activate_model(session, payload.model)
+
+
+@router.get("/nodes")
+async def setup_nodes(session: AsyncSession = Depends(get_session)) -> dict:
+    """Guided per-node setup: each node's hardware + recommended model + whether
+    it already has a model attached. Keeps node configuration to one decision."""
+
+    offline_after = get_settings().node_offline_after_seconds
+    nodes = (await session.execute(select(Node))).scalars().all()
+    runtimes = {
+        r.node_id: r
+        for r in (await session.execute(select(Runtime))).scalars().all()
+        if r.node_id
+    }
+    deps = (await session.execute(select(ModelDeployment))).scalars().all()
+    deps_by_node: dict[str, list[str]] = {}
+    for d in deps:
+        if d.node_id:
+            deps_by_node.setdefault(d.node_id, []).append(d.model_key)
+
+    items = []
+    for n in nodes:
+        hw = n.hardware or {}
+        online = bool(
+            n.last_heartbeat
+            and (utcnow() - n.last_heartbeat).total_seconds() < offline_after
+        )
+        reco = recommend_service.recommend_models(hw) if hw else None
+        items.append(
+            {
+                "node_id": n.node_id,
+                "label": n.label,
+                "online": online,
+                "hardware": {
+                    "cpu_cores": hw.get("cpu_cores"),
+                    "ram_total_mb": hw.get("ram_total_mb"),
+                    "gpu": hw.get("gpu"),
+                },
+                "recommendation": reco,
+                "attached_runtime": runtimes[n.node_id].name if n.node_id in runtimes else None,
+                "attached_models": deps_by_node.get(n.node_id, []),
+            }
+        )
+    return {"nodes": items, "total": len(items)}
+
+
+@router.post("/nodes/attach")
+async def setup_node_attach(
+    payload: NodeAttach, session: AsyncSession = Depends(get_session)
+) -> dict:
+    """Attach a model to a node in one step (creates runtime + deployment)."""
+
+    if not _MODEL_RE.match(payload.model):
+        raise HTTPException(status_code=400, detail="invalid model name")
+    node = (
+        await session.execute(select(Node).where(Node.node_id == payload.node_id))
+    ).scalar_one_or_none()
+    if node is None:
+        raise HTTPException(status_code=404, detail="node not found")
+    return await autoconfig_service.attach_node(
+        session, node_id=payload.node_id, model_name=payload.model, endpoint=payload.endpoint
+    )

@@ -113,3 +113,66 @@ async def test_setup_activate_endpoint(client):
     status = (await client.get("/api/v1/setup/status")).json()
     assert status["active_model"] == "qwen2.5:3b"
     assert status["configured"] is True
+
+
+# --------------------------------------------------------------------------- #
+# Guided node setup
+# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_setup_nodes_lists_and_recommends(client, session):
+    from app.models.node import Node
+
+    session.add(
+        Node(
+            node_id="worker-1",
+            label="Casa",
+            hardware={"cpu_cores": 8, "ram_total_mb": 16000, "gpu": {"count": 0, "devices": []}},
+        )
+    )
+    await session.commit()
+
+    r = await client.get("/api/v1/setup/nodes")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["total"] == 1
+    node = body["nodes"][0]
+    assert node["node_id"] == "worker-1"
+    assert node["recommendation"]["primary"]["model"]  # recommended from its RAM
+    assert node["attached_runtime"] is None
+
+
+@pytest.mark.asyncio
+async def test_setup_node_attach_wires_runtime_and_deployment(client, session):
+    from app.models.node import Node
+    from app.models.runtime import ModelDeployment, Runtime
+    from sqlalchemy import select
+
+    session.add(Node(node_id="worker-2", hardware={"ram_total_mb": 8000}))
+    await session.commit()
+
+    r = await client.post(
+        "/api/v1/setup/nodes/attach",
+        json={"node_id": "worker-2", "model": "qwen2.5:3b", "endpoint": "http://10.147.0.2:11434"},
+    )
+    assert r.status_code == 200
+    assert r.json()["runtime"] == "node-worker-2"
+
+    rt = (
+        await session.execute(select(Runtime).where(Runtime.name == "node-worker-2"))
+    ).scalar_one()
+    assert rt.node_id == "worker-2" and rt.endpoint == "http://10.147.0.2:11434"
+    dep = (
+        await session.execute(
+            select(ModelDeployment).where(ModelDeployment.runtime_id == rt.id)
+        )
+    ).scalar_one()
+    assert dep.model_key == "qwen2.5:3b" and dep.node_id == "worker-2"
+
+
+@pytest.mark.asyncio
+async def test_setup_node_attach_missing_node(client):
+    r = await client.post(
+        "/api/v1/setup/nodes/attach",
+        json={"node_id": "ghost", "model": "qwen2.5:3b", "endpoint": "http://x:11434"},
+    )
+    assert r.status_code == 404

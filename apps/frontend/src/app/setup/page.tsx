@@ -3,8 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   RecommendedModel,
+  SetupNode,
   SetupStatus,
+  attachNodeModel,
   fetchPullStatus,
+  fetchSetupNodes,
   fetchSetupStatus,
   setupActivate,
   setupInstall,
@@ -18,6 +21,8 @@ function gb(mb?: number | null): string {
 export default function SetupPage() {
   const { t } = useI18n();
   const [status, setStatus] = useState<SetupStatus | null>(null);
+  const [nodes, setNodes] = useState<SetupNode[]>([]);
+  const [nodeForm, setNodeForm] = useState<Record<string, { model: string; endpoint: string }>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
@@ -26,6 +31,11 @@ export default function SetupPage() {
   const load = useCallback(async () => {
     try {
       setStatus(await fetchSetupStatus());
+      try {
+        setNodes((await fetchSetupNodes()).nodes);
+      } catch {
+        /* nodes endpoint best-effort */
+      }
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to load");
@@ -84,6 +94,26 @@ export default function SetupPage() {
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "activate failed");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const attachNode = async (n: SetupNode) => {
+    const f = nodeForm[n.node_id] || {
+      model: n.recommendation?.primary.model || "",
+      endpoint: "",
+    };
+    if (!f.model.trim() || !f.endpoint.trim()) {
+      setError(t("setup.node.needEndpoint"));
+      return;
+    }
+    setBusy(n.node_id);
+    try {
+      await attachNodeModel(n.node_id, f.model.trim(), f.endpoint.trim());
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "attach failed");
     } finally {
       setBusy(null);
     }
@@ -185,6 +215,83 @@ export default function SetupPage() {
           </div>
           <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>
             {t("setup.advancedHint")}
+          </p>
+        </>
+      )}
+
+      {/* Step 4 — nodes (guided, same simplicity) */}
+      {nodes.length > 0 && (
+        <>
+          <h2 className="page-title" style={{ fontSize: 18, marginTop: 20 }}>
+            {t("setup.nodes")}
+          </h2>
+          <p className="page-subtitle">{t("setup.nodes.help")}</p>
+          <div className="cards">
+            {nodes.map((n) => {
+              const f = nodeForm[n.node_id] || {
+                model: n.recommendation?.primary.model || "",
+                endpoint: "",
+              };
+              const setF = (patch: Partial<typeof f>) =>
+                setNodeForm((prev) => ({ ...prev, [n.node_id]: { ...f, ...patch } }));
+              return (
+                <div className="card" key={n.node_id}>
+                  <div className="status-row">
+                    <strong>{n.label || n.node_id}</strong>
+                    <span className="badge">
+                      <span className={`dot ${n.online ? "ok" : "bad"}`} />
+                      {n.online ? "online" : "offline"}
+                    </span>
+                  </div>
+                  <div className="status-row">
+                    <span className="muted">RAM</span>
+                    <span>{gb(n.hardware.ram_total_mb)}</span>
+                  </div>
+                  <div className="status-row">
+                    <span className="muted">GPU</span>
+                    <span>
+                      {n.hardware.gpu && n.hardware.gpu.count > 0
+                        ? n.hardware.gpu.devices.map((d) => d.name || "GPU").join(", ")
+                        : t("setup.noGpu")}
+                    </span>
+                  </div>
+                  {n.attached_models.length > 0 && (
+                    <div className="status-row">
+                      <span className="muted">{t("setup.node.models")}</span>
+                      <span>{n.attached_models.join(", ")}</span>
+                    </div>
+                  )}
+                  {n.recommendation && (
+                    <p className="muted" style={{ fontSize: 12, margin: "6px 0" }}>
+                      {t("setup.recommended")}: <strong>{n.recommendation.primary.label}</strong> —{" "}
+                      {n.recommendation.primary.note}
+                    </p>
+                  )}
+                  <div style={{ display: "grid", gap: 6, marginTop: 6 }}>
+                    <input
+                      value={f.model}
+                      placeholder="modello (es. qwen2.5:3b)"
+                      onChange={(e) => setF({ model: e.target.value })}
+                    />
+                    <input
+                      value={f.endpoint}
+                      placeholder="endpoint del nodo (es. http://10.147.x.x:11434)"
+                      onChange={(e) => setF({ endpoint: e.target.value })}
+                    />
+                    <button
+                      className="btn"
+                      disabled={busy === n.node_id}
+                      onClick={() => attachNode(n)}
+                    >
+                      {busy === n.node_id ? t("setup.working") : t("setup.node.attach")}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>
+            {t("setup.node.hint")}
           </p>
         </>
       )}

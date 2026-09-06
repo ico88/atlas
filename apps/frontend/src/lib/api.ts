@@ -1448,3 +1448,34 @@ export async function setupInstall(model: string): Promise<{ status: string; mod
 export async function setupActivate(model: string): Promise<{ activated: string }> {
   return sendJson("/api/v1/setup/activate", "POST", { model });
 }
+
+// --- Guided node setup ---
+export interface SetupNode {
+  node_id: string;
+  label?: string | null;
+  online: boolean;
+  hardware: {
+    cpu_cores?: number | null;
+    ram_total_mb?: number | null;
+    gpu?: { count: number; devices: { name?: string; vram_mb?: number | null }[] } | null;
+  };
+  recommendation: {
+    primary: RecommendedModel;
+    alternatives: RecommendedModel[];
+    reason: string;
+  } | null;
+  attached_runtime?: string | null;
+  attached_models: string[];
+}
+
+export async function fetchSetupNodes(): Promise<{ nodes: SetupNode[]; total: number }> {
+  return getJson("/api/v1/setup/nodes");
+}
+
+export async function attachNodeModel(
+  node_id: string,
+  model: string,
+  endpoint: string,
+): Promise<{ node_id: string; runtime: string; model: string }> {
+  return sendJson("/api/v1/setup/nodes/attach", "POST", { node_id, model, endpoint });
+}

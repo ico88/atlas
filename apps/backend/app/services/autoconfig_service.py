@@ -113,6 +113,75 @@ async def activate_model(session: AsyncSession, model_name: str) -> dict:
     return {"activated": model_name, "runtime": runtime.name, "alias": _DEFAULT_ALIAS}
 
 
+async def attach_node(
+    session: AsyncSession, *, node_id: str, model_name: str, endpoint: str
+) -> dict:
+    """Guided node setup: wire a model on a worker node in one step.
+
+    Creates (or updates) a runtime pointing at the node's engine, ensures the
+    model registry row and a deployment for it on that node. Adds capacity — it
+    does NOT change the default model, so the local model stays the default and
+    the gateway just gains another candidate. Idempotent.
+    """
+
+    runtime_name = f"node-{node_id}"
+    runtime = await runtime_service.get_runtime_by_name(session, runtime_name)
+    if runtime is None:
+        runtime = await runtime_service.create_runtime(
+            session,
+            name=runtime_name,
+            runtime_type="ollama",
+            endpoint=endpoint,
+            node_id=node_id,
+            meta={"managed": True},
+        )
+    elif endpoint and runtime.endpoint != endpoint:
+        await runtime_service.update_runtime(session, runtime, endpoint=endpoint)
+
+    # Ensure the model registry row (key + default capabilities).
+    llm = (
+        await session.execute(
+            select(LLMModel).where(
+                LLMModel.provider == "ollama", LLMModel.name == model_name
+            )
+        )
+    ).scalar_one_or_none()
+    if llm is None:
+        llm = LLMModel(provider="ollama", name=model_name, available=True)
+        session.add(llm)
+    llm.model_key = model_name
+    if not llm.capabilities:
+        llm.capabilities = _capabilities_for(model_name)
+    await session.commit()
+
+    existing = (
+        await session.execute(
+            select(ModelDeployment).where(
+                ModelDeployment.model_key == model_name,
+                ModelDeployment.runtime_id == runtime.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if existing is None:
+        await runtime_service.create_deployment(
+            session,
+            model_key=model_name,
+            runtime_id=runtime.id,
+            runtime_model_name=model_name,
+            node_id=node_id,
+            priority=100,
+            max_concurrency=1,
+        )
+    logger.info(
+        "node model attached",
+        extra={
+            "event": "autoconfig_node",
+            "context": {"node": node_id, "model": model_name},
+        },
+    )
+    return {"node_id": node_id, "runtime": runtime_name, "model": model_name}
+
+
 async def autoconfigure_after_pull(model_name: str) -> None:
     """Entry point for the pull worker: open a session and activate the model.
 
