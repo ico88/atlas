@@ -83,6 +83,42 @@ def test_gpu_backend_configured(tmp_path):
     assert r.stdout.strip() == "nvidia"
 
 
+def _guided(cmd: str) -> subprocess.CompletedProcess[str]:
+    return _bash(
+        "source infrastructure/scripts/lib/atlas-lib.sh 2>/dev/null; "
+        "source infrastructure/scripts/lib/network.sh; "
+        "source infrastructure/scripts/lib/guided.sh; " + cmd
+    )
+
+
+def test_guided_cp_health_url():
+    r = _guided('cp_health_url "http://manager:80/"')
+    assert r.stdout.strip() == "http://manager:80/api/v1/system/status"
+
+
+def test_guided_subnet_prefix():
+    r = _guided('subnet_prefix "10.147.20.5"')
+    assert r.stdout.strip() == "10.147.20"
+
+
+def test_guided_discover_candidates_order():
+    # env url first, then host.docker.internal, then the /24 .1 and .254.
+    r = _guided('discover_candidates "192.168.1.42" "http://given:80/"')
+    lines = [ln for ln in r.stdout.splitlines() if ln.strip()]
+    assert lines == [
+        "http://given:80",
+        "http://host.docker.internal",
+        "http://192.168.1.1",
+        "http://192.168.1.254",
+    ]
+
+
+def test_guided_discover_candidates_without_ip():
+    r = _guided('discover_candidates "" ""')
+    lines = [ln for ln in r.stdout.splitlines() if ln.strip()]
+    assert lines == ["http://host.docker.internal"]
+
+
 def test_cli_help_lists_new_commands():
     r = _bash("./atlas help")
     for token in ("model-prune", "gpu-status", "update --resume"):

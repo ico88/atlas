@@ -57,6 +57,8 @@ source "${SCRIPT_DIR}/lib/gpu.sh"
 source "${SCRIPT_DIR}/lib/ollama.sh"
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}/lib/network.sh"
+# shellcheck source=/dev/null
+source "${SCRIPT_DIR}/lib/guided.sh"
 
 # --- defaults / CLI args --------------------------------------------------
 ROLE=""
@@ -407,8 +409,29 @@ ensure_http_port() {
 
 configure_node() {
   ensure_env_file
-  log "Configuring host as NODE (worker)."
+  log "Configuring host as NODE (worker) — guided, with checks at each step."
+
+  # --- Step 1/4: control plane, with reachability check + autodiscovery -----
   prompt MANAGER_URL "Control plane URL" "${MANAGER_URL:-http://host.docker.internal:80}"
+  if cp_reachable "$MANAGER_URL"; then
+    log "✓ Control plane reachable at ${MANAGER_URL}."
+  else
+    warn "✗ Control plane not reachable at ${MANAGER_URL}."
+    local found=""
+    log "Searching the local network for an ATLAS manager..."
+    found="$(discover_manager "$MANAGER_URL" || true)"
+    if [ -n "$found" ]; then
+      local useit="yes"
+      prompt useit "Found a manager at ${found} — use it?" "yes"
+      case "$useit" in y*|Y*|s*|S*) MANAGER_URL="$found" ;; esac
+    fi
+    if ! cp_reachable "$MANAGER_URL"; then
+      warn "Still can't reach ${MANAGER_URL}. Continuing — the agent will keep retrying."
+    else
+      log "✓ Control plane reachable at ${MANAGER_URL}."
+    fi
+  fi
+
   prompt NODE_TOKEN  "Node join token (must match the manager)" "${NODE_TOKEN:-}"
   prompt NODE_ID     "Node id" "${NODE_ID:-$(hostname)}"
   prompt NODE_LABEL  "Node label" "${NODE_LABEL:-worker}"
@@ -447,27 +470,111 @@ configure_node_network() {
       if ! valid_zerotier_network_id "$ZEROTIER_NETWORK_ID"; then
         warn "No valid ZeroTier network id given — skipping ZeroTier setup."
         set_env_var "ATLAS_NETWORK_PROVIDER" "none"
+        derive_advertise_url ""
         return
       fi
       set_env_var "ATLAS_ZEROTIER_NETWORK_ID" "$ZEROTIER_NETWORK_ID"
       if install_zerotier && zerotier_join "$ZEROTIER_NETWORK_ID"; then
         print_zerotier_status "$ZEROTIER_NETWORK_ID"
+        # Step 3/4: wait for the controller to AUTHORIZE this node (managed IP).
+        log "Waiting for ZeroTier authorization (authorize the node in ZeroTier"
+        log "Central, or from the ATLAS Nodes page)..."
+        local zt_ip=""
+        zt_ip="$(zerotier_wait_authorized "$ZEROTIER_NETWORK_ID" 90 || true)"
+        if [ -n "$zt_ip" ]; then
+          log "✓ ZeroTier authorized — overlay IP ${zt_ip}."
+          derive_advertise_url "$zt_ip"
+          # Autodiscover the control plane over the overlay; if not found, ask the
+          # operator for the manager's ZeroTier IP (manual callback).
+          if ! cp_reachable "$MANAGER_URL"; then
+            discover_manager_over_overlay "$zt_ip"
+          fi
+        else
+          warn "✗ Not authorized yet. The agent will keep trying; authorize it"
+          warn "  later and it will connect. Falling back to the LAN address."
+          derive_advertise_url ""
+        fi
+      else
+        derive_advertise_url ""
       fi
       ;;
     existing)
       set_env_var "ATLAS_NETWORK_PROVIDER" "existing"
       log "Using the existing network — reach the control plane at ${MANAGER_URL}."
+      derive_advertise_url ""
       ;;
     *)
       set_env_var "ATLAS_NETWORK_PROVIDER" "none"
+      derive_advertise_url ""
       ;;
   esac
+}
+
+# discover_manager_over_overlay ZT_IP — find the control plane on the ZeroTier
+# overlay; if autodiscovery fails, ask the operator for the manager's ZeroTier IP
+# (manual callback). Updates MANAGER_URL + .env when a manager is chosen.
+discover_manager_over_overlay() {
+  local zt_ip="$1" pfx cand="" host mgr_zt
+  pfx="${zt_ip%.*}"
+  log "Autodiscovering the control plane over the ZeroTier overlay (${pfx}.0/24)..."
+  for host in 1 254; do
+    if cp_reachable "http://${pfx}.${host}" 2; then
+      cand="http://${pfx}.${host}"
+      break
+    fi
+  done
+  if [ -z "$cand" ]; then
+    warn "Not found automatically."
+    prompt mgr_zt "Control panel ZeroTier IP (leave empty to skip)" ""
+    [ -n "$mgr_zt" ] && cand="http://${mgr_zt}:80"
+  fi
+  [ -n "$cand" ] || return 0
+  MANAGER_URL="$cand"
+  set_env_var "ATLAS_CONTROL_PLANE_URL" "$MANAGER_URL"
+  if cp_reachable "$MANAGER_URL"; then
+    log "✓ Reaching the manager over the overlay at ${MANAGER_URL}."
+  else
+    warn "Set manager to ${MANAGER_URL} (not verified yet; the agent will retry)."
+  fi
+}
+
+# derive_advertise_url [IP] — set ATLAS_NODE_OLLAMA_ADVERTISE_URL so the manager
+# knows where to reach this node's Ollama. Prefers the given (overlay) IP, else
+# the host's LAN IP. Leaves it unset if no address can be determined.
+derive_advertise_url() {
+  local ip="${1:-}"
+  [ -n "$ip" ] || ip="$(local_ipv4)"
+  if [ -n "$ip" ]; then
+    set_env_var "ATLAS_NODE_OLLAMA_ADVERTISE_URL" "http://${ip}:11434"
+    log "Node Ollama advertised to the manager at http://${ip}:11434"
+  fi
 }
 
 verify() {
   log "Verifying installation..."
   docker --version || true
   docker compose version || true
+}
+
+# Step 4/4: confirm the node actually registered with the control plane — the
+# real "match" that means everything lined up (network + token + agent).
+verify_node_match() {
+  [ "${STACK_STARTED:-0}" = "1" ] || return 0
+  local cp node_id
+  cp="$(get_env_var ATLAS_CONTROL_PLANE_URL "$ENV_FILE")"
+  node_id="$(get_env_var ATLAS_NODE_ID "$ENV_FILE")"
+  [ -n "$cp" ] && [ -n "$node_id" ] || return 0
+  log "Waiting for the node to register with the control plane..."
+  if wait_node_registered "$cp" "$node_id" 90; then
+    log "✅ MATCH — node '${node_id}' is registered with the control plane."
+    log "   Assign it a model from the ATLAS Nodes page (guided) or ./atlas."
+  else
+    warn "Node not visible at ${cp} yet. Common causes:"
+    warn "  • ZeroTier member not authorized (authorize it, then it connects);"
+    warn "  • wrong/absent join token (ATLAS_NODE_TOKEN must match the manager);"
+    warn "  • control plane URL not reachable from this node."
+    warn "The agent keeps retrying — check: docker compose -f docker-compose.node.yml logs -f"
+  fi
 }
 
 # Bring the stack up so the installer delivers a ready-to-use system.
@@ -577,6 +684,7 @@ main() {
   verify
   start_stack
   [ "$ROLE" = "control-plane" ] && post_start_ollama
+  [ "$ROLE" = "node" ] && verify_node_match
   print_next_steps
 }
 
