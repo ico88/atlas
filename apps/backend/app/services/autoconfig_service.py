@@ -106,6 +106,11 @@ async def activate_model(session: AsyncSession, model_name: str) -> dict:
     )
     await settings_service.set_ai_config({"default_model": model_name})
 
+    from app.services import audit_service
+
+    await audit_service.record(
+        session, action="model.activate", target=model_name, detail={"runtime": runtime.name}
+    )
     logger.info(
         "model auto-configured and activated",
         extra={"event": "autoconfig_activate", "context": {"model": model_name}},
@@ -172,6 +177,14 @@ async def attach_node(
             priority=100,
             max_concurrency=1,
         )
+    from app.services import audit_service
+
+    await audit_service.record(
+        session,
+        action="node.attach",
+        target=node_id,
+        detail={"model": model_name, "runtime": runtime_name},
+    )
     logger.info(
         "node model attached",
         extra={

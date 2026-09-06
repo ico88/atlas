@@ -3,6 +3,7 @@
 from app.models.app_setting import AppSetting
 from app.models.approval import Approval, ApprovalStatus
 from app.models.attachment import Attachment
+from app.models.audit import AuditLog
 from app.models.base import Base
 from app.models.conversation import ChatMode, Conversation, Message, MessageRole
 from app.models.deployment import (
@@ -125,4 +126,5 @@ __all__ = [
     "ModelAlias",
     "RoutingPolicy",
     "Attachment",
+    "AuditLog",
 ]
