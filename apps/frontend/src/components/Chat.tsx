@@ -552,23 +552,8 @@ export default function Chat() {
             {error && <p className="error">Error: {error}</p>}
           </div>
 
-          {attached.length > 0 && (
-            <div className="attach-chips pending">
-              {attached.map((a) => (
-                <span key={a.id} className="attach-chip">
-                  📎 {a.filename}
-                  <button
-                    className="attach-x"
-                    title={t("common.delete")}
-                    onClick={() => setAttached((prev) => prev.filter((x) => x.id !== a.id))}
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-          <div className="chat-input">
+          {/* Unified composer: text on top, a single toolbar below. */}
+          <div className="composer">
             <input
               ref={fileRef}
               type="file"
@@ -576,70 +561,110 @@ export default function Chat() {
               hidden
               onChange={(e) => onPickFiles(e.target.files)}
             />
-            <button
-              className="btn secondary attach-btn"
-              onClick={() => fileRef.current?.click()}
-              disabled={streaming || uploading}
-              title={t("chat.attach")}
-            >
-              {uploading ? "…" : "📎"}
-            </button>
-            <select
-              className="model-select"
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              disabled={streaming}
-              title="Model for this chat"
-            >
-              <option value="">{t("chat.auto")}</option>
-              {models.map((m) => (
-                <option key={`${m.provider}:${m.name}`} value={m.name}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-            <span className="composer-toggles">
-              <label className="web-toggle" title="Ground the reply with a web search">
-                <input
-                  type="checkbox"
-                  checked={webOn}
-                  onChange={(e) => setWebOn(e.target.checked)}
-                  disabled={streaming}
-                />
-                🌐 {t("chat.web")}
-              </label>
-              <label className="web-toggle" title={t("chat.anonHint")}>
-                <input
-                  type="checkbox"
-                  checked={anon}
-                  onChange={(e) => setAnon(e.target.checked)}
-                  disabled={streaming}
-                />
-                🕶 {t("chat.anon")}
-              </label>
-            </span>
-            <input
+
+            {attached.length > 0 && (
+              <div className="composer-chips">
+                {attached.map((a) => (
+                  <span key={a.id} className="attach-chip">
+                    📎 {a.filename}
+                    <button
+                      className="attach-x"
+                      title={t("common.delete")}
+                      onClick={() => setAttached((prev) => prev.filter((x) => x.id !== a.id))}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <textarea
+              className="composer-text"
               value={draft}
+              rows={1}
               placeholder={webOn ? t("chat.placeholderWeb") : t("chat.placeholder")}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") send();
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  send();
+                }
               }}
               disabled={streaming}
             />
-            {streaming ? (
-              <button className="btn secondary" onClick={stop}>
-                {t("chat.stop")}
-              </button>
-            ) : (
+
+            <div className="composer-bar">
               <button
-                className="btn"
-                onClick={() => send()}
-                disabled={!draft.trim() && attached.length === 0}
+                className="composer-icon"
+                onClick={() => fileRef.current?.click()}
+                disabled={streaming || uploading}
+                title={t("chat.attach")}
+                aria-label={t("chat.attach")}
               >
-                {t("chat.send")}
+                {uploading ? "…" : "+"}
               </button>
-            )}
+
+              <div className="composer-model-wrap" title="Model for this chat">
+                <select
+                  className="composer-model"
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  disabled={streaming}
+                >
+                  <option value="">{t("chat.auto")}</option>
+                  {models.map((m) => (
+                    <option key={`${m.provider}:${m.name}`} value={m.name}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="composer-spacer" />
+
+              <button
+                className={`composer-icon toggle${webOn ? " on" : ""}`}
+                onClick={() => setWebOn((v) => !v)}
+                disabled={streaming}
+                title={t("chat.web")}
+                aria-pressed={webOn}
+                aria-label={t("chat.web")}
+              >
+                🌐
+              </button>
+              <button
+                className={`composer-icon toggle${anon ? " on" : ""}`}
+                onClick={() => setAnon((v) => !v)}
+                disabled={streaming}
+                title={t("chat.anonHint")}
+                aria-pressed={anon}
+                aria-label={t("chat.anon")}
+              >
+                🕶
+              </button>
+
+              {streaming ? (
+                <button
+                  className="composer-send stop"
+                  onClick={stop}
+                  title={t("chat.stop")}
+                  aria-label={t("chat.stop")}
+                >
+                  <span className="composer-square" />
+                </button>
+              ) : (
+                <button
+                  className="composer-send"
+                  onClick={() => send()}
+                  disabled={!draft.trim() && attached.length === 0}
+                  title={t("chat.send")}
+                  aria-label={t("chat.send")}
+                >
+                  ↑
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
