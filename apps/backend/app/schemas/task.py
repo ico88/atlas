@@ -50,6 +50,7 @@ class TaskRead(BaseModel):
     priority: int
     payload: dict[str, Any] | None
     result: dict[str, Any] | None
+    checkpoint: dict[str, Any] | None = None
     error: str | None
     retries: int
     max_retries: int
@@ -76,3 +77,10 @@ class TaskResultIn(BaseModel):
     status: str = Field(pattern="^(completed|failed)$")
     result: dict[str, Any] | None = None
     error: str | None = None
+
+
+class TaskProgressIn(BaseModel):
+    """Incremental progress reported by a node while a task runs (advisory)."""
+
+    percent: int = Field(default=0, ge=0, le=100)
+    status: str | None = Field(default=None, max_length=255)

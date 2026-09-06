@@ -13,6 +13,7 @@ from app.schemas.task import (
     TaskCreate,
     TaskEventRead,
     TaskList,
+    TaskProgressIn,
     TaskRead,
     TaskResultIn,
 )
@@ -83,6 +84,33 @@ async def cancel_task(
         raise HTTPException(status_code=404, detail="Task not found")
     set_task_id(task.id)
     task = await task_service.cancel_task(session, task)
+    return TaskRead.model_validate(task)
+
+
+@router.post("/{task_id}/progress", response_model=TaskRead)
+async def report_progress(
+    task_id: str,
+    payload: TaskProgressIn,
+    session: AsyncSession = Depends(get_session),
+    _: None = Depends(require_node_token),
+) -> TaskRead:
+    """A node reports incremental progress (advisory) while a task runs, stored on
+    the task checkpoint so the UI can show a live percentage (e.g. a model pull)."""
+
+    from app.models.base import utcnow
+
+    task = await task_service.get_task(session, task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    checkpoint = dict(task.checkpoint or {})
+    checkpoint["progress"] = {
+        "percent": payload.percent,
+        "status": payload.status,
+        "at": utcnow().isoformat(),
+    }
+    task.checkpoint = checkpoint
+    await session.commit()
+    await session.refresh(task)
     return TaskRead.model_validate(task)
 
 

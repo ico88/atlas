@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import socket
 
 import httpx
@@ -72,6 +73,12 @@ class ControlPlaneClient:
         resp = await self._client.post(f"/api/v1/tasks/{task_id}/result", json=payload)
         resp.raise_for_status()
         return resp.json()
+
+    async def report_progress(self, task_id: str, payload: dict[str, object]) -> None:
+        """Advisory progress update while a task runs (best-effort, never raises)."""
+
+        with contextlib.suppress(httpx.HTTPError, OSError):
+            await self._client.post(f"/api/v1/tasks/{task_id}/progress", json=payload)
 
     async def aclose(self) -> None:
         await self._client.aclose()

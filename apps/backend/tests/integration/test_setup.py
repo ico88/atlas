@@ -217,3 +217,28 @@ async def test_node_claims_its_pinned_task(session):
     claimed = await node_service.claim_task(session, node)
     assert claimed is not None
     assert claimed.type == "model_pull"
+
+
+@pytest.mark.asyncio
+async def test_task_progress_endpoint(client, session):
+    from app.models.node import Node
+    from app.models.task import Task, TaskStatus
+    from sqlalchemy import select as _sel
+
+    session.add(Node(node_id="worker-9", hardware={"ram_total_mb": 8000}))
+    await session.commit()
+    r = await client.post(
+        "/api/v1/setup/nodes/pull", json={"node_id": "worker-9", "model": "qwen2.5:3b"}
+    )
+    task_id = r.json()["task_id"]
+    # Mark it running so the node could be executing it.
+    task = (await session.execute(_sel(Task).where(Task.id == task_id))).scalar_one()
+    task.status = TaskStatus.RUNNING.value
+    await session.commit()
+
+    p = await client.post(
+        f"/api/v1/tasks/{task_id}/progress", json={"percent": 42, "status": "pulling"}
+    )
+    assert p.status_code == 200
+    got = await client.get(f"/api/v1/tasks/{task_id}")
+    assert got.json()["checkpoint"]["progress"]["percent"] == 42

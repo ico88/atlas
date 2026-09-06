@@ -144,7 +144,11 @@ async def _claim_and_execute(client: ControlPlaneClient, config: AgentConfig) ->
 
     task_id = str(task.get("id"))
     logger.info("executing task %s (%s)", task_id, task.get("required_capability"))
-    result = await execute_task(task, ollama_url=config.ollama_url)
+
+    async def _progress(percent: int, status: str) -> None:
+        await client.report_progress(task_id, {"percent": percent, "status": status})
+
+    result = await execute_task(task, ollama_url=config.ollama_url, progress_cb=_progress)
     try:
         await client.report_result(task_id, result)
         logger.info("reported task %s: %s", task_id, result.get("status"))

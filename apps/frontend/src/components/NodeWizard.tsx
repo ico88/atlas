@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Enrollment,
   EnrollmentWithToken,
@@ -12,6 +12,7 @@ import {
   createEnrollment,
   fetchEnrollments,
   fetchSetupNodes,
+  fetchTaskProgress,
   fetchZeroTier,
   setupNodePull,
 } from "@/lib/api";
@@ -48,6 +49,8 @@ export default function NodeWizard() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [pull, setPull] = useState<{ percent: number; status: string } | null>(null);
+  const pullPoll = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -74,6 +77,10 @@ export default function NodeWizard() {
     return () => clearInterval(id);
   }, [open, refresh]);
 
+  useEffect(() => () => {
+    if (pullPoll.current) clearInterval(pullPoll.current);
+  }, []);
+
   const enrollment = enrollments.find((e) => e.node_id === nodeId) || null;
   const node = nodes.find((n) => n.node_id === nodeId) || null;
   const online = !!node?.online;
@@ -96,6 +103,42 @@ export default function NodeWizard() {
       setErr(e instanceof Error ? e.message : "error");
     } finally {
       setBusy(false);
+    }
+  };
+
+  // One-click pull with live progress: start the task, then poll it.
+  const startPull = async () => {
+    if (!model.trim()) return;
+    setErr(null);
+    setMsg(null);
+    setPull({ percent: 0, status: "queued" });
+    try {
+      const res = await setupNodePull(nodeId, model.trim());
+      const taskId = res.task_id;
+      if (pullPoll.current) clearInterval(pullPoll.current);
+      pullPoll.current = setInterval(async () => {
+        try {
+          const tp = await fetchTaskProgress(taskId);
+          const p = tp.checkpoint?.progress;
+          if (tp.status === "COMPLETED") {
+            if (pullPoll.current) clearInterval(pullPoll.current);
+            setPull({ percent: 100, status: "done" });
+            setMsg(t("wizard.pullDone"));
+            await refresh();
+          } else if (tp.status === "FAILED") {
+            if (pullPoll.current) clearInterval(pullPoll.current);
+            setPull(null);
+            setErr(tp.error || "pull failed");
+          } else if (p) {
+            setPull({ percent: p.percent, status: p.status || "pulling" });
+          }
+        } catch {
+          /* transient */
+        }
+      }, 1500);
+    } catch (e) {
+      setPull(null);
+      setErr(e instanceof Error ? e.message : "pull failed");
     }
   };
 
@@ -233,9 +276,20 @@ export default function NodeWizard() {
             )}
             <div style={{ display: "grid", gap: 6 }}>
               <input value={model} placeholder="modello (es. qwen2.5:3b)" onChange={(e) => setModel(e.target.value)} />
-              <button className="btn secondary" disabled={busy || !model.trim()} onClick={() => run(() => setupNodePull(nodeId, model.trim()), t("wizard.pullStarted"))}>
-                {t("wizard.pull")}
+              <button
+                className="btn secondary"
+                disabled={!model.trim() || (pull !== null && pull.percent < 100)}
+                onClick={startPull}
+              >
+                {pull !== null && pull.percent < 100
+                  ? `${t("wizard.pulling")} ${pull.percent}%`
+                  : t("wizard.pull")}
               </button>
+              {pull !== null && (
+                <div className="progress-bar" aria-label="download">
+                  <div className="progress-fill" style={{ width: `${pull.percent}%` }} />
+                </div>
+              )}
               <input value={endpoint} placeholder="endpoint (es. http://10.147.x.x:11434)" onChange={(e) => setEndpoint(e.target.value)} />
               <button className="btn" disabled={busy || !model.trim() || !endpoint.trim()} onClick={() => run(() => attachNodeModel(nodeId, model.trim(), endpoint.trim()), t("wizard.attached"))}>
                 {t("wizard.attach")}

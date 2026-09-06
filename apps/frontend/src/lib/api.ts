@@ -1487,3 +1487,14 @@ export async function setupNodePull(
 ): Promise<{ status: string; task_id: string; model: string }> {
   return sendJson("/api/v1/setup/nodes/pull", "POST", { node_id, model });
 }
+
+export interface TaskProgress {
+  id: string;
+  status: string;
+  error?: string | null;
+  checkpoint?: { progress?: { percent: number; status?: string | null } } | null;
+}
+
+export async function fetchTaskProgress(id: string): Promise<TaskProgress> {
+  return getJson(`/api/v1/tasks/${id}`);
+}

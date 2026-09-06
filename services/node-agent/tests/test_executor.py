@@ -34,7 +34,7 @@ async def test_model_pull_requires_model():
 async def test_model_pull_calls_ollama(monkeypatch):
     calls = {}
 
-    async def fake_pull(url, model, timeout=1800.0):
+    async def fake_pull(url, model, timeout=1800.0, on_progress=None):
         calls["url"] = url
         calls["model"] = model
         return {"status": "completed", "result": {"pulled": model}}
@@ -47,3 +47,56 @@ async def test_model_pull_calls_ollama(monkeypatch):
     assert result["status"] == "completed"
     assert calls["model"] == "qwen2.5:3b"
     assert calls["url"] == "http://localhost:11434"
+
+
+def test_pull_percent_pure():
+    from agent.executor import pull_percent
+    assert pull_percent({"completed": 50, "total": 100}) == 50
+    assert pull_percent({"completed": 100, "total": 100}) == 100
+    assert pull_percent({"status": "pulling"}) is None
+    assert pull_percent({"completed": 5, "total": 0}) is None
+
+
+@pytest.mark.asyncio
+async def test_pull_model_reports_progress(monkeypatch):
+    seen: list[int] = []
+
+    async def cb(pct, status):
+        seen.append(pct)
+
+    # Simulate an Ollama pull stream via a fake httpx client.
+    import agent.executor as ex
+
+    class _Resp:
+        def raise_for_status(self):
+            pass
+
+        async def aiter_lines(self):
+            for c in (
+                '{"status":"pulling","completed":10,"total":100}',
+                '{"status":"pulling","completed":60,"total":100}',
+                '{"status":"success"}',
+            ):
+                yield c
+
+    class _Stream:
+        async def __aenter__(self):
+            return _Resp()
+
+        async def __aexit__(self, *a):
+            return False
+
+    class _Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        def stream(self, *a, **k):
+            return _Stream()
+
+    monkeypatch.setattr(ex.httpx, "AsyncClient", lambda *a, **k: _Client())
+    result = await ex.pull_model("http://x:11434", "m", on_progress=cb)
+    assert result["status"] == "completed"
+    assert 10 in seen and 60 in seen and seen[-1] == 100  # final 100 reported
