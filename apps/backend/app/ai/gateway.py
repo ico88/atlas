@@ -133,12 +133,15 @@ def score_candidate(
     runtime_priority: list[str],
     alias_rank: int | None = None,
     ordinal: int = 0,
+    quality: float = 0.0,
 ) -> float:
     """Higher is better. Deterministic and side-effect free."""
 
     score = 0.0
     # Capability fit: every extra matched capability is a small plus.
     score += 5.0 * len(required & model_capabilities(model))
+    # Measured quality from evals (M10): 0..1 -> up to +20.
+    score += 20.0 * max(0.0, min(quality, 1.0))
     # Operator-set deployment priority dominates.
     score += float(deployment.priority)
     # Runtime-type preference (soft): earlier in the list scores higher.
@@ -216,6 +219,13 @@ async def build_candidates(
         for r in (await session.execute(select(Runtime))).scalars().all()
     }
     alias_order = await _alias_targets(session, alias) if alias else []
+    # Measured quality per model (M10). Best-effort: no evals -> no effect.
+    try:
+        from app.services import learning_service
+
+        quality_map = await learning_service.model_quality(session)
+    except Exception:  # noqa: BLE001 - routing must not depend on evals being present
+        quality_map = {}
 
     deployments = (
         (
@@ -252,6 +262,7 @@ async def build_candidates(
             runtime_priority=settings.runtime_priority,
             alias_rank=alias_rank,
             ordinal=ordinal,
+            quality=quality_map.get(dep.model_key, 0.0),
         )
         candidates.append(_Candidate(dep, runtime, model, score))
 

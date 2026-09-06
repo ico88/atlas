@@ -109,5 +109,12 @@ that runtime is stopped.
   in-flight generation and true auto-unload depend on runtime support (honest
   scope); VRAM accounting still needs per-node GPU telemetry.
 
+**M10 — adaptive routing** ✅ `learning_service` reads each model's `avg_quality`
+from its latest completed eval run and the gateway adds it to the score (up to +20),
+so measured quality steers routing. `GET /api/v1/routing/quality` returns the
+per-model quality map plus **alias suggestions** — a proposal to re-point an alias
+at a higher-quality model, which a human applies (never auto-applied), consistent
+with ATLAS's approval philosophy.
+
 Distributing a **single** LLM across nodes over WAN is intentionally out of scope
 (a different, harder problem); ATLAS uses distributed *task* execution instead.

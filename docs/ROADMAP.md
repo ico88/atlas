@@ -27,7 +27,7 @@ prodotto. Stato attuale:
 | M7 Manual Escalation (ChatGPT/Claude) | ✅ done | **R5/R6** (revisione critica, provider) |
 | M8 RAG/Memory (embeddings, citazioni) | ✅ done | **R3** (memoria/ambienti) + **R4** (web) |
 | M9 Optional Cloud (LiteLLM, OpenAI/Anthropic) | ✅ (Fase 3) | AI Router: adapter OpenAI/Anthropic, routing_policies, escalation |
-| M10 Optimization (router learning, eval) | ⬜ | consegnato con **R5 evals** + **R6** |
+| M10 Optimization (router learning, eval) | ✅ | `learning_service`: qualità per modello dagli eval → score del gateway + suggerimenti alias (human-gated) |
 
 Mappa sintetica release → milestone: R1←M2 · R2←M4 · R3←M3+M5+M8 · R4←M8(nuovo web)
 · R5←M1+M6 · R6←M6 · R7←nuovo (HA).

@@ -27,7 +27,7 @@ from app.schemas.runtime import (
     RuntimeRead,
     RuntimeUpdate,
 )
-from app.services import benchmark_service, runtime_service
+from app.services import benchmark_service, learning_service, runtime_service
 
 router = APIRouter(prefix="/api/v1", tags=["runtimes"])
 
@@ -188,6 +188,16 @@ async def upsert_policy(
 ) -> RoutingPolicyRead:
     row = await runtime_service.upsert_policy(session, **payload.model_dump())
     return RoutingPolicyRead.model_validate(row)
+
+
+@router.get("/routing/quality")
+async def routing_quality(session: AsyncSession = Depends(get_session)) -> dict:
+    """Measured model quality from evals + human-gated alias suggestions (M10)."""
+
+    return {
+        "quality": await learning_service.model_quality(session),
+        "suggestions": await learning_service.alias_suggestions(session),
+    }
 
 
 @router.delete("/routing-policies/{task_type}")
