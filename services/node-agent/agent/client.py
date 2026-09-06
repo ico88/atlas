@@ -10,18 +10,28 @@ from agent.config import AgentConfig
 
 
 def build_register_payload(config: AgentConfig, hardware: dict[str, object]) -> dict[str, object]:
+    hw = dict(hardware)
+    if config.ollama_advertise_url:
+        # Tell the control plane where to reach this node's Ollama, so the setup
+        # UI can pre-fill the endpoint when attaching a model to the node.
+        hw["ollama_url"] = config.ollama_advertise_url
     return {
         "node_id": config.node_id,
         "hostname": socket.gethostname(),
         "label": config.label,
         "version": config.version,
         "capabilities": config.capabilities,
-        "hardware": hardware,
+        "hardware": hw,
     }
 
 
-def build_heartbeat_payload(health: dict[str, object]) -> dict[str, object]:
-    return {"status": "online", "health": health}
+def build_heartbeat_payload(
+    health: dict[str, object], ollama_url: str = ""
+) -> dict[str, object]:
+    h = dict(health)
+    if ollama_url:
+        h["ollama_url"] = ollama_url
+    return {"status": "online", "health": h}
 
 
 class ControlPlaneClient:

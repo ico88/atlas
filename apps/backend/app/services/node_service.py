@@ -93,8 +93,9 @@ async def claim_task(session: AsyncSession, node: Node) -> Task | None:
         return None
 
     caps = node_capabilities(node)
-    if not caps:
-        return None
+    # A synthetic per-node capability lets the control plane pin a task to THIS
+    # node (e.g. a model pull) via required_capability="node:<node_id>".
+    caps = [*caps, f"node:{node.node_id}"]
 
     stmt = (
         select(Task)

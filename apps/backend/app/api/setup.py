@@ -149,6 +149,9 @@ async def setup_nodes(session: AsyncSession = Depends(get_session)) -> dict:
             and (utcnow() - n.last_heartbeat).total_seconds() < offline_after
         )
         reco = recommend_service.recommend_models(hw) if hw else None
+        # The node may advertise where its Ollama is reachable (register hardware
+        # or heartbeat health) — use it to pre-fill the endpoint in the UI.
+        advertised = hw.get("ollama_url") or (hw.get("health") or {}).get("ollama_url")
         items.append(
             {
                 "node_id": n.node_id,
@@ -160,6 +163,7 @@ async def setup_nodes(session: AsyncSession = Depends(get_session)) -> dict:
                     "gpu": hw.get("gpu"),
                 },
                 "recommendation": reco,
+                "ollama_url": advertised,
                 "attached_runtime": runtimes[n.node_id].name if n.node_id in runtimes else None,
                 "attached_models": deps_by_node.get(n.node_id, []),
             }
@@ -183,3 +187,41 @@ async def setup_node_attach(
     return await autoconfig_service.attach_node(
         session, node_id=payload.node_id, model_name=payload.model, endpoint=payload.endpoint
     )
+
+
+class NodePull(BaseModel):
+    node_id: str = Field(min_length=1, max_length=128)
+    model: str = Field(min_length=1, max_length=128)
+
+
+@router.post("/nodes/pull", status_code=202)
+async def setup_node_pull(
+    payload: NodePull, session: AsyncSession = Depends(get_session)
+) -> dict:
+    """Tell a node to download a model into its local Ollama (one-click).
+
+    Creates a ``model_pull`` task pinned to the node; the node agent claims it and
+    pulls via its local Ollama, then reports back. Poll /api/v1/tasks/{id}.
+    """
+
+    if not _MODEL_RE.match(payload.model):
+        raise HTTPException(status_code=400, detail="invalid model name")
+    node = (
+        await session.execute(select(Node).where(Node.node_id == payload.node_id))
+    ).scalar_one_or_none()
+    if node is None:
+        raise HTTPException(status_code=404, detail="node not found")
+
+    from app.schemas.task import TaskCreate
+    from app.services import task_service
+
+    task = await task_service.create_task(
+        session,
+        TaskCreate(
+            title=f"Pull {payload.model} on {payload.node_id}",
+            type="model_pull",
+            required_capability=f"node:{payload.node_id}",
+            payload={"model": payload.model},
+        ),
+    )
+    return {"status": "queued", "task_id": task.id, "model": payload.model}

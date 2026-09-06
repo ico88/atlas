@@ -176,3 +176,44 @@ async def test_setup_node_attach_missing_node(client):
         json={"node_id": "ghost", "model": "qwen2.5:3b", "endpoint": "http://x:11434"},
     )
     assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_setup_node_pull_creates_pinned_task(client, session):
+    from app.models.node import Node
+    from app.models.task import Task
+    from sqlalchemy import select as _select
+
+    session.add(Node(node_id="worker-3", hardware={"ram_total_mb": 8000}))
+    await session.commit()
+
+    r = await client.post(
+        "/api/v1/setup/nodes/pull", json={"node_id": "worker-3", "model": "qwen2.5:3b"}
+    )
+    assert r.status_code == 202
+    task_id = r.json()["task_id"]
+    task = (await session.execute(_select(Task).where(Task.id == task_id))).scalar_one()
+    assert task.type == "model_pull"
+    assert task.required_capability == "node:worker-3"
+    assert task.payload == {"model": "qwen2.5:3b"}
+
+
+@pytest.mark.asyncio
+async def test_node_claims_its_pinned_task(session):
+    """A model_pull pinned to a node is claimable by that node (synthetic cap)."""
+    from app.models.node import Node
+    from app.schemas.task import TaskCreate
+    from app.services import node_service, task_service
+
+    node = Node(node_id="worker-4", capabilities={})  # no declared capabilities
+    session.add(node)
+    await session.commit()
+    await session.refresh(node)
+
+    await task_service.create_task(
+        session,
+        TaskCreate(type="model_pull", required_capability="node:worker-4", payload={"model": "m"}),
+    )
+    claimed = await node_service.claim_task(session, node)
+    assert claimed is not None
+    assert claimed.type == "model_pull"

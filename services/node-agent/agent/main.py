@@ -117,7 +117,7 @@ async def run(config: AgentConfig | None = None) -> None:
 
 
 async def _send_heartbeat(client: ControlPlaneClient, config: AgentConfig) -> None:
-    payload = build_heartbeat_payload(collect_health())
+    payload = build_heartbeat_payload(collect_health(), config.ollama_advertise_url)
     try:
         await client.heartbeat(config.node_id, payload)
         logger.info("heartbeat sent: %s", json.dumps(payload["status"]))
@@ -144,7 +144,7 @@ async def _claim_and_execute(client: ControlPlaneClient, config: AgentConfig) ->
 
     task_id = str(task.get("id"))
     logger.info("executing task %s (%s)", task_id, task.get("required_capability"))
-    result = await execute_task(task)
+    result = await execute_task(task, ollama_url=config.ollama_url)
     try:
         await client.report_result(task_id, result)
         logger.info("reported task %s: %s", task_id, result.get("status"))

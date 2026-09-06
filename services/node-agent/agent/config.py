@@ -39,6 +39,11 @@ class AgentConfig:
     network_provider: str = "none"  # none | zerotier | existing
     zerotier_network_id: str = ""
     await_enrollment: bool = False
+    # Local Ollama the agent drives (e.g. for control-plane-triggered model pulls).
+    ollama_url: str = "http://localhost:11434"
+    # URL the control plane should use to reach THIS node's Ollama (overlay IP).
+    # Reported to the control plane so the setup UI can pre-fill the endpoint.
+    ollama_advertise_url: str = ""
 
     @classmethod
     def from_env(cls, environ: dict[str, str] | None = None) -> AgentConfig:
@@ -68,4 +73,6 @@ class AgentConfig:
             network_provider=env.get("ATLAS_NETWORK_PROVIDER", "none"),
             zerotier_network_id=env.get("ATLAS_ZEROTIER_NETWORK_ID", ""),
             await_enrollment=_bool("ATLAS_NODE_AWAIT_ENROLLMENT", "false"),
+            ollama_url=env.get("ATLAS_OLLAMA_URL", "http://localhost:11434").rstrip("/"),
+            ollama_advertise_url=env.get("ATLAS_NODE_OLLAMA_ADVERTISE_URL", "").rstrip("/"),
         )
