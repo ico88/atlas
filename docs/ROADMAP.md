@@ -327,6 +327,16 @@ comportamento classico (nessuna regressione). Vedi [MULTI_RUNTIME.md](MULTI_RUNT
   dell'inferenza in corso e l'auto-unload effettivo dipendono dal supporto del
   runtime (documentato). Restano i termini VRAM (serve telemetria GPU per nodo).
 
+### Semplicità d'uso (aggiunta su richiesta)
+
+**Setup guidato + Auto-configurazione** ✅ Pagina **Inizia qui** (`/setup`): rileva
+l'hardware, **consiglia il modello** adatto (`recommend_service`, puro) e con un
+pulsante **scarica + attiva**. L'**auto-configurazione** (`autoconfig_service`)
+crea da sola runtime + deployment + alias `atlas.general` e imposta il default, sia
+dal wizard sia da ogni pull nella pagina Modelli — l'utente non tocca mai la
+complessità multi-runtime (che resta in **AI Runtimes** per chi la vuole). API
+`/setup/status|install|activate`. Vedi [GETTING_STARTED.md](GETTING_STARTED.md).
+
 ## Definition of Done globale
 
 Una funzionalità o release è completata soltanto se:

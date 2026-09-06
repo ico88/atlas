@@ -1357,3 +1357,47 @@ export async function upsertPolicy(body: {
 export async function deletePolicy(taskType: string): Promise<void> {
   await sendJson(`/api/v1/routing-policies/${taskType}`, "DELETE");
 }
+
+// ---------------------------------------------------------------------------
+// Guided setup (make it easy)
+// ---------------------------------------------------------------------------
+export interface RecommendedModel {
+  model: string;
+  label: string;
+  size_gb: number;
+  note: string;
+  capabilities: string[];
+}
+
+export interface SetupStatus {
+  hardware: {
+    cpu_cores?: number | null;
+    ram_total_mb?: number | null;
+    gpu?: { count: number; devices: { name?: string; vram_mb?: number | null }[] } | null;
+    recommended_ollama_backend?: string;
+  };
+  recommendation: {
+    primary: RecommendedModel;
+    alternatives: RecommendedModel[];
+    embedding: RecommendedModel;
+    reason: string;
+    detected: { ram_total_mb: number; best_vram_mb: number; has_gpu: boolean };
+  };
+  ollama_ready: boolean;
+  installed_models: string[];
+  active_model: string | null;
+  configured: boolean;
+  deployments: number;
+}
+
+export async function fetchSetupStatus(): Promise<SetupStatus> {
+  return getJson("/api/v1/setup/status");
+}
+
+export async function setupInstall(model: string): Promise<{ status: string; model: string }> {
+  return sendJson("/api/v1/setup/install", "POST", { model });
+}
+
+export async function setupActivate(model: string): Promise<{ activated: string }> {
+  return sendJson("/api/v1/setup/activate", "POST", { model });
+}

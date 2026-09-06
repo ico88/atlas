@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.ai.ollama import OllamaProvider
 from app.db import get_session, get_sessionmaker
 from app.schemas.registry import ModelList, ModelRead
-from app.services import registry_service, settings_service
+from app.services import autoconfig_service, registry_service, settings_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/models", tags=["models"])
@@ -71,6 +71,9 @@ async def _pull_worker(name: str) -> None:
     if ok:
         async with get_sessionmaker()() as session:
             await registry_service.refresh_models(session)
+        # Auto-configure: create runtime + deployment + alias and activate, so a
+        # freshly pulled model "just works" with no manual multi-runtime setup.
+        await autoconfig_service.autoconfigure_after_pull(name)
 
 
 @router.post("/pull", status_code=202)
