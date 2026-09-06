@@ -1464,6 +1464,7 @@ export interface SetupNode {
     alternatives: RecommendedModel[];
     reason: string;
   } | null;
+  ollama_url?: string | null;
   attached_runtime?: string | null;
   attached_models: string[];
 }
@@ -1478,4 +1479,11 @@ export async function attachNodeModel(
   endpoint: string,
 ): Promise<{ node_id: string; runtime: string; model: string }> {
   return sendJson("/api/v1/setup/nodes/attach", "POST", { node_id, model, endpoint });
+}
+
+export async function setupNodePull(
+  node_id: string,
+  model: string,
+): Promise<{ status: string; task_id: string; model: string }> {
+  return sendJson("/api/v1/setup/nodes/pull", "POST", { node_id, model });
 }

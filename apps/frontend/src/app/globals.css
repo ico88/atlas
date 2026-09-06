@@ -485,6 +485,46 @@ button:active:not(:disabled) {
   padding: 8px 10px;
 }
 
+/* Guided node wizard */
+.wizard-step {
+  border-top: 1px solid var(--border);
+  padding: 12px 0;
+}
+.wizard-step:first-of-type {
+  border-top: none;
+}
+.wizard-step-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.wizard-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--panel-3, var(--panel));
+  border: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  flex: 0 0 auto;
+}
+.wizard-num.done {
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.wizard-step-body pre {
+  font-size: 12px;
+  background: var(--panel-3, var(--panel));
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+
 /* Unified composer (Claude-style): text on top, one toolbar below. */
 .composer {
   margin: 12px;

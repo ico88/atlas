@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import NodeWizard from "@/components/NodeWizard";
 import ZeroTierCard from "@/components/ZeroTierCard";
 import {
   Enrollment,
@@ -100,6 +101,8 @@ export default function NodesPage() {
       </p>
 
       {error && <p className="error">Unable to reach backend: {error}</p>}
+
+      <NodeWizard />
 
       {data && (
         <p className="muted" style={{ marginBottom: 16 }}>
