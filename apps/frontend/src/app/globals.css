@@ -480,6 +480,47 @@ button:active:not(:disabled) {
   border-top: 1px solid var(--border);
 }
 
+.attach-btn {
+  flex: 0 0 auto;
+  padding: 8px 10px;
+}
+
+.attach-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.attach-chips.pending {
+  padding: 0 12px;
+}
+
+.attach-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--panel-3, var(--panel-2, #eef));
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.attach-x {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0;
+}
+.attach-x:hover {
+  color: var(--bad);
+}
+
 .chat-input input {
   flex: 1;
   padding: 10px 12px;

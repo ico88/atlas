@@ -81,6 +81,8 @@ const EN: Dict = {
   "chat.interrupted": "⚠ interrupted — send the message again",
   "chat.anon": "Incognito",
   "chat.anonHint": "Incognito: this turn is not saved (no history, no memory).",
+  "chat.attach": "Attach a file",
+  "chat.analyzeFile": "Please analyze the attached file(s).",
 
   "dash.subtitle": "Everything at a glance — health, fleet, work and governance.",
   "dash.health": "Health",
@@ -204,6 +206,8 @@ const IT: Dict = {
   "chat.interrupted": "⚠ interrotta — reinvia il messaggio",
   "chat.anon": "Incognito",
   "chat.anonHint": "Incognito: questo turno non viene salvato (né cronologia né memoria).",
+  "chat.attach": "Allega un file",
+  "chat.analyzeFile": "Analizza il file allegato.",
 
   "dash.subtitle": "Tutto in un colpo d'occhio — salute, fleet, lavoro e governance.",
   "dash.health": "Salute",

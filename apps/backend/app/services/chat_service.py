@@ -26,7 +26,7 @@ from app.models.base import utcnow
 from app.models.conversation import Conversation, Message, MessageRole
 from app.rag.memory_capture import extract_facts
 from app.schemas.chat import ChatRequest
-from app.services import memory_service, webtools_service
+from app.services import attachment_service, memory_service, webtools_service
 
 logger = logging.getLogger(__name__)
 
@@ -270,11 +270,18 @@ async def _generate_anonymous_turn(payload: ChatRequest) -> AsyncIterator[dict]:
     """
 
     history: list[ChatMessage] = []
+    # Attached-file context (chat file upload) — read-only, persists nothing else.
+    if payload.attachment_ids:
+        async with get_sessionmaker()() as s:
+            atts = await attachment_service.get_many(s, payload.attachment_ids)
+        block = attachment_service.build_context(atts)
+        if block:
+            history.append(ChatMessage(role="system", content=block))
     citations: list[dict] = []
     if payload.web:
         citations, note = await _web_search(payload)
         if citations:
-            history = [ChatMessage(role="system", content=_format_web_context(citations))]
+            history.append(ChatMessage(role="system", content=_format_web_context(citations)))
         yield {"type": "citations", "citations": citations, "note": note}
     history.append(ChatMessage(role="user", content=payload.content))
 
@@ -337,14 +344,21 @@ async def _generate_turn(payload: ChatRequest, user_id: str | None = None) -> As
             await session.flush()
 
         # 2) Persist the user message.
-        session.add(
-            Message(
-                conversation_id=conversation.id,
-                role=MessageRole.USER.value,
-                content=payload.content,
-            )
+        user_msg = Message(
+            conversation_id=conversation.id,
+            role=MessageRole.USER.value,
+            content=payload.content,
         )
+        session.add(user_msg)
         await session.commit()
+
+        # 2·) Attach uploaded files to this message (chat file upload).
+        attachments = await attachment_service.get_many(session, payload.attachment_ids)
+        for att in attachments:
+            att.message_id = user_msg.id
+            att.conversation_id = conversation.id
+        if attachments:
+            await session.commit()
 
         # 2a) Auto-capture durable facts ("sono Federico" -> remembered).
         await _capture_memories(session, payload.content, user_id)
@@ -358,6 +372,12 @@ async def _generate_turn(payload: ChatRequest, user_id: str | None = None) -> As
                 f"- {f}" for f in facts
             )
             history = [ChatMessage(role="system", content=profile)] + history
+
+        # 2b·) Prepend attached-file context, if any (chat file upload).
+        if attachments:
+            block = attachment_service.build_context(attachments)
+            if block:
+                history = [ChatMessage(role="system", content=block)] + history
 
         # 2c) Optional web grounding (ROADMAP PR 15): search and prepend context.
         citations: list[dict] = []

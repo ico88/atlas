@@ -540,6 +540,53 @@ export interface ChatStreamRequest {
   mode?: string;
   web?: boolean;
   anonymous?: boolean;
+  attachment_ids?: string[];
+}
+
+// --- Chat attachments (file upload) ---
+export interface AttachmentInfo {
+  id: string;
+  filename: string;
+  content_type?: string | null;
+  size_bytes: number;
+  chars: number;
+  preview: string;
+}
+
+/** Read a File, base64-encode it, and upload it as a chat attachment. */
+export async function uploadAttachment(
+  file: File,
+  conversationId?: string,
+): Promise<AttachmentInfo> {
+  const buf = await file.arrayBuffer();
+  let binary = "";
+  const bytes = new Uint8Array(buf);
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  const data_b64 = btoa(binary);
+  const res = await fetch("/api/v1/chat/attachments", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({
+      filename: file.name,
+      content_type: file.type || null,
+      data_b64,
+      conversation_id: conversationId,
+    }),
+  });
+  if (!res.ok) {
+    let detail = `upload failed (${res.status})`;
+    try {
+      const j = await res.json();
+      if (j.detail) detail = j.detail;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(detail);
+  }
+  return (await res.json()) as AttachmentInfo;
 }
 
 // --- Evals (PR 16) ---

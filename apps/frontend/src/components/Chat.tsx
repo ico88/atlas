@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Markdown from "@/components/Markdown";
 import { useI18n } from "@/lib/i18n";
 import {
+  AttachmentInfo,
   ConversationSummary,
   Message,
   ModelInfo,
@@ -20,10 +21,12 @@ import {
   fetchSystemStatus,
   searchMemories,
   streamChat,
+  uploadAttachment,
   webSearch,
 } from "@/lib/api";
 
 type Phase = "idle" | "waiting" | "streaming";
+type Bubble = Message & { attachments?: string[] };
 
 function Citations({ items, label }: { items: WebCitation[]; label: string }) {
   if (!items || items.length === 0) return null;
@@ -59,8 +62,11 @@ export default function Chat() {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [viewArchived, setViewArchived] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Bubble[]>([]);
   const [draft, setDraft] = useState("");
+  const [attached, setAttached] = useState<AttachmentInfo[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [live, setLive] = useState("");
   const [liveCitations, setLiveCitations] = useState<WebCitation[]>([]);
@@ -174,7 +180,12 @@ export default function Chat() {
     }
   };
 
-  const pushBubble = (role: "user" | "assistant", content: string, citations?: WebCitation[]) =>
+  const pushBubble = (
+    role: "user" | "assistant",
+    content: string,
+    citations?: WebCitation[],
+    attachments?: string[],
+  ) =>
     setMessages((prev) => [
       ...prev,
       {
@@ -183,9 +194,27 @@ export default function Chat() {
         role,
         content,
         citations: citations && citations.length ? citations : null,
+        attachments: attachments && attachments.length ? attachments : undefined,
         created_at: new Date().toISOString(),
       },
     ]);
+
+  const onPickFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    setError(null);
+    try {
+      for (const file of Array.from(files)) {
+        const info = await uploadAttachment(file, activeId ?? undefined);
+        setAttached((prev) => [...prev, info]);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "upload failed");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
 
   // ---- slash commands (run platform actions without leaving the chat) ----
   const handleCommand = async (raw: string): Promise<boolean> => {
@@ -293,7 +322,7 @@ export default function Chat() {
 
   const send = async (text?: string, forceWeb = false) => {
     const content = (text ?? draft).trim();
-    if (!content || streaming) return;
+    if ((!content && attached.length === 0) || streaming) return;
 
     // Slash command? Handle it and stop.
     if (content.startsWith("/") && text === undefined) {
@@ -310,7 +339,10 @@ export default function Chat() {
     setPhase("waiting");
     setStatusLine((forceWeb || webOn) ? t("chat.searching") : t("chat.thinking"));
     startTimer();
-    pushBubble("user", content);
+    const attachmentIds = attached.map((a) => a.id);
+    const attachmentNames = attached.map((a) => a.filename);
+    pushBubble("user", content, undefined, attachmentNames);
+    setAttached([]);
 
     let acc = "";
     let citations: WebCitation[] = [];
@@ -320,11 +352,12 @@ export default function Chat() {
 
     await streamChat(
       {
-        content,
+        content: content || t("chat.analyzeFile"),
         conversation_id: activeId ?? undefined,
         web: forceWeb || webOn,
         model: model || undefined,
         anonymous: anon || undefined,
+        attachment_ids: attachmentIds.length ? attachmentIds : undefined,
       },
       {
         onStart: (e) => {
@@ -465,6 +498,13 @@ export default function Chat() {
               }
               return (
                 <div key={m.id} className={`bubble ${m.role}`}>
+                  {m.attachments && m.attachments.length > 0 && (
+                    <div className="attach-chips">
+                      {m.attachments.map((name, i) => (
+                        <span key={i} className="attach-chip">📎 {name}</span>
+                      ))}
+                    </div>
+                  )}
                   {m.role === "assistant" ? <Markdown text={m.content} /> : m.content}
                   {m.role === "assistant" && m.status === "error" && (
                     <span className="meta" style={{ color: "var(--bad)" }}>
@@ -512,7 +552,38 @@ export default function Chat() {
             {error && <p className="error">Error: {error}</p>}
           </div>
 
+          {attached.length > 0 && (
+            <div className="attach-chips pending">
+              {attached.map((a) => (
+                <span key={a.id} className="attach-chip">
+                  📎 {a.filename}
+                  <button
+                    className="attach-x"
+                    title={t("common.delete")}
+                    onClick={() => setAttached((prev) => prev.filter((x) => x.id !== a.id))}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
           <div className="chat-input">
+            <input
+              ref={fileRef}
+              type="file"
+              multiple
+              hidden
+              onChange={(e) => onPickFiles(e.target.files)}
+            />
+            <button
+              className="btn secondary attach-btn"
+              onClick={() => fileRef.current?.click()}
+              disabled={streaming || uploading}
+              title={t("chat.attach")}
+            >
+              {uploading ? "…" : "📎"}
+            </button>
             <select
               className="model-select"
               value={model}
@@ -561,7 +632,11 @@ export default function Chat() {
                 {t("chat.stop")}
               </button>
             ) : (
-              <button className="btn" onClick={() => send()} disabled={!draft.trim()}>
+              <button
+                className="btn"
+                onClick={() => send()}
+                disabled={!draft.trim() && attached.length === 0}
+              >
                 {t("chat.send")}
               </button>
             )}

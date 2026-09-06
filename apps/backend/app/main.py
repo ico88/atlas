@@ -11,6 +11,7 @@ from fastapi import FastAPI
 from app import __version__
 from app.api import (
     approvals,
+    attachments,
     auth,
     chat,
     cluster,
@@ -165,6 +166,7 @@ def create_app() -> FastAPI:
     app.include_router(zerotier.router)
     app.include_router(runtimes.router)
     app.include_router(setup.router)
+    app.include_router(attachments.router)
 
     return app
 

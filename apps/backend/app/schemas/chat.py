@@ -19,6 +19,9 @@ class ChatRequest(BaseModel):
     # Anonymous mode (ROADMAP PR 28): run the turn but persist nothing — no
     # conversation, no messages, no memory capture/recall. A clean, private turn.
     anonymous: bool = False
+    # Uploaded files to use as context for this turn (chat file upload). IDs come
+    # from POST /api/v1/chat/attachments.
+    attachment_ids: list[str] = Field(default_factory=list)
 
 
 class MessageRead(BaseModel):
