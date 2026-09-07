@@ -140,6 +140,9 @@ class Settings(BaseSettings):
     # an ephemeral per-process secret is generated (tokens reset on restart).
     jwt_secret: str = ""
     jwt_algorithm: str = "HS256"
+    # Secret manager master key (ROADMAP R5): a urlsafe-base64 32-byte Fernet key
+    # (openssl rand -base64 32). Empty => derived from jwt_secret (dev/test).
+    secret_key: str = ""
     access_token_expire_minutes: int = 60 * 12
     # RBAC enforcement (ROADMAP PR 27). Off by default keeps the local-first,
     # single-operator experience (endpoints open, everyone treated as admin).

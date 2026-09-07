@@ -31,6 +31,7 @@ from app.api import (
     rag,
     review,
     runtimes,
+    secrets,
     setup,
     system,
     tasks,
@@ -169,6 +170,7 @@ def create_app() -> FastAPI:
     app.include_router(setup.router)
     app.include_router(attachments.router)
     app.include_router(audit.router)
+    app.include_router(secrets.router)
 
     return app
 

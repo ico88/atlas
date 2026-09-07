@@ -4,10 +4,15 @@ import { useCallback, useEffect, useState } from "react";
 import {
   AuditEntry,
   MfaSetup,
+  SecretMeta,
+  deleteSecret,
   fetchAudit,
+  fetchSecrets,
   mfaDisable,
   mfaEnable,
   mfaSetup,
+  revealSecret,
+  upsertSecret,
   verifyAudit,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -23,6 +28,9 @@ export default function SecurityPage() {
   const [err, setErr] = useState<string | null>(null);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [integrity, setIntegrity] = useState<{ ok: boolean; broken_at?: number } | null>(null);
+  const [secrets, setSecrets] = useState<SecretMeta[]>([]);
+  const [newSecret, setNewSecret] = useState({ name: "", value: "" });
+  const [revealed, setRevealed] = useState<Record<string, string>>({});
 
   const loadAudit = useCallback(async () => {
     try {
@@ -32,9 +40,18 @@ export default function SecurityPage() {
     }
   }, []);
 
+  const loadSecrets = useCallback(async () => {
+    try {
+      setSecrets((await fetchSecrets()).items);
+    } catch {
+      /* not admin / auth off */
+    }
+  }, []);
+
   useEffect(() => {
     loadAudit();
-  }, [loadAudit]);
+    loadSecrets();
+  }, [loadAudit, loadSecrets]);
 
   const enabled = !!user?.mfa_enabled;
 
@@ -149,6 +166,74 @@ export default function SecurityPage() {
             </button>
           </div>
         )}
+      </div>
+
+      {/* Secret manager */}
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="status-row">
+          <strong>{t("sec.secrets")}</strong>
+        </div>
+        <p className="muted" style={{ fontSize: 13 }}>{t("sec.secretsHelp")}</p>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+          <input
+            value={newSecret.name}
+            placeholder="NAME (es. OPENAI_API_KEY)"
+            onChange={(e) => setNewSecret({ ...newSecret, name: e.target.value })}
+            style={{ flex: "1 1 160px" }}
+          />
+          <input
+            value={newSecret.value}
+            placeholder={t("sec.value")}
+            type="password"
+            onChange={(e) => setNewSecret({ ...newSecret, value: e.target.value })}
+            style={{ flex: "1 1 160px" }}
+          />
+          <button
+            className="btn"
+            disabled={!newSecret.name.trim() || !newSecret.value}
+            onClick={async () => {
+              try {
+                await upsertSecret(newSecret.name.trim(), newSecret.value);
+                setNewSecret({ name: "", value: "" });
+                await loadSecrets();
+              } catch (e) {
+                setErr(e instanceof Error ? e.message : "error");
+              }
+            }}
+          >
+            {t("common.save")}
+          </button>
+        </div>
+        {secrets.map((s) => (
+          <div className="status-row" key={s.name}>
+            <span className="pill">{s.name}</span>
+            <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              {revealed[s.name] ? (
+                <code style={{ fontSize: 12 }}>{revealed[s.name]}</code>
+              ) : (
+                <button
+                  className="btn secondary"
+                  onClick={async () => {
+                    const r = await revealSecret(s.name);
+                    setRevealed((p) => ({ ...p, [s.name]: r.value }));
+                  }}
+                >
+                  {t("sec.reveal")}
+                </button>
+              )}
+              <button
+                className="btn secondary"
+                onClick={async () => {
+                  await deleteSecret(s.name);
+                  await loadSecrets();
+                }}
+              >
+                {t("common.delete")}
+              </button>
+            </span>
+          </div>
+        ))}
+        {secrets.length === 0 && <p className="muted">{t("sec.noSecrets")}</p>}
       </div>
 
       {/* Audit log */}

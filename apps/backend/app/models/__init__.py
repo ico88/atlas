@@ -62,6 +62,7 @@ from app.models.runtime import (
     RoutingPolicy,
     Runtime,
 )
+from app.models.secret import Secret
 from app.models.task import Task, TaskDependency, TaskEvent, TaskStatus
 from app.models.user import User
 
@@ -127,4 +128,5 @@ __all__ = [
     "RoutingPolicy",
     "Attachment",
     "AuditLog",
+    "Secret",
 ]

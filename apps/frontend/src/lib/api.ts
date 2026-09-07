@@ -1542,3 +1542,18 @@ export interface SloReport {
   generated_at: string;
 }
 export const fetchSlo = () => getJson<SloReport>("/api/v1/slo");
+
+// --- Secret manager (R5) ---
+export interface SecretMeta {
+  name: string;
+  description?: string | null;
+  updated_at: string;
+}
+export const fetchSecrets = () =>
+  getJson<{ items: SecretMeta[]; total: number }>("/api/v1/secrets");
+export const upsertSecret = (name: string, value: string, description?: string) =>
+  sendJson<SecretMeta>("/api/v1/secrets", "PUT", { name, value, description });
+export const revealSecret = (name: string) =>
+  getJson<{ name: string; value: string }>(`/api/v1/secrets/${encodeURIComponent(name)}/reveal`);
+export const deleteSecret = (name: string) =>
+  sendJson<{ status: string }>(`/api/v1/secrets/${encodeURIComponent(name)}`, "DELETE");

@@ -82,8 +82,10 @@ RBAC ✅ (PR 27), eval e baseline ✅ (PR 16 / M10), revisione critica multi-mod
 azioni sensibili registrate), **MFA (TOTP) ✅** (RFC 6238 pure-stdlib, setup/enable/
 disable + login a due fattori, pagina **Sicurezza**). **Amministrazione ridisegnata**
 per semplicità: hub **Admin** (`/admin`) con Utenti, Sicurezza, Impostazioni, Salute.
-**Ancora da fare** (programma di sicurezza dedicato): account di servizio, secret
-manager, PKI completa, SLO/alert/report, supply-chain security.
+**SLO/alert/report ✅** (`slo_service`, `/api/v1/slo`, banner Admin), **secret
+manager ✅** (segreti cifrati a riposo con Fernet, `secret_service` + `/secrets`
+admin, lista senza plaintext + reveal auditato, migrazione 0028). **Ancora da fare**:
+account di servizio, **PKI completa**, supply-chain security.
 Uscita: azioni, dati e decisioni sono autorizzati, valutati e auditabili.
 
 ### R6 — Adaptive
