@@ -84,8 +84,10 @@ disable + login a due fattori, pagina **Sicurezza**). **Amministrazione ridisegn
 per semplicità: hub **Admin** (`/admin`) con Utenti, Sicurezza, Impostazioni, Salute.
 **SLO/alert/report ✅** (`slo_service`, `/api/v1/slo`, banner Admin), **secret
 manager ✅** (segreti cifrati a riposo con Fernet, `secret_service` + `/secrets`
-admin, lista senza plaintext + reveal auditato, migrazione 0028). **Ancora da fare**:
-account di servizio, **PKI completa**, supply-chain security.
+admin, lista senza plaintext + reveal auditato, migrazione 0028), **PKI ✅** (CA
+interna che emette certificati client per l’mTLS dei nodi, `pki_service` + `/pki`
+admin: ca/issue/certs/revoke/crl, chiave CA cifrata nel secret store, migrazione
+0029). **Ancora da fare**: account di servizio, supply-chain security (SBOM/firma).
 Uscita: azioni, dati e decisioni sono autorizzati, valutati e auditabili.
 
 ### R6 — Adaptive

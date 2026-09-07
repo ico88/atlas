@@ -3,15 +3,19 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   AuditEntry,
+  IssuedCertMeta,
   MfaSetup,
   SecretMeta,
   deleteSecret,
   fetchAudit,
+  fetchCerts,
   fetchSecrets,
+  issueCert,
   mfaDisable,
   mfaEnable,
   mfaSetup,
   revealSecret,
+  revokeCert,
   upsertSecret,
   verifyAudit,
 } from "@/lib/api";
@@ -31,6 +35,9 @@ export default function SecurityPage() {
   const [secrets, setSecrets] = useState<SecretMeta[]>([]);
   const [newSecret, setNewSecret] = useState({ name: "", value: "" });
   const [revealed, setRevealed] = useState<Record<string, string>>({});
+  const [certs, setCerts] = useState<IssuedCertMeta[]>([]);
+  const [cn, setCn] = useState("");
+  const [issued, setIssued] = useState<{ cert_pem: string; key_pem: string } | null>(null);
 
   const loadAudit = useCallback(async () => {
     try {
@@ -48,10 +55,19 @@ export default function SecurityPage() {
     }
   }, []);
 
+  const loadCerts = useCallback(async () => {
+    try {
+      setCerts(await fetchCerts());
+    } catch {
+      /* not admin / auth off */
+    }
+  }, []);
+
   useEffect(() => {
     loadAudit();
     loadSecrets();
-  }, [loadAudit, loadSecrets]);
+    loadCerts();
+  }, [loadAudit, loadSecrets, loadCerts]);
 
   const enabled = !!user?.mfa_enabled;
 
@@ -234,6 +250,61 @@ export default function SecurityPage() {
           </div>
         ))}
         {secrets.length === 0 && <p className="muted">{t("sec.noSecrets")}</p>}
+      </div>
+
+      {/* PKI — node certificates */}
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="status-row">
+          <strong>{t("sec.pki")}</strong>
+        </div>
+        <p className="muted" style={{ fontSize: 13 }}>{t("sec.pkiHelp")}</p>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+          <input
+            value={cn}
+            placeholder="common name (es. node-worker-2)"
+            onChange={(e) => setCn(e.target.value)}
+            style={{ flex: "1 1 200px" }}
+          />
+          <button
+            className="btn"
+            disabled={!cn.trim()}
+            onClick={async () => {
+              try {
+                const r = await issueCert(cn.trim());
+                setIssued({ cert_pem: r.cert_pem, key_pem: r.key_pem });
+                setCn("");
+                await loadCerts();
+              } catch (e) {
+                setErr(e instanceof Error ? e.message : "error");
+              }
+            }}
+          >
+            {t("sec.issue")}
+          </button>
+        </div>
+        {issued && (
+          <div className="card" style={{ marginTop: 8 }}>
+            <p className="muted" style={{ fontSize: 12 }}>{t("sec.certOnce")}</p>
+            <pre style={{ overflow: "auto", maxHeight: 140 }}>{issued.cert_pem}{issued.key_pem}</pre>
+            <button className="btn secondary" onClick={() => setIssued(null)}>{t("common.delete")}</button>
+          </div>
+        )}
+        {certs.map((c) => (
+          <div className="status-row" key={c.serial}>
+            <span>
+              <strong>{c.common_name}</strong>{" "}
+              <span className="muted" style={{ fontSize: 11 }}>#{c.serial.slice(0, 10)}…</span>
+            </span>
+            {c.revoked ? (
+              <span className="queue-badge idle">{t("sec.revoked")}</span>
+            ) : (
+              <button className="btn secondary" onClick={async () => { await revokeCert(c.serial); await loadCerts(); }}>
+                {t("sec.revoke")}
+              </button>
+            )}
+          </div>
+        ))}
+        {certs.length === 0 && <p className="muted">{t("sec.noCerts")}</p>}
       </div>
 
       {/* Audit log */}

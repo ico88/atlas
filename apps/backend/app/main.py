@@ -27,6 +27,7 @@ from app.api import (
     metrics,
     models,
     nodes,
+    pki,
     query,
     rag,
     review,
@@ -171,6 +172,7 @@ def create_app() -> FastAPI:
     app.include_router(attachments.router)
     app.include_router(audit.router)
     app.include_router(secrets.router)
+    app.include_router(pki.router)
 
     return app
 

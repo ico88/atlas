@@ -1557,3 +1557,22 @@ export const revealSecret = (name: string) =>
   getJson<{ name: string; value: string }>(`/api/v1/secrets/${encodeURIComponent(name)}/reveal`);
 export const deleteSecret = (name: string) =>
   sendJson<{ status: string }>(`/api/v1/secrets/${encodeURIComponent(name)}`, "DELETE");
+
+// --- PKI (R5) ---
+export interface IssuedCertMeta {
+  serial: string;
+  common_name: string;
+  revoked: boolean;
+  not_after?: string | null;
+  created_at: string;
+}
+export const fetchCa = () => getJson<{ ca_pem: string }>("/api/v1/pki/ca");
+export const fetchCerts = () => getJson<IssuedCertMeta[]>("/api/v1/pki/certs");
+export const issueCert = (common_name: string) =>
+  sendJson<{ common_name: string; serial: string; cert_pem: string; key_pem: string; ca_pem: string }>(
+    "/api/v1/pki/issue",
+    "POST",
+    { common_name },
+  );
+export const revokeCert = (serial: string) =>
+  sendJson<{ status: string }>(`/api/v1/pki/revoke/${encodeURIComponent(serial)}`, "POST");
