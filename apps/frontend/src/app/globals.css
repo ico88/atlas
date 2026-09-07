@@ -525,6 +525,34 @@ button:active:not(:disabled) {
   border-radius: 8px;
 }
 
+/* Admin hub */
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+.admin-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+}
+.admin-card:hover {
+  border-color: var(--accent);
+  background: var(--panel-2, var(--panel));
+  transform: translateY(-1px);
+}
+.admin-card-icon {
+  font-size: 26px;
+  line-height: 1;
+}
+
 .progress-bar {
   height: 8px;
   border-radius: 999px;

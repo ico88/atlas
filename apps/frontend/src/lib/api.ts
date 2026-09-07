@@ -82,6 +82,7 @@ export interface AuthUser {
   full_name?: string | null;
   role: string;
   is_active: boolean;
+  mfa_enabled?: boolean;
 }
 
 export async function login(email: string, password: string): Promise<string> {
@@ -1498,3 +1499,30 @@ export interface TaskProgress {
 export async function fetchTaskProgress(id: string): Promise<TaskProgress> {
   return getJson(`/api/v1/tasks/${id}`);
 }
+
+// --- MFA (R5) ---
+export interface MfaSetup {
+  secret: string;
+  otpauth_uri: string;
+}
+export const mfaSetup = () =>
+  postJson<MfaSetup>("/api/v1/auth/mfa/setup", {});
+export const mfaEnable = (code: string) =>
+  postJson<AuthUser>("/api/v1/auth/mfa/enable", { code });
+export const mfaDisable = (code: string) =>
+  postJson<AuthUser>("/api/v1/auth/mfa/disable", { code });
+
+// --- Audit log (R5) ---
+export interface AuditEntry {
+  seq: number;
+  actor: string;
+  action: string;
+  target?: string | null;
+  detail?: Record<string, unknown> | null;
+  hash: string;
+  created_at: string;
+}
+export const fetchAudit = () =>
+  getJson<{ items: AuditEntry[]; total: number }>("/api/v1/audit");
+export const verifyAudit = () =>
+  getJson<{ ok: boolean; count: number; broken_at?: number }>("/api/v1/audit/verify");

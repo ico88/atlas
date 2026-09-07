@@ -21,6 +21,7 @@ type Auth = {
   ready: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  refresh: () => Promise<void>;
 };
 
 const AuthContext = createContext<Auth>({
@@ -28,6 +29,7 @@ const AuthContext = createContext<Auth>({
   ready: false,
   login: async () => {},
   logout: () => {},
+  refresh: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -58,8 +60,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const refresh = useCallback(async () => {
+    if (loadAuthToken()) {
+      try {
+        setUser(await fetchMe());
+      } catch {
+        /* ignore */
+      }
+    }
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, ready, login, logout }}>
+    <AuthContext.Provider value={{ user, ready, login, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   );

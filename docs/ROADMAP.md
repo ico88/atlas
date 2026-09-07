@@ -79,9 +79,11 @@ Uscita: ogni risposta web è tracciabile e supportata da fonti consultabili.
 RBAC ✅ (PR 27), eval e baseline ✅ (PR 16 / M10), revisione critica multi-modello
 ✅ (PR 19), **audit append-only ✅** (log a catena di hash, tamper-evident:
 `audit_service` + `AuditLog`, migrazione 0026, API `/audit` e `/audit/verify`,
-azioni sensibili registrate). **Ancora da fare** (programma di sicurezza dedicato):
-MFA e account di servizio, secret manager, PKI completa, SLO/alert/report,
-supply-chain security.
+azioni sensibili registrate), **MFA (TOTP) ✅** (RFC 6238 pure-stdlib, setup/enable/
+disable + login a due fattori, pagina **Sicurezza**). **Amministrazione ridisegnata**
+per semplicità: hub **Admin** (`/admin`) con Utenti, Sicurezza, Impostazioni, Salute.
+**Ancora da fare** (programma di sicurezza dedicato): account di servizio, secret
+manager, PKI completa, SLO/alert/report, supply-chain security.
 Uscita: azioni, dati e decisioni sono autorizzati, valutati e auditabili.
 
 ### R6 — Adaptive

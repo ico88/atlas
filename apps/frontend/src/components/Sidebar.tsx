@@ -50,7 +50,9 @@ const NAV_GROUPS: { section?: string; items: { href: string; key: string }[] }[]
   {
     section: "nav.section.admin",
     items: [
+      { href: "/admin", key: "nav.admin" },
       { href: "/users", key: "nav.users" },
+      { href: "/admin/security", key: "nav.security" },
       { href: "/settings", key: "nav.settings" },
     ],
   },
