@@ -134,6 +134,23 @@ jobs:
           shellcheck -x atlas infrastructure/scripts/install.sh
           shellcheck infrastructure/scripts/lib/*.sh
 
+  sbom:
+    name: SBOM (supply chain)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python SBOM (CycloneDX)
+        run: infrastructure/scripts/sbom.sh sbom.python.json
+      - name: Frontend SBOM (npm)
+        working-directory: apps/frontend
+        run: npm sbom --sbom-format cyclonedx > ../../sbom.frontend.json || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: |
+            sbom.python.json
+            sbom.frontend.json
+
   secret-scan:
     name: Secret scan
     runs-on: ubuntu-latest

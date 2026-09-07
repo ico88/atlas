@@ -33,6 +33,7 @@ from app.api import (
     review,
     runtimes,
     secrets,
+    service_accounts,
     setup,
     system,
     tasks,
@@ -173,6 +174,7 @@ def create_app() -> FastAPI:
     app.include_router(audit.router)
     app.include_router(secrets.router)
     app.include_router(pki.router)
+    app.include_router(service_accounts.router)
 
     return app
 

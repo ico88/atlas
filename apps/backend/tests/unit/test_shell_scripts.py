@@ -119,6 +119,19 @@ def test_guided_discover_candidates_without_ip():
     assert lines == ["http://host.docker.internal"]
 
 
+def test_sbom_generates_valid_cyclonedx(tmp_path):
+    out = tmp_path / "sbom.json"
+    r = _bash(f"infrastructure/scripts/sbom.sh {out}")
+    assert r.returncode == 0, r.stderr
+    import json as _json
+
+    data = _json.loads(out.read_text())
+    assert data["bomFormat"] == "CycloneDX"
+    assert len(data["components"]) > 0
+    # Every component carries a pypi purl.
+    assert all(c["purl"].startswith("pkg:pypi/") for c in data["components"])
+
+
 def test_cli_help_lists_new_commands():
     r = _bash("./atlas help")
     for token in ("model-prune", "gpu-status", "update --resume"):

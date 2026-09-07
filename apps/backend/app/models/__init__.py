@@ -64,6 +64,7 @@ from app.models.runtime import (
     Runtime,
 )
 from app.models.secret import Secret
+from app.models.service_account import ServiceAccount
 from app.models.task import Task, TaskDependency, TaskEvent, TaskStatus
 from app.models.user import User
 
@@ -131,4 +132,5 @@ __all__ = [
     "AuditLog",
     "Secret",
     "IssuedCert",
+    "ServiceAccount",
 ]

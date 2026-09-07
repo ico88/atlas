@@ -87,7 +87,11 @@ manager ✅** (segreti cifrati a riposo con Fernet, `secret_service` + `/secrets
 admin, lista senza plaintext + reveal auditato, migrazione 0028), **PKI ✅** (CA
 interna che emette certificati client per l’mTLS dei nodi, `pki_service` + `/pki`
 admin: ca/issue/certs/revoke/crl, chiave CA cifrata nel secret store, migrazione
-0029). **Ancora da fare**: account di servizio, supply-chain security (SBOM/firma).
+0029), **account di servizio ✅** (identità API non umane con token revocabili
+`atlas_sa_…`, solo hash memorizzato, `/service-accounts` + header `X-Service-Token`,
+migrazione 0030), **supply-chain ✅** (SBOM CycloneDX in CI — `sbom.sh` per Python
+e `npm sbom` per il frontend — + secret scan Gitleaks; firma immagini come step di
+deploy, documentata). **R5 completa.** Vedi [SECURITY.md](SECURITY.md).
 Uscita: azioni, dati e decisioni sono autorizzati, valutati e auditabili.
 
 ### R6 — Adaptive
