@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+    code: str | None = None  # TOTP code, required when the user has MFA enabled
 
 
 class TokenResponse(BaseModel):
@@ -25,4 +26,14 @@ class UserRead(BaseModel):
     full_name: str | None
     role: str
     is_active: bool
+    mfa_enabled: bool = False
     created_at: datetime
+
+
+class MfaSetupResponse(BaseModel):
+    secret: str
+    otpauth_uri: str
+
+
+class MfaCode(BaseModel):
+    code: str
