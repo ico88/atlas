@@ -187,6 +187,11 @@ class Settings(BaseSettings):
     # Benchmark probe: max tokens to generate when measuring tokens/sec.
     runtime_benchmark_max_tokens: int = 64
 
+    # Service-level objectives (ROADMAP R5). Targets the SLO report checks; a value
+    # below target raises an advisory alert on the Admin page.
+    slo_task_success_target: float = 0.95  # completed / (completed + failed)
+    slo_nodes_online_target: float = 0.90  # online / total (when nodes exist)
+
     # RAG / Memory (spec §6, §8, M8).
     embedding_dim: int = 256  # dimension of the local hashing embedder
     embedding_model: str = "nomic-embed-text"  # Ollama model when available

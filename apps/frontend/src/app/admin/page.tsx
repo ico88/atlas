@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { SloReport, fetchSlo } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 
@@ -16,11 +18,35 @@ const CARDS: Card[] = [
 export default function AdminPage() {
   const { t } = useI18n();
   const { user } = useAuth();
+  const [slo, setSlo] = useState<SloReport | null>(null);
+
+  useEffect(() => {
+    fetchSlo().then(setSlo).catch(() => {});
+  }, []);
 
   return (
     <div>
       <h1 className="page-title">{t("admin.title")}</h1>
       <p className="page-subtitle">{t("admin.subtitle")}</p>
+
+      {slo && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="status-row">
+            <strong>{t("admin.slo")}</strong>
+            <span className={`queue-badge ${slo.ok ? "active" : "idle"}`}>
+              {slo.ok ? t("admin.sloOk") : `${slo.alerts.length} ${t("admin.sloAlerts")}`}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 6 }}>
+            {slo.slos.map((s) => (
+              <span key={s.name} className="pill" style={{ fontSize: 12 }}>
+                <span className={`dot ${s.ok ? "ok" : "bad"}`} /> {s.name}:{" "}
+                {s.unit === "bool" ? (s.value ? "ok" : "down") : `${Math.round(s.value * 100)}%`}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {user && (
         <p className="muted" style={{ marginBottom: 16 }}>

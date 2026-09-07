@@ -1526,3 +1526,19 @@ export const fetchAudit = () =>
   getJson<{ items: AuditEntry[]; total: number }>("/api/v1/audit");
 export const verifyAudit = () =>
   getJson<{ ok: boolean; count: number; broken_at?: number }>("/api/v1/audit/verify");
+
+// --- SLO (R5) ---
+export interface SloItem {
+  name: string;
+  value: number;
+  target: number;
+  ok: boolean;
+  unit: string;
+}
+export interface SloReport {
+  slos: SloItem[];
+  alerts: { slo: string; value: number; target: number }[];
+  ok: boolean;
+  generated_at: string;
+}
+export const fetchSlo = () => getJson<SloReport>("/api/v1/slo");

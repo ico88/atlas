@@ -102,3 +102,18 @@ async def system_metrics(
         nodes_online=nodes_online,
         approvals_pending=approvals_pending,
     )
+
+
+@router.get("/api/v1/slo")
+async def system_slo(session: AsyncSession = Depends(get_session)) -> dict:
+    """Service-level objectives + advisory alerts (ROADMAP R5)."""
+
+    from app.services import slo_service
+
+    # Redis reachability stands in for control-plane health here.
+    healthy = True
+    try:
+        await redis_client.get_redis().ping()
+    except Exception:  # noqa: BLE001 - unreachable Redis => unhealthy SLO
+        healthy = False
+    return await slo_service.report(session, healthy=healthy)
