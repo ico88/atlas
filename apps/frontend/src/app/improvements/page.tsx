@@ -9,11 +9,13 @@ import {
   approveApproval,
   autoPropose,
   createProposal,
+  evaluateCanary,
   experimentProposal,
   fetchApprovals,
   fetchEvalSuites,
   fetchProposals,
   rejectApproval,
+  startCanary,
 } from "@/lib/api";
 
 function pct(v?: number | null): string {
@@ -318,19 +320,55 @@ export default function ImprovementsPage() {
                   )}
 
                 {selected.status === "APPROVED" && (
+                  <>
+                    <button
+                      className="btn"
+                      disabled={busy}
+                      title="Roll out to a watched canary, then promote or auto-rollback"
+                      onClick={() => act(() => startCanary(selected.id))}
+                    >
+                      Start canary
+                    </button>
+                    <button
+                      className="btn secondary"
+                      disabled={busy}
+                      onClick={() => act(() => applyProposal(selected.id))}
+                    >
+                      Apply directly
+                    </button>
+                  </>
+                )}
+
+                {selected.status === "CANARY" && (
                   <button
                     className="btn"
                     disabled={busy}
-                    onClick={() => act(() => applyProposal(selected.id))}
+                    title="Run the health gate: promote if healthy, else auto-rollback"
+                    onClick={() => act(() => evaluateCanary(selected.id))}
                   >
-                    Apply approved change
+                    Evaluate canary (health gate)
                   </button>
                 )}
 
                 {selected.status === "APPLIED" && (
                   <span className="queue-badge active">✓ applied</span>
                 )}
+                {selected.status === "ROLLED_BACK" && (
+                  <span className="queue-badge">↩ rolled back</span>
+                )}
               </div>
+
+              {selected.status === "CANARY" && (
+                <p className="muted" style={{ marginTop: 8, fontSize: 12 }}>
+                  🐤 Canary live — the candidate is active. Evaluate to promote it or
+                  automatically roll back on a regression.
+                </p>
+              )}
+              {selected.comparison?.canary?.reason && (
+                <p className="muted" style={{ marginTop: 4, fontSize: 12 }}>
+                  Health gate: {String(selected.comparison.canary.reason)}
+                </p>
+              )}
 
               {selected.status === "EXPERIMENTED" && !pendingApprovalFor(selected.id) && (
                 <p className="muted" style={{ marginTop: 8, fontSize: 12 }}>

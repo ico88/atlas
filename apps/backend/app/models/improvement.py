@@ -24,7 +24,9 @@ class ProposalStatus(str, enum.Enum):
     EXPERIMENTED = "EXPERIMENTED"  # baseline vs candidate compared, awaiting approval
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
-    APPLIED = "APPLIED"
+    CANARY = "CANARY"  # applied to a canary window, watched by the health gate (R6)
+    APPLIED = "APPLIED"  # promoted after the canary passed the health gate
+    ROLLED_BACK = "ROLLED_BACK"  # canary regressed; reverted to the previous state
 
 
 class ProposalCategory(str, enum.Enum):

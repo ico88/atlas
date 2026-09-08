@@ -7,7 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.schemas.improvement import ProposalCreate, ProposalList, ProposalRead
-from app.services import improvement_service
+from app.services import canary_service, improvement_service
+from app.services.canary_service import CanaryError
 from app.services.improvement_service import ImprovementStateError
 
 router = APIRouter(prefix="/api/v1/improvements", tags=["improvements"])
@@ -96,5 +97,39 @@ async def apply_proposal(
     try:
         proposal = await improvement_service.apply_proposal(session, proposal)
     except ImprovementStateError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return ProposalRead.model_validate(proposal)
+
+
+@router.post("/proposals/{proposal_id}/canary", response_model=ProposalRead)
+async def start_canary(
+    proposal_id: str,
+    session: AsyncSession = Depends(get_session),
+) -> ProposalRead:
+    """Roll out an APPROVED proposal to a watched canary window (R6)."""
+
+    proposal = await improvement_service.get_proposal(session, proposal_id)
+    if proposal is None:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    try:
+        proposal = await canary_service.start(session, proposal)
+    except CanaryError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return ProposalRead.model_validate(proposal)
+
+
+@router.post("/proposals/{proposal_id}/canary/evaluate", response_model=ProposalRead)
+async def evaluate_canary(
+    proposal_id: str,
+    session: AsyncSession = Depends(get_session),
+) -> ProposalRead:
+    """Run the health gate: promote (APPLIED) or auto-rollback (ROLLED_BACK)."""
+
+    proposal = await improvement_service.get_proposal(session, proposal_id)
+    if proposal is None:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    try:
+        proposal = await canary_service.evaluate(session, proposal)
+    except CanaryError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     return ProposalRead.model_validate(proposal)

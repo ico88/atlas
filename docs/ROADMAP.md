@@ -95,9 +95,16 @@ deploy, documentata). **R5 completa.** Vedi [SECURITY.md](SECURITY.md).
 Uscita: azioni, dati e decisioni sono autorizzati, valutati e auditabili.
 
 ### R6 — Adaptive
-Provider GitHub reale e sandbox; patch, test e PR automatiche ma governate;
-esperimenti A/B; Continuous Improvement; canary, health gate e rollback;
-diagnosi collaborativa con l'utente.
+Provider GitHub reale e sandbox ✅ (PR 17: sandbox isolata, PR reale opt-in dietro
+approvazione, guardrail `AuditGitProvider`), esperimenti **A/B** ✅ (baseline vs
+candidato su suite di eval, `improvement_service`), **Continuous Improvement** ✅
+(proposer autonomo + `propose_now`), **canary + health gate + rollback ✅**
+(`canary_service`: applica il candidato a una finestra CANARY, il health gate
+confronta qualità misurata + salute e **promuove** o fa **auto-rollback** al
+default precedente; stati `CANARY`/`APPLIED`/`ROLLED_BACK`; API
+`/improvements/proposals/{id}/canary` e `/canary/evaluate`; UI su **Improvements**),
+diagnosi collaborativa con l'utente ✅ (escalation manuale PR 18 + gate di
+approvazione). **R6 completa.**
 Uscita: ATLAS può proporre e verificare miglioramenti senza applicarli fuori dai
 guardrail o senza approvazione.
 

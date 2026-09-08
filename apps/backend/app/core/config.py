@@ -195,6 +195,10 @@ class Settings(BaseSettings):
     slo_task_success_target: float = 0.95  # completed / (completed + failed)
     slo_nodes_online_target: float = 0.90  # online / total (when nodes exist)
 
+    # Canary health gate (ROADMAP R6): how much measured quality a candidate may
+    # drop vs the baseline before the canary auto-rolls-back.
+    canary_quality_tolerance: float = 0.05
+
     # RAG / Memory (spec §6, §8, M8).
     embedding_dim: int = 256  # dimension of the local hashing embedder
     embedding_model: str = "nomic-embed-text"  # Ollama model when available

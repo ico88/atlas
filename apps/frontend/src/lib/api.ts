@@ -851,7 +851,11 @@ export interface ImprovementProposal {
   status: string;
   baseline_run_id?: string | null;
   candidate_run_id?: string | null;
-  comparison?: { deltas?: Record<string, number | null>; verdict?: string } | null;
+  comparison?: {
+    deltas?: Record<string, number | null>;
+    verdict?: string;
+    canary?: { decision?: string; reason?: string; [k: string]: unknown };
+  } | null;
   recommendation?: string | null;
   created_at: string;
   updated_at: string;
@@ -884,6 +888,16 @@ export const experimentProposal = (id: string) =>
 export const applyProposal = (id: string) =>
   postJson<ImprovementProposal>(
     `/api/v1/improvements/proposals/${encodeURIComponent(id)}/apply`,
+  );
+
+export const startCanary = (id: string) =>
+  postJson<ImprovementProposal>(
+    `/api/v1/improvements/proposals/${encodeURIComponent(id)}/canary`,
+  );
+
+export const evaluateCanary = (id: string) =>
+  postJson<ImprovementProposal>(
+    `/api/v1/improvements/proposals/${encodeURIComponent(id)}/canary/evaluate`,
   );
 
 // --- Memory lifecycle (PR 14) ---
