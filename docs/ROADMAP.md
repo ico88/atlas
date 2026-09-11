@@ -108,6 +108,26 @@ approvazione). **R6 completa.**
 Uscita: ATLAS può proporre e verificare miglioramenti senza applicarli fuori dai
 guardrail o senza approvazione.
 
+### Self-Improvement — Fine-tuning locale (LoRA) ✅
+Oltre a *selezionare e configurare* il modello migliore, ATLAS può ora
+*migliorare il modello stesso* dalle proprie buone interazioni, in locale:
+**dataset** curati (raccolta automatica delle risposte con feedback 👍 →
+coppie `prompt → response`, dedup per hash, più aggiunta manuale;
+`finetune_service.curate_from_feedback`), **export** in JSONL chat
+(`build_jsonl`, puro e testato), **training** di un adapter **LoRA** su un nodo
+con capability `gpu` (task `fine_tune` dispatchato al nodo; il control plane non
+addestra mai; l'executor del node-agent richiede onestamente una GPU + un
+trainer via `ATLAS_TRAIN_CMD`, oppure `simulate=true` per un dry-run, e
+*fallisce esplicitamente* se non c'è backend invece di fingere), e **adozione**
+che instrada l'adapter finito negli **stessi guardrail** eval + canary
+(`adopt_job` crea una proposta di miglioramento: il modello fine-tuned diventa
+default solo se batte la baseline sulle eval e supera l'health gate del canary).
+API `/api/v1/finetune/*`; UI su **Fine-tuning**. Vedi
+[FINE_TUNING.md](FINE_TUNING.md).
+Uscita: ATLAS impara dai propri successi senza inviare dati fuori e senza
+scavalcare i guardrail; il tetto di intelligenza resta il modello di base, ma
+l'adattamento al dominio dell'utente è reale e verificato.
+
 ### R7 — Highly Available
 Control plane replicato; PostgreSQL e coda altamente disponibili; leader
 election e fencing; endpoint virtuale; backup fuori sito; prove automatiche di

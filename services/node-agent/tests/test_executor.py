@@ -57,6 +57,76 @@ def test_pull_percent_pure():
     assert pull_percent({"completed": 5, "total": 0}) is None
 
 
+def test_count_records_pure():
+    from agent.executor import count_records
+    assert count_records('{"a":1}\n{"b":2}\n\n  ') == 2
+    assert count_records("") == 0
+
+
+def test_simulated_metrics_loss_decreases_with_data():
+    from agent.executor import simulated_metrics
+    small = simulated_metrics(2, 3)["final_loss"]
+    large = simulated_metrics(50, 3)["final_loss"]
+    assert large < small
+
+
+@pytest.mark.asyncio
+async def test_fine_tune_simulate_completes_with_metrics():
+    seen: list[int] = []
+
+    async def cb(pct, status):
+        seen.append(pct)
+
+    result = await execute_task(
+        {
+            "id": "ft1",
+            "type": "fine_tune",
+            "payload": {
+                "base_model": "llama3.2:3b",
+                "adapter_name": "llama3.2-mine-ft",
+                "training_data": '{"messages":[]}\n{"messages":[]}',
+                "simulate": True,
+                "hyperparams": {"epochs": 2},
+            },
+        },
+        progress_cb=cb,
+    )
+    assert result["status"] == "completed"
+    assert result["result"]["model"] == "llama3.2-mine-ft"
+    assert result["result"]["metrics"]["examples"] == 2
+    assert seen[-1] == 100
+
+
+@pytest.mark.asyncio
+async def test_fine_tune_without_backend_fails_honestly(monkeypatch):
+    import agent.executor as ex
+
+    monkeypatch.delenv("ATLAS_TRAIN_CMD", raising=False)
+    monkeypatch.setattr(ex.shutil, "which", lambda _: None)
+    result = await execute_task(
+        {
+            "id": "ft2",
+            "type": "fine_tune",
+            "payload": {
+                "base_model": "m",
+                "adapter_name": "a",
+                "training_data": '{"messages":[]}',
+            },
+        }
+    )
+    assert result["status"] == "failed"
+    assert "training backend" in result["error"]
+
+
+@pytest.mark.asyncio
+async def test_fine_tune_requires_fields():
+    result = await execute_task(
+        {"id": "ft3", "type": "fine_tune", "payload": {"training_data": "x"}}
+    )
+    assert result["status"] == "failed"
+    assert "required" in result["error"]
+
+
 @pytest.mark.asyncio
 async def test_pull_model_reports_progress(monkeypatch):
     seen: list[int] = []

@@ -13,6 +13,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
+import shutil
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -72,6 +74,132 @@ async def pull_model(
         return {"status": "failed", "error": f"ollama pull failed: {exc}"}
 
 
+def count_records(training_data: str) -> int:
+    """Pure: number of non-blank JSONL training records."""
+
+    return sum(1 for line in (training_data or "").splitlines() if line.strip())
+
+
+def simulated_metrics(n: int, epochs: int) -> dict[str, Any]:
+    """Deterministic training metrics for a dry-run/simulated LoRA.
+
+    Loss decays with the amount of data and epochs seen; purely illustrative so
+    the pipeline is exercisable end-to-end without a GPU. Real training replaces
+    this with metrics reported by the trainer.
+    """
+
+    steps = max(1, n * max(1, epochs))
+    final_loss = round(2.0 / (1.0 + steps / 8.0), 4)
+    return {"examples": n, "epochs": epochs, "steps": steps, "final_loss": final_loss}
+
+
+def gpu_available() -> bool:
+    """Best-effort: is a GPU trainer plausibly present on this node?"""
+
+    if os.environ.get("ATLAS_TRAIN_CMD"):
+        return True
+    return bool(shutil.which("nvidia-smi") or shutil.which("rocminfo"))
+
+
+async def run_fine_tune(
+    payload: dict[str, Any], on_progress: ProgressCb | None = None
+) -> dict[str, Any]:
+    """Train a LoRA adapter from the task payload's JSONL training data.
+
+    Honest by design: real training needs a GPU + a trainer, so unless the node
+    is explicitly asked to ``simulate`` (dry-run / tests) or has a configured
+    trainer, this reports failure instead of pretending. When a trainer command
+    is configured via ``ATLAS_TRAIN_CMD`` the real path is taken.
+    """
+
+    base_model = str(payload.get("base_model") or "").strip()
+    adapter_name = str(payload.get("adapter_name") or "").strip()
+    training_data = str(payload.get("training_data") or "")
+    if not base_model or not adapter_name:
+        return {"status": "failed", "error": "fine_tune: base_model and adapter_name required"}
+    n = count_records(training_data)
+    if n == 0:
+        return {"status": "failed", "error": "fine_tune: no training records"}
+    hyper = payload.get("hyperparams") or {}
+    epochs = int(hyper.get("epochs", 3))
+
+    if payload.get("simulate"):
+        for pct in (10, 40, 70, 100):
+            if on_progress is not None:
+                await on_progress(pct, "training" if pct < 100 else "done")
+        return {
+            "status": "completed",
+            "result": {
+                "model": adapter_name,
+                "base_model": base_model,
+                "adapter": f"{adapter_name}.lora",
+                "metrics": simulated_metrics(n, epochs),
+                "simulated": True,
+            },
+        }
+
+    cmd = os.environ.get("ATLAS_TRAIN_CMD")
+    if not cmd:
+        return {
+            "status": "failed",
+            "error": (
+                "fine_tune: no local training backend. Fine-tuning requires a GPU "
+                "and a trainer; set ATLAS_TRAIN_CMD on the node, or dispatch with "
+                "simulate=true for a dry run."
+            ),
+        }
+    return await _run_trainer(cmd, payload, n, epochs, on_progress)
+
+
+async def _run_trainer(
+    cmd: str,
+    payload: dict[str, Any],
+    n: int,
+    epochs: int,
+    on_progress: ProgressCb | None,
+) -> dict[str, Any]:
+    """Invoke the configured trainer command, passing the JSONL on stdin.
+
+    The trainer is expected to print a final JSON line with at least ``model``
+    (the registered adapter tag) and optional ``metrics``.
+    """
+
+    if on_progress is not None:
+        await on_progress(5, "starting trainer")
+    env = {
+        **os.environ,
+        "ATLAS_FT_BASE_MODEL": str(payload.get("base_model") or ""),
+        "ATLAS_FT_ADAPTER_NAME": str(payload.get("adapter_name") or ""),
+        "ATLAS_FT_EPOCHS": str(epochs),
+    }
+    try:
+        proc = await asyncio.create_subprocess_shell(
+            cmd,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            env=env,
+        )
+        out, _ = await proc.communicate(str(payload.get("training_data") or "").encode())
+    except OSError as exc:
+        return {"status": "failed", "error": f"fine_tune: trainer failed to start: {exc}"}
+    if proc.returncode != 0:
+        tail = out.decode(errors="replace")[-500:]
+        return {"status": "failed", "error": f"fine_tune: trainer exited {proc.returncode}: {tail}"}
+    result: dict[str, Any] = {"model": payload.get("adapter_name"), "metrics": {"examples": n}}
+    for line in reversed(out.decode(errors="replace").splitlines()):
+        line = line.strip()
+        if line.startswith("{"):
+            try:
+                result = {**result, **json.loads(line)}
+                break
+            except json.JSONDecodeError:
+                continue
+    if on_progress is not None:
+        await on_progress(100, "done")
+    return {"status": "completed", "result": result}
+
+
 async def execute_task(
     task: dict[str, Any],
     work_seconds: float = 0.05,
@@ -89,6 +217,10 @@ async def execute_task(
         endpoint = str(payload.get("ollama_url") or ollama_url)
         logger.info("pulling model %s via %s", model, endpoint)
         return await pull_model(endpoint, model, on_progress=progress_cb)
+
+    if task.get("type") == "fine_tune":
+        logger.info("fine-tuning %s from %s", payload.get("adapter_name"), payload.get("base_model"))
+        return await run_fine_tune(payload, on_progress=progress_cb)
 
     await asyncio.sleep(work_seconds)
     return {

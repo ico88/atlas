@@ -42,6 +42,7 @@ const NAV_GROUPS: { section?: string; items: { href: string; key: string }[] }[]
     items: [
       { href: "/maintenance", key: "nav.maintenance" },
       { href: "/improvements", key: "nav.improvements" },
+      { href: "/finetune", key: "nav.finetune" },
       { href: "/reviews", key: "nav.reviews" },
       { href: "/evals", key: "nav.evals" },
       { href: "/escalation", key: "nav.escalation" },

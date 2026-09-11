@@ -21,6 +21,7 @@ from app.api import (
     enrollment,
     environment,
     escalation,
+    finetune,
     fleet,
     improvement,
     maintenance,
@@ -175,6 +176,7 @@ def create_app() -> FastAPI:
     app.include_router(secrets.router)
     app.include_router(pki.router)
     app.include_router(service_accounts.router)
+    app.include_router(finetune.router)
 
     return app
 

@@ -1590,3 +1590,91 @@ export const issueCert = (common_name: string) =>
   );
 export const revokeCert = (serial: string) =>
   sendJson<{ status: string }>(`/api/v1/pki/revoke/${encodeURIComponent(serial)}`, "POST");
+
+// --- Local fine-tuning (self-improvement) ---
+export interface FineTuneDataset {
+  id: string;
+  name: string;
+  description?: string | null;
+  base_model?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+export interface FineTuneExample {
+  id: string;
+  dataset_id: string;
+  system_prompt?: string | null;
+  prompt: string;
+  response: string;
+  source: string;
+  source_id?: string | null;
+  quality: number;
+  included: boolean;
+  created_at: string;
+}
+export interface FineTuneJob {
+  id: string;
+  dataset_id: string;
+  base_model: string;
+  adapter_name: string;
+  method: string;
+  status: string;
+  task_id?: string | null;
+  example_count: number;
+  hyperparams?: Record<string, unknown> | null;
+  metrics?: Record<string, unknown> | null;
+  output?: Record<string, unknown> | null;
+  error?: string | null;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string | null;
+}
+export interface FineTuneReadiness {
+  gpu_node_available: boolean;
+  gpu_node_names: string[];
+  positive_feedback: number;
+  recommended_min_examples: number;
+}
+
+export const fetchFtReadiness = () =>
+  getJson<FineTuneReadiness>("/api/v1/finetune/readiness");
+export const fetchFtDatasets = () =>
+  getJson<{ items: FineTuneDataset[]; total: number }>("/api/v1/finetune/datasets");
+export const createFtDataset = (body: {
+  name: string;
+  description?: string;
+  base_model?: string;
+}) => postJson<FineTuneDataset>("/api/v1/finetune/datasets", body);
+export const deleteFtDataset = (id: string) =>
+  sendJson<{ status: string }>(`/api/v1/finetune/datasets/${encodeURIComponent(id)}`, "DELETE");
+export const fetchFtExamples = (id: string) =>
+  getJson<{ items: FineTuneExample[]; total: number }>(
+    `/api/v1/finetune/datasets/${encodeURIComponent(id)}/examples`,
+  );
+export const addFtExample = (
+  id: string,
+  body: { prompt: string; response: string; system_prompt?: string },
+) => postJson<FineTuneExample>(`/api/v1/finetune/datasets/${encodeURIComponent(id)}/examples`, body);
+export const setFtExampleIncluded = (exampleId: string, included: boolean) =>
+  sendJson<FineTuneExample>(
+    `/api/v1/finetune/examples/${encodeURIComponent(exampleId)}`,
+    "PATCH",
+    { included },
+  );
+export const curateFtDataset = (id: string, minRating = 1) =>
+  postJson<{ added: number }>(
+    `/api/v1/finetune/datasets/${encodeURIComponent(id)}/curate`,
+    { min_rating: minRating },
+  );
+export const fetchFtJobs = (datasetId?: string) =>
+  getJson<{ items: FineTuneJob[]; total: number }>(
+    `/api/v1/finetune/jobs${datasetId ? `?dataset_id=${encodeURIComponent(datasetId)}` : ""}`,
+  );
+export const createFtJob = (body: {
+  dataset_id: string;
+  base_model?: string;
+  adapter_name?: string;
+  hyperparams?: Record<string, unknown>;
+}) => postJson<FineTuneJob>("/api/v1/finetune/jobs", body);
+export const adoptFtJob = (id: string) =>
+  postJson<ImprovementProposal>(`/api/v1/finetune/jobs/${encodeURIComponent(id)}/adopt`);

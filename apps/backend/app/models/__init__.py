@@ -29,6 +29,12 @@ from app.models.eval import (
     EvalRunStatus,
     EvalSuite,
 )
+from app.models.finetune import (
+    FineTuneDataset,
+    FineTuneExample,
+    FineTuneJob,
+    FineTuneJobStatus,
+)
 from app.models.improvement import (
     ImprovementProposal,
     ProposalCategory,
@@ -133,4 +139,8 @@ __all__ = [
     "Secret",
     "IssuedCert",
     "ServiceAccount",
+    "FineTuneDataset",
+    "FineTuneExample",
+    "FineTuneJob",
+    "FineTuneJobStatus",
 ]
