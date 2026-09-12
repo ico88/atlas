@@ -109,6 +109,13 @@ class Settings(BaseSettings):
     code_review_long_file_lines: int = 450
     code_review_root: str = ""  # blank -> derived from the installed package
 
+    # LLM code-patch pipeline: ATLAS asks a code-capable local model to write the
+    # actual fix for a self-review finding, validates it in the sandbox, and opens
+    # an approval gate (propose-only; never merges). Requires a coder model — if
+    # none is available the request fails honestly instead of faking a patch.
+    code_patch_model: str = ""  # explicit coder model; blank -> auto-detect
+    code_patch_max_file_bytes: int = 60000  # skip files too large to prompt safely
+
     # Critical review (ROADMAP PR 19). A proposer/critic/verifier/judge pipeline
     # runs up to N rounds and stops early once a candidate clears the accept
     # threshold (adaptive consensus).

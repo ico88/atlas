@@ -231,7 +231,11 @@ def _validate_in_sandbox(patch: str, files: dict[str, str]) -> SandboxResult | N
 
 
 async def create_fix(
-    session: AsyncSession, issue: MaintenanceIssue
+    session: AsyncSession,
+    issue: MaintenanceIssue,
+    *,
+    files: dict[str, str] | None = None,
+    patch: str | None = None,
 ) -> tuple[MaintenanceRun, Approval]:
     """Prepare a fix: branch -> patch -> **real sandbox validation** -> PR preview,
     then open an approval gate (spec §11 steps 5-12; ROADMAP PR 17).
@@ -240,6 +244,10 @@ async def create_fix(
     the repo). Git steps here go through the guard-railed *dry-run* provider as a
     preview only — no real repository is mutated. The real PR is opened later, by
     :func:`apply_fix`, and only after a human approves.
+
+    ``files``/``patch`` may be supplied by a caller that already synthesized a
+    real, repo-grounded patch (e.g. the LLM code-patch pipeline); when omitted a
+    demonstration patch is used.
     """
 
     # Reuse the latest run, or analyze first.
@@ -248,7 +256,8 @@ async def create_fix(
     branch = f"maintenance/{issue.fingerprint[:12]}"
 
     # 1) Build the proposed patch and validate it for real in the sandbox.
-    files, patch = _proposed_patch(issue)
+    if files is None or patch is None:
+        files, patch = _proposed_patch(issue)
     sandbox = _validate_in_sandbox(patch, files)
     if sandbox is not None:
         session.add(

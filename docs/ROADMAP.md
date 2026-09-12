@@ -131,6 +131,19 @@ l'apertura della PR restano dietro il gate di approvazione umano (nessun
 auto-merge). Il feedback 👍/👎 in chat alimenta il segnale di qualità per routing
 adattivo e come dati di training per il fine-tuning.
 
+### Self-Improvement — Patch del proprio codice via LLM (propose-only) ✅
+Il passo oltre il self-review: dato un finding, ATLAS chiede a un **modello locale
+capace di programmare** (auto-rilevato per nome — `*-coder`, `codellama`, … — o
+impostato con `ATLAS_CODE_PATCH_MODEL`) di **riscrivere il file** interessato
+(`code_patch_service`). L'output è verificato con onestà — deve essere parsabile,
+diverso dall'originale e (per Python) compilare — poi la patch è validata nella
+**stessa sandbox isolata** delle altre fix e apre un gate di approvazione
+(`POST /api/v1/maintenance/issues/{id}/propose-patch`; bottone **Generate fix**
+sulle decisioni di codice in Autopilot). **Propose-only**: la patch non viene mai
+unita; se non c'è un modello coder disponibile la richiesta **fallisce
+esplicitamente** invece di fingere. Solo dopo la tua approvazione il flusso di
+maintenance apre la PR (dry-run finché GitHub non è abilitato).
+
 ### Self-Improvement — Fine-tuning locale (LoRA) ✅
 Oltre a *selezionare e configurare* il modello migliore, ATLAS può ora
 *migliorare il modello stesso* dalle proprie buone interazioni, in locale:

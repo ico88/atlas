@@ -1750,3 +1750,9 @@ export const dismissIssue = (id: string) =>
   postJson<{ id: string; status: string }>(
     `/api/v1/maintenance/issues/${encodeURIComponent(id)}/dismiss`,
   );
+
+// ATLAS asks a code-capable model to write the fix (propose-only, then approval).
+export const proposePatch = (issueId: string) =>
+  postJson<{ id: string; status: string }>(
+    `/api/v1/maintenance/issues/${encodeURIComponent(issueId)}/propose-patch`,
+  );

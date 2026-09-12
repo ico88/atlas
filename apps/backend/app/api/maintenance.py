@@ -18,7 +18,13 @@ from app.schemas.maintenance import (
     SandboxRequest,
     SandboxResultRead,
 )
-from app.services import code_review_service, escalation_service, maintenance_service
+from app.services import (
+    code_patch_service,
+    code_review_service,
+    escalation_service,
+    maintenance_service,
+)
+from app.services.code_patch_service import CodePatchError
 from app.services.maintenance_service import MaintenanceStateError
 
 router = APIRouter(prefix="/api/v1/maintenance", tags=["maintenance"])
@@ -90,6 +96,27 @@ async def dismiss_issue(
     if issue is None:
         raise HTTPException(status_code=404, detail="Issue not found")
     return IssueSummary.model_validate(await maintenance_service.dismiss_issue(session, issue))
+
+
+@router.post("/issues/{issue_id}/propose-patch", response_model=RunRead)
+async def propose_patch(
+    issue_id: str,
+    session: AsyncSession = Depends(get_session),
+) -> RunRead:
+    """Have a code-capable model write the fix for a finding (propose-only).
+
+    Validates the patch (syntax + sandbox) and opens an approval gate; nothing is
+    merged. Fails with 400 when no coder model is available (never fakes a patch).
+    """
+
+    issue = await maintenance_service.get_issue(session, issue_id)
+    if issue is None:
+        raise HTTPException(status_code=404, detail="Issue not found")
+    try:
+        run = await code_patch_service.propose_patch(session, issue)
+    except CodePatchError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return RunRead.model_validate(run)
 
 
 @router.post("/issues/{issue_id}/analyze", response_model=RunRead)

@@ -9,6 +9,7 @@ import {
   dismissIssue,
   evaluateCanary,
   fetchAutopilot,
+  proposePatch,
   rejectApproval,
   startCanary,
 } from "@/lib/api";
@@ -198,9 +199,17 @@ export default function AutopilotPage() {
                       )}
                       {it.action === "review_code" && it.issue_id && (
                         <>
+                          <button
+                            className="btn"
+                            disabled={busy}
+                            title="Ask a code-capable model to write the fix (needs a coder model; propose-only)"
+                            onClick={() => act(() => proposePatch(it.issue_id!))}
+                          >
+                            Generate fix
+                          </button>
                           <Link
                             href="/maintenance"
-                            className="btn"
+                            className="btn secondary"
                             style={{ padding: "4px 10px", fontSize: 12 }}
                           >
                             Review
