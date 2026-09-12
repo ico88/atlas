@@ -12,6 +12,7 @@ import {
   fetchIssue,
   fetchIssues,
   rejectApproval,
+  runSelfReview,
 } from "@/lib/api";
 
 const SEV_CLASS: Record<string, string> = {
@@ -27,6 +28,7 @@ export default function MaintenancePage() {
   const [selected, setSelected] = useState<MaintenanceIssue | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -78,6 +80,45 @@ export default function MaintenancePage() {
         the PR — never touching <code>main</code>, never merging. Git actions are
         guard-railed and audited (dry-run unless GitHub is explicitly enabled).
       </p>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span>
+            <strong>Self-review — improve my own code</strong>
+            <span className="muted" style={{ marginLeft: 8, fontSize: 12 }}>
+              ATLAS scans its own source (lint, TODO/FIXME, oversized files) and files each
+              finding as an issue awaiting approval. Runs automatically; this is a manual sweep.
+            </span>
+          </span>
+          <button
+            className="btn"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              setError(null);
+              setNote(null);
+              try {
+                const r = await runSelfReview();
+                setNote(
+                  `Scanned ${r.scanned} file(s): ${r.findings} finding(s), ${r.new_issues} new issue(s).`,
+                );
+                await load();
+              } catch (err) {
+                setError(err instanceof Error ? err.message : "self-review failed");
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            Scan my code now
+          </button>
+        </div>
+        {note && (
+          <p className="muted" style={{ marginTop: 8, fontSize: 13 }}>
+            {note}
+          </p>
+        )}
+      </div>
 
       {error && <p className="error">{error}</p>}
 

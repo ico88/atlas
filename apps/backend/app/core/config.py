@@ -100,6 +100,15 @@ class Settings(BaseSettings):
     improvement_auto_propose_enabled: bool = True
     improvement_auto_propose_interval: float = 3600.0  # seconds between sweeps
 
+    # Code self-review (self-improvement on ATLAS's OWN code, propose-only). ATLAS
+    # scans its source with deterministic checks (ruff, TODO/FIXME markers, long
+    # files) on a timer and files each finding as a maintenance issue awaiting
+    # approval. Nothing touches the repository here — fixes stay human-gated.
+    code_review_auto_enabled: bool = True
+    code_review_interval: float = 21600.0  # seconds between self-review sweeps (6h)
+    code_review_long_file_lines: int = 450
+    code_review_root: str = ""  # blank -> derived from the installed package
+
     # Critical review (ROADMAP PR 19). A proposer/critic/verifier/judge pipeline
     # runs up to N rounds and stops early once a candidate clears the accept
     # threshold (adaptive consensus).

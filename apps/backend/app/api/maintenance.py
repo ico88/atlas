@@ -18,10 +18,23 @@ from app.schemas.maintenance import (
     SandboxRequest,
     SandboxResultRead,
 )
-from app.services import escalation_service, maintenance_service
+from app.services import code_review_service, escalation_service, maintenance_service
 from app.services.maintenance_service import MaintenanceStateError
 
 router = APIRouter(prefix="/api/v1/maintenance", tags=["maintenance"])
+
+
+@router.post("/self-review", status_code=200)
+async def self_review(
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, int]:
+    """Scan ATLAS's own code now and file findings as issues (awaiting approval).
+
+    Propose-only: nothing edits the repository. Returns how many files were
+    scanned, how many findings were seen, and how many were new issues.
+    """
+
+    return await code_review_service.run_self_review(session)
 
 
 @router.post("/logs", response_model=IssueSummary, status_code=201)

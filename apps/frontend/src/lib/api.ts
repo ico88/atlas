@@ -1697,3 +1697,12 @@ export const fetchMessageFeedback = (messageId: string) =>
   getJson<FeedbackRead[]>(
     `/api/v1/rag/feedback?target_id=${encodeURIComponent(messageId)}`,
   );
+
+// --- Code self-review (self-improvement on ATLAS's own code, propose-only) ---
+export interface SelfReviewResult {
+  scanned: number;
+  findings: number;
+  new_issues: number;
+}
+export const runSelfReview = () =>
+  postJson<SelfReviewResult>("/api/v1/maintenance/self-review");

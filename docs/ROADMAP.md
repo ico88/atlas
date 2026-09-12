@@ -108,6 +108,19 @@ approvazione). **R6 completa.**
 Uscita: ATLAS può proporre e verificare miglioramenti senza applicarli fuori dai
 guardrail o senza approvazione.
 
+### Self-Improvement — Code self-review (propose-only) ✅
+ATLAS ora propone miglioramenti anche al **proprio codice**, non solo cambi di
+modello. Uno scanner deterministico (`code_review_service` + `self_review`)
+analizza la propria sorgente — findings **ruff**, marker **TODO/FIXME/HACK/XXX**,
+**file troppo lunghi** — e apre ogni riscontro come *issue di manutenzione in
+attesa di approvazione* (dedup per firma stabile). Gira **da solo** su timer
+(loop in `automation_service`, leader-gated in HA) e a comando via
+`POST /api/v1/maintenance/self-review` (bottone **Scan my code now** nella pagina
+Maintenance). **Propose-only**: niente tocca il repository — la stesura del fix e
+l'apertura della PR restano dietro il gate di approvazione umano (nessun
+auto-merge). Il feedback 👍/👎 in chat alimenta il segnale di qualità per routing
+adattivo e come dati di training per il fine-tuning.
+
 ### Self-Improvement — Fine-tuning locale (LoRA) ✅
 Oltre a *selezionare e configurare* il modello migliore, ATLAS può ora
 *migliorare il modello stesso* dalle proprie buone interazioni, in locale:

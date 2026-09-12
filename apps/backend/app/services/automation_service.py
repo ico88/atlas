@@ -159,3 +159,42 @@ def start_autonomous_proposer() -> None:
 
     if get_settings().improvement_auto_propose_enabled:
         _spawn(_autonomous_loop())
+
+
+# --------------------------------------------------------------------------- #
+# code self-review: ATLAS reviews its OWN code on a timer (propose-only)
+# --------------------------------------------------------------------------- #
+async def autonomous_self_review() -> int:
+    """One self-review sweep: file code findings as issues. Returns new issues."""
+
+    from app.services import code_review_service
+
+    async with get_sessionmaker()() as session:
+        summary = await code_review_service.run_self_review(session)
+        return summary["new_issues"]
+
+
+async def _self_review_loop() -> None:
+    settings = get_settings()
+    interval = max(300.0, settings.code_review_interval)
+    logger.info(
+        "code self-review started",
+        extra={"event": "self_review_start", "context": {"interval_s": interval}},
+    )
+    from app.services import leadership_service
+
+    while True:
+        try:
+            # In an HA cluster only the leader runs this singleton work.
+            if await leadership_service.is_leader():
+                await autonomous_self_review()
+        except Exception:  # noqa: BLE001 - a bad sweep must not kill the loop
+            logger.warning("code self-review sweep failed", extra={"event": "self_review_err"})
+        await asyncio.sleep(interval)
+
+
+def start_self_review() -> None:
+    """Start the background code self-review loop if enabled (once at startup)."""
+
+    if get_settings().code_review_auto_enabled:
+        _spawn(_self_review_loop())

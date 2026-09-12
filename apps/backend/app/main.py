@@ -109,6 +109,8 @@ def create_app() -> FastAPI:
             from app.services import automation_service
 
             automation_service.start_autonomous_proposer()
+            # Code self-review on ATLAS's own source (propose-only, human-gated).
+            automation_service.start_self_review()
         except Exception:  # noqa: BLE001 - never block startup on the proposer
             logger.exception("proposer start failed", extra={"event": "auto_propose_start_err"})
         try:
