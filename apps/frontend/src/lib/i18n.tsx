@@ -17,6 +17,7 @@ type Dict = Record<string, string>;
 const EN: Dict = {
   "nav.chat": "Chat",
   "nav.dashboard": "Dashboard",
+  "nav.autopilot": "Autopilot",
   "nav.queries": "Queries",
   "nav.queue": "Queue",
   "nav.tasks": "Tasks",
@@ -235,6 +236,7 @@ const EN: Dict = {
 const IT: Dict = {
   "nav.chat": "Chat",
   "nav.dashboard": "Cruscotto",
+  "nav.autopilot": "Autopilot",
   "nav.queries": "Interrogazioni",
   "nav.queue": "Coda",
   "nav.tasks": "Attività",

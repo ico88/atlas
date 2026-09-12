@@ -1706,3 +1706,31 @@ export interface SelfReviewResult {
 }
 export const runSelfReview = () =>
   postJson<SelfReviewResult>("/api/v1/maintenance/self-review");
+
+// --- Autopilot (read-only view of ATLAS's autonomous activity) ---
+export interface AutopilotActivity {
+  kind: string;
+  title: string;
+  status: string;
+  detail: string;
+  when: string | null;
+}
+export interface AutopilotSummary {
+  automation: {
+    auto_propose: boolean;
+    auto_experiment: boolean;
+    auto_fix: boolean;
+    self_review: boolean;
+    propose_interval_s: number;
+    self_review_interval_s: number;
+  };
+  pending: { approvals: number; canary_awaiting_eval: number; open_issues: number };
+  counts: {
+    proposals: number;
+    issues: number;
+    self_review_issues: number;
+    finetune_jobs: number;
+  };
+  activity: AutopilotActivity[];
+}
+export const fetchAutopilot = () => getJson<AutopilotSummary>("/api/v1/autopilot");

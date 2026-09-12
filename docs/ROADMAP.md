@@ -108,6 +108,16 @@ approvazione). **R6 completa.**
 Uscita: ATLAS può proporre e verificare miglioramenti senza applicarli fuori dai
 guardrail o senza approvazione.
 
+### Autopilot — pannello unico dell'attività autonoma ✅
+Una vista sola (pagina **Autopilot**, `GET /api/v1/autopilot`,
+`autopilot_service`) mostra a colpo d'occhio cosa fa ATLAS da solo: quali loop
+sono attivi e con che cadenza (proposer modelli, esperimenti A/B, self-review
+codice, fix in sandbox), un **feed di attività recente** (proposte, findings di
+self-review, job di fine-tuning) e le **azioni in attesa di te** (approvazioni,
+canary da valutare, issue di codice aperte) come scorciatoie cliccabili.
+Read-only: non innesca nulla, rende solo *visibile* l'automatismo — risposta
+diretta al pannello "confusionario e tutto manuale".
+
 ### Self-Improvement — Code self-review (propose-only) ✅
 ATLAS ora propone miglioramenti anche al **proprio codice**, non solo cambi di
 modello. Uno scanner deterministico (`code_review_service` + `self_review`)

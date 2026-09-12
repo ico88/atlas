@@ -13,6 +13,7 @@ const NAV_GROUPS: { section?: string; items: { href: string; key: string }[] }[]
       { href: "/", key: "nav.chat" },
       { href: "/setup", key: "nav.setup" },
       { href: "/dashboard", key: "nav.dashboard" },
+      { href: "/autopilot", key: "nav.autopilot" },
     ],
   },
   {

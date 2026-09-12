@@ -14,6 +14,7 @@ from app.api import (
     attachments,
     audit,
     auth,
+    autopilot,
     chat,
     cluster,
     conversation_queue,
@@ -179,6 +180,7 @@ def create_app() -> FastAPI:
     app.include_router(pki.router)
     app.include_router(service_accounts.router)
     app.include_router(finetune.router)
+    app.include_router(autopilot.router)
 
     return app
 
