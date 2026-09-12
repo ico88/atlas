@@ -77,3 +77,48 @@ async def test_autopilot_actions_expose_ids(client, session):
     decide = by_action["decide"]
     assert decide["proposal_id"] == pend.id
     assert decide["approval_id"] and decide["title"] == "Adopt B"
+
+
+@pytest.mark.asyncio
+async def test_autopilot_hides_echo_proposals(client, session):
+    """A decision to adopt the echo/test stub as default must never be surfaced."""
+
+    from app.ai.echo import ECHO_MODEL
+    from app.models.approval import Approval, ApprovalStatus
+
+    echo_prop = await improvement_service.create_proposal(
+        session, title="Auto: adopt echo-local as default", candidate_model=ECHO_MODEL
+    )
+    session.add(
+        Approval(
+            subject_type="improvement_proposal",
+            subject_id=echo_prop.id,
+            action="apply_improvement",
+            status=ApprovalStatus.PENDING.value,
+        )
+    )
+    await session.commit()
+
+    body = (await client.get("/api/v1/autopilot")).json()
+    assert body["actions"] == []
+
+
+@pytest.mark.asyncio
+async def test_autopilot_surfaces_code_findings_as_decisions(
+    client, session, tmp_path, monkeypatch
+):
+    src = tmp_path / "apps" / "backend" / "app"
+    src.mkdir(parents=True)
+    (src / "m.py").write_text("x = 1  # FIXME: real work\n", encoding="utf-8")
+    monkeypatch.setattr(code_review_service, "_run_ruff", _no_ruff)
+    await code_review_service.run_self_review(session, tmp_path)
+
+    body = (await client.get("/api/v1/autopilot")).json()
+    code = [a for a in body["actions"] if a["action"] == "review_code"]
+    assert code and code[0]["issue_id"]
+
+    # Dismissing the finding removes it from the decisions.
+    resp = await client.post(f"/api/v1/maintenance/issues/{code[0]['issue_id']}/dismiss")
+    assert resp.status_code == 200
+    body2 = (await client.get("/api/v1/autopilot")).json()
+    assert not any(a["action"] == "review_code" for a in body2["actions"])

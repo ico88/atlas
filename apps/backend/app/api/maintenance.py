@@ -79,6 +79,19 @@ async def get_issue(
     return detail
 
 
+@router.post("/issues/{issue_id}/dismiss", response_model=IssueSummary)
+async def dismiss_issue(
+    issue_id: str,
+    session: AsyncSession = Depends(get_session),
+) -> IssueSummary:
+    """Ignore an issue (e.g. a self-review finding you won't act on)."""
+
+    issue = await maintenance_service.get_issue(session, issue_id)
+    if issue is None:
+        raise HTTPException(status_code=404, detail="Issue not found")
+    return IssueSummary.model_validate(await maintenance_service.dismiss_issue(session, issue))
+
+
 @router.post("/issues/{issue_id}/analyze", response_model=RunRead)
 async def analyze_issue(
     issue_id: str,

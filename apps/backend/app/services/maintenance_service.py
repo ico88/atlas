@@ -122,6 +122,15 @@ async def list_issues(
     return list((await session.execute(query)).scalars().all())
 
 
+async def dismiss_issue(session: AsyncSession, issue: MaintenanceIssue) -> MaintenanceIssue:
+    """Mark an issue as ignored (e.g. a self-review finding the user won't act on)."""
+
+    issue.status = IssueStatus.IGNORED.value
+    await session.commit()
+    await session.refresh(issue)
+    return issue
+
+
 async def get_issue(session: AsyncSession, issue_id: str) -> MaintenanceIssue | None:
     result = await session.execute(
         select(MaintenanceIssue)

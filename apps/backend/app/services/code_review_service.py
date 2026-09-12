@@ -32,13 +32,22 @@ _SUFFIXES = {".py", ".ts", ".tsx"}
 
 
 def repo_root() -> Path:
-    """Repo root, from config override or derived from this package's location."""
+    """Repo root, from config override or discovered from this file's location.
+
+    Walks upward looking for a directory that actually contains the source trees
+    (``apps/backend``) or a ``.git`` marker, so self-review works regardless of
+    how/where the package is installed. Falls back to the fixed relative depth.
+    """
 
     override = get_settings().code_review_root
     if override:
         return Path(override).resolve()
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / "apps" / "backend").is_dir() or (parent / ".git").exists():
+            return parent
     # …/apps/backend/app/services/code_review_service.py -> parents[4] == repo root
-    return Path(__file__).resolve().parents[4]
+    return here.parents[4] if len(here.parents) > 4 else here.parent
 
 
 def _iter_source_files(root: Path) -> list[Path]:

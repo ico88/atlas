@@ -137,8 +137,14 @@ async def get_proposal(session: AsyncSession, proposal_id: str) -> ImprovementPr
 # --------------------------------------------------------------------------- #
 async def run_experiment(
     session: AsyncSession, proposal: ImprovementProposal
-) -> tuple[ImprovementProposal, Approval]:
-    """Evaluate baseline vs candidate on the suite, compare, open an approval gate."""
+) -> tuple[ImprovementProposal, Approval | None]:
+    """Evaluate baseline vs candidate on the suite and compare.
+
+    An approval gate is opened **only when the candidate is a measured
+    improvement** — a neutral, inconclusive or regression result records the
+    verdict but does not nag the human with a decision. This is what keeps the
+    Autopilot decisions meaningful instead of one request per available model.
+    """
 
     if not proposal.suite_id:
         raise ImprovementStateError("Proposal has no eval suite to experiment on")
@@ -157,27 +163,34 @@ async def run_experiment(
     proposal.recommendation = comparison["verdict"]
     proposal.status = ProposalStatus.EXPERIMENTED.value
 
-    approval = Approval(
-        subject_type="improvement_proposal",
-        subject_id=proposal.id,
-        action="apply_improvement",
-        status=ApprovalStatus.PENDING.value,
-        requested_by="improvement-agent",
-        reason=(
-            f"Experiment for '{proposal.title}': {comparison['verdict']} "
-            f"(candidate {proposal.candidate_model or 'default'} vs baseline "
-            f"{proposal.baseline_model or 'default'})"
-        ),
-    )
-    session.add(approval)
+    approval: Approval | None = None
+    if comparison["verdict"] == "improvement":
+        approval = Approval(
+            subject_type="improvement_proposal",
+            subject_id=proposal.id,
+            action="apply_improvement",
+            status=ApprovalStatus.PENDING.value,
+            requested_by="improvement-agent",
+            reason=(
+                f"Experiment for '{proposal.title}': improvement "
+                f"(candidate {proposal.candidate_model or 'default'} vs baseline "
+                f"{proposal.baseline_model or 'default'})"
+            ),
+        )
+        session.add(approval)
     await session.commit()
     await session.refresh(proposal)
-    await session.refresh(approval)
+    if approval is not None:
+        await session.refresh(approval)
     logger.info(
         "improvement experiment done",
         extra={
             "event": "improvement_experiment",
-            "context": {"proposal_id": proposal.id, "verdict": comparison["verdict"]},
+            "context": {
+                "proposal_id": proposal.id,
+                "verdict": comparison["verdict"],
+                "gated": approval is not None,
+            },
         },
     )
     return proposal, approval
@@ -220,10 +233,14 @@ async def propose_model_candidates(
         if p.status in open_states and p.candidate_model
     }
 
+    from app.ai.echo import ECHO_MODEL
+
     created: list[ImprovementProposal] = []
     for model in models:
         name = model.name
-        if not name or name == default or name in taken:
+        # Never propose the echo/test stub as the default, nor the current
+        # default, nor a candidate that already has an open proposal.
+        if not name or name in (default, ECHO_MODEL) or name in taken:
             continue
         proposal = await create_proposal(
             session,

@@ -42,17 +42,30 @@ def automation_state() -> dict[str, Any]:
 
 
 async def pending_actions(
-    session: AsyncSession, proposals: list[Any], approvals: list[Any]
+    session: AsyncSession,
+    proposals: list[Any],
+    approvals: list[Any],
+    issues: list[Any],
 ) -> list[dict[str, Any]]:
     """The concrete decisions still waiting on a human, with the ids needed to act
     on them directly (approve/reject, evaluate a canary, roll out an approved
-    change) — so Autopilot is not just a view."""
+    change, dismiss a code finding) — so Autopilot is not just a view."""
+
+    from app.ai.echo import ECHO_MODEL
 
     by_id = {p.id: p for p in proposals}
     actions: list[dict[str, Any]] = []
     for ap in approvals:
         is_model = ap.subject_type == "improvement_proposal"
         proposal = by_id.get(ap.subject_id or "") if is_model else None
+        # Never surface a decision to adopt the echo/test stub as default, nor a
+        # stale model change whose experiment was not actually an improvement
+        # (older gates created before improvement-only gating).
+        if is_model and proposal is not None:
+            if proposal.candidate_model == ECHO_MODEL:
+                continue
+            if proposal.recommendation not in (None, "improvement"):
+                continue
         actions.append(
             {
                 "id": ap.id,
@@ -62,8 +75,26 @@ async def pending_actions(
                 "detail": ap.action,
                 "approval_id": ap.id,
                 "proposal_id": ap.subject_id if is_model else None,
+                "issue_id": None,
             }
         )
+    # Open code findings from self-review: real, actionable observations. ATLAS
+    # cannot yet synthesize a repo-grounded patch, so the honest decision is to
+    # review the file or dismiss the finding.
+    for issue in issues:
+        if issue.service == "self-review" and issue.status == IssueStatus.OPEN.value:
+            actions.append(
+                {
+                    "id": f"issue-{issue.id}",
+                    "action": "review_code",
+                    "kind": "code",
+                    "title": issue.title,
+                    "detail": f"severity {issue.severity}",
+                    "approval_id": None,
+                    "proposal_id": None,
+                    "issue_id": issue.id,
+                }
+            )
     for p in proposals:
         if p.status == ProposalStatus.CANARY.value:
             actions.append(
@@ -97,7 +128,7 @@ async def summary(session: AsyncSession, *, limit: int = 20) -> dict[str, Any]:
     issues = await maintenance_service.list_issues(session)
     jobs = await finetune_service.list_jobs(session)
     pending_approvals = await approval_service.list_approvals(session, status="PENDING")
-    actions = await pending_actions(session, proposals, pending_approvals)
+    actions = await pending_actions(session, proposals, pending_approvals, issues)
 
     activity: list[dict[str, Any]] = []
     for p in proposals:

@@ -6,6 +6,7 @@ import {
   AutopilotSummary,
   applyProposal,
   approveApproval,
+  dismissIssue,
   evaluateCanary,
   fetchAutopilot,
   rejectApproval,
@@ -192,6 +193,25 @@ export default function AutopilotPage() {
                             onClick={() => act(() => applyProposal(it.proposal_id!))}
                           >
                             Apply
+                          </button>
+                        </>
+                      )}
+                      {it.action === "review_code" && it.issue_id && (
+                        <>
+                          <Link
+                            href="/maintenance"
+                            className="btn"
+                            style={{ padding: "4px 10px", fontSize: 12 }}
+                          >
+                            Review
+                          </Link>
+                          <button
+                            className="btn secondary"
+                            disabled={busy}
+                            title="Ignore this code finding"
+                            onClick={() => act(() => dismissIssue(it.issue_id!))}
+                          >
+                            Dismiss
                           </button>
                         </>
                       )}

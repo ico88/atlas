@@ -1717,12 +1717,13 @@ export interface AutopilotActivity {
 }
 export interface AutopilotAction {
   id: string;
-  action: "decide" | "evaluate_canary" | "rollout";
+  action: "decide" | "evaluate_canary" | "rollout" | "review_code";
   kind: string;
   title: string;
   detail: string;
   approval_id: string | null;
   proposal_id: string | null;
+  issue_id: string | null;
 }
 export interface AutopilotSummary {
   automation: {
@@ -1744,3 +1745,8 @@ export interface AutopilotSummary {
   activity: AutopilotActivity[];
 }
 export const fetchAutopilot = () => getJson<AutopilotSummary>("/api/v1/autopilot");
+
+export const dismissIssue = (id: string) =>
+  postJson<{ id: string; status: string }>(
+    `/api/v1/maintenance/issues/${encodeURIComponent(id)}/dismiss`,
+  );
