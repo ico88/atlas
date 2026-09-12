@@ -1678,3 +1678,22 @@ export const createFtJob = (body: {
 }) => postJson<FineTuneJob>("/api/v1/finetune/jobs", body);
 export const adoptFtJob = (id: string) =>
   postJson<ImprovementProposal>(`/api/v1/finetune/jobs/${encodeURIComponent(id)}/adopt`);
+
+// --- Message feedback (👍/👎) — fuels adaptive routing + fine-tuning ---
+export interface FeedbackRead {
+  id: string;
+  target_type: string;
+  target_id: string;
+  rating: number;
+  created_at: string;
+}
+export const sendMessageFeedback = (messageId: string, rating: -1 | 0 | 1) =>
+  postJson<FeedbackRead>("/api/v1/rag/feedback", {
+    target_type: "message",
+    target_id: messageId,
+    rating,
+  });
+export const fetchMessageFeedback = (messageId: string) =>
+  getJson<FeedbackRead[]>(
+    `/api/v1/rag/feedback?target_id=${encodeURIComponent(messageId)}`,
+  );

@@ -473,6 +473,40 @@ button:active:not(:disabled) {
   opacity: 0.6;
 }
 
+.feedback-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.feedback-btn {
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: 8px;
+  padding: 2px 8px;
+  font-size: 14px;
+  line-height: 1.4;
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.12s ease, background 0.12s ease, transform 0.06s ease;
+}
+.feedback-btn:hover {
+  opacity: 1;
+  background: var(--panel-2);
+}
+.feedback-btn:active {
+  transform: scale(0.92);
+}
+.feedback-btn.on {
+  opacity: 1;
+  background: var(--panel-2);
+  border-color: var(--accent, #6aa3ff);
+}
+.feedback-row .meta {
+  display: inline;
+  margin: 0;
+}
+
 .chat-input {
   display: flex;
   gap: 8px;

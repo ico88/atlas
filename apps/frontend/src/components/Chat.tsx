@@ -20,6 +20,7 @@ import {
   fetchNodes,
   fetchSystemStatus,
   searchMemories,
+  sendMessageFeedback,
   streamChat,
   uploadAttachment,
   webSearch,
@@ -78,6 +79,8 @@ export default function Chat() {
   const [model, setModel] = useState("");  // "" = Auto (server default)
   const [webNote, setWebNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Local echo of ratings the user gave this session, keyed by message id.
+  const [ratings, setRatings] = useState<Record<string, -1 | 1>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -346,6 +349,7 @@ export default function Chat() {
 
     let acc = "";
     let citations: WebCitation[] = [];
+    let convoId = activeId ?? null;
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -363,7 +367,10 @@ export default function Chat() {
         onStart: (e) => {
           setStatusLine(`${e.provider} · ${e.model} — ${t("chat.generating")}`);
           // Anonymous turns have no persisted conversation id.
-          if (!activeId && e.conversation_id) setActiveId(e.conversation_id);
+          if (e.conversation_id) {
+            convoId = e.conversation_id;
+            if (!activeId) setActiveId(e.conversation_id);
+          }
         },
         onToken: (t) => {
           acc += t;
@@ -377,12 +384,24 @@ export default function Chat() {
         },
         onDone: async () => {
           stopTimer();
-          pushBubble("assistant", acc || "(no output)", citations);
           setLive("");
           setLiveCitations([]);
           setPhase("idle");
           abortRef.current = null;
-          if (!anon) loadConversations();
+          // Reload the persisted conversation so the reply carries its real DB
+          // id — that's what a 👍/👎 attaches to. Fall back to a local bubble
+          // for anonymous turns (which are never persisted).
+          if (!anon && convoId) {
+            try {
+              const convo = await fetchConversation(convoId);
+              setMessages(convo.messages);
+            } catch {
+              pushBubble("assistant", acc || "(no output)", citations);
+            }
+            loadConversations();
+          } else {
+            pushBubble("assistant", acc || "(no output)", citations);
+          }
         },
         onError: (detail) => {
           stopTimer();
@@ -394,6 +413,24 @@ export default function Chat() {
       },
       controller.signal,
     );
+  };
+
+  // Give feedback on an assistant reply. A 👍 becomes training data for
+  // fine-tuning and raises the model's quality signal; a 👎 lowers it. Clicking
+  // the same thumb again clears it (rating 0).
+  const rate = async (messageId: string, value: -1 | 1) => {
+    const next = ratings[messageId] === value ? 0 : value;
+    setRatings((prev) => {
+      const copy = { ...prev };
+      if (next === 0) delete copy[messageId];
+      else copy[messageId] = next;
+      return copy;
+    });
+    try {
+      await sendMessageFeedback(messageId, next);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "feedback failed");
+    }
   };
 
   const stop = () => {
@@ -520,6 +557,36 @@ export default function Chat() {
                       {m.latency_ms != null ? ` · ${m.latency_ms} ms` : ""}
                     </span>
                   )}
+                  {/* Feedback on persisted assistant replies (client-side bubbles
+                      from anonymous/streaming fallback have no DB id to rate). */}
+                  {m.role === "assistant" &&
+                    m.status !== "pending" &&
+                    m.status !== "error" &&
+                    !m.id.startsWith("assistant-") && (
+                      <div className="feedback-row">
+                        <button
+                          type="button"
+                          className={`feedback-btn ${ratings[m.id] === 1 ? "on" : ""}`}
+                          title={t("chat.feedbackUp")}
+                          aria-label={t("chat.feedbackUp")}
+                          onClick={() => rate(m.id, 1)}
+                        >
+                          👍
+                        </button>
+                        <button
+                          type="button"
+                          className={`feedback-btn ${ratings[m.id] === -1 ? "on" : ""}`}
+                          title={t("chat.feedbackDown")}
+                          aria-label={t("chat.feedbackDown")}
+                          onClick={() => rate(m.id, -1)}
+                        >
+                          👎
+                        </button>
+                        {ratings[m.id] === 1 && (
+                          <span className="meta">{t("chat.feedbackThanks")}</span>
+                        )}
+                      </div>
+                    )}
                 </div>
               );
             })}
