@@ -41,11 +41,63 @@ def automation_state() -> dict[str, Any]:
     }
 
 
+async def pending_actions(
+    session: AsyncSession, proposals: list[Any], approvals: list[Any]
+) -> list[dict[str, Any]]:
+    """The concrete decisions still waiting on a human, with the ids needed to act
+    on them directly (approve/reject, evaluate a canary, roll out an approved
+    change) — so Autopilot is not just a view."""
+
+    by_id = {p.id: p for p in proposals}
+    actions: list[dict[str, Any]] = []
+    for ap in approvals:
+        is_model = ap.subject_type == "improvement_proposal"
+        proposal = by_id.get(ap.subject_id or "") if is_model else None
+        actions.append(
+            {
+                "id": ap.id,
+                "action": "decide",
+                "kind": "model" if is_model else "code",
+                "title": (proposal.title if proposal else None) or ap.action or "Pending change",
+                "detail": ap.action,
+                "approval_id": ap.id,
+                "proposal_id": ap.subject_id if is_model else None,
+            }
+        )
+    for p in proposals:
+        if p.status == ProposalStatus.CANARY.value:
+            actions.append(
+                {
+                    "id": f"canary-{p.id}",
+                    "action": "evaluate_canary",
+                    "kind": "canary",
+                    "title": p.title,
+                    "detail": "canary live — run the health gate",
+                    "approval_id": None,
+                    "proposal_id": p.id,
+                }
+            )
+        elif p.status == ProposalStatus.APPROVED.value:
+            actions.append(
+                {
+                    "id": f"rollout-{p.id}",
+                    "action": "rollout",
+                    "kind": "model",
+                    "title": p.title,
+                    "detail": "approved — start a canary or apply",
+                    "approval_id": None,
+                    "proposal_id": p.id,
+                }
+            )
+    return actions
+
+
 async def summary(session: AsyncSession, *, limit: int = 20) -> dict[str, Any]:
     proposals = await improvement_service.list_proposals(session)
     issues = await maintenance_service.list_issues(session)
     jobs = await finetune_service.list_jobs(session)
     pending_approvals = await approval_service.list_approvals(session, status="PENDING")
+    actions = await pending_actions(session, proposals, pending_approvals)
 
     activity: list[dict[str, Any]] = []
     for p in proposals:
@@ -97,5 +149,6 @@ async def summary(session: AsyncSession, *, limit: int = 20) -> dict[str, Any]:
             "self_review_issues": self_review_issues,
             "finetune_jobs": len(jobs),
         },
+        "actions": actions,
         "activity": activity[:limit],
     }

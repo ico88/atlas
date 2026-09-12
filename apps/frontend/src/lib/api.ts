@@ -1715,6 +1715,15 @@ export interface AutopilotActivity {
   detail: string;
   when: string | null;
 }
+export interface AutopilotAction {
+  id: string;
+  action: "decide" | "evaluate_canary" | "rollout";
+  kind: string;
+  title: string;
+  detail: string;
+  approval_id: string | null;
+  proposal_id: string | null;
+}
 export interface AutopilotSummary {
   automation: {
     auto_propose: boolean;
@@ -1731,6 +1740,7 @@ export interface AutopilotSummary {
     self_review_issues: number;
     finetune_jobs: number;
   };
+  actions: AutopilotAction[];
   activity: AutopilotActivity[];
 }
 export const fetchAutopilot = () => getJson<AutopilotSummary>("/api/v1/autopilot");

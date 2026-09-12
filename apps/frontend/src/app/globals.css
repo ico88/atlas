@@ -620,6 +620,41 @@ button:active:not(:disabled) {
   font-size: 11px;
 }
 
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  flex-wrap: wrap;
+}
+.action-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 200px;
+  min-width: 0;
+}
+.action-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+}
+.action-buttons {
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+}
+.action-buttons .btn {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
 .progress-bar {
   height: 8px;
   border-radius: 999px;

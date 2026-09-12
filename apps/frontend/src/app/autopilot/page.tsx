@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { AutopilotSummary, fetchAutopilot } from "@/lib/api";
+import {
+  AutopilotSummary,
+  applyProposal,
+  approveApproval,
+  evaluateCanary,
+  fetchAutopilot,
+  rejectApproval,
+  startCanary,
+} from "@/lib/api";
 
 function hours(seconds: number): string {
   if (seconds >= 3600) return `${Math.round(seconds / 3600)}h`;
@@ -44,6 +52,7 @@ function timeAgo(iso: string | null): string {
 export default function AutopilotPage() {
   const [data, setData] = useState<AutopilotSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -53,6 +62,22 @@ export default function AutopilotPage() {
       setError(e instanceof Error ? e.message : "failed to load");
     }
   }, []);
+
+  const act = useCallback(
+    async (fn: () => Promise<unknown>) => {
+      setBusy(true);
+      setError(null);
+      try {
+        await fn();
+        await load();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "action failed");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [load],
+  );
 
   useEffect(() => {
     load();
@@ -98,6 +123,83 @@ export default function AutopilotPage() {
               <div className="stat-value">{data.pending.open_issues}</div>
               <div className="stat-label">open code issues</div>
             </Link>
+          </div>
+
+          {/* Decisions waiting for you — act right here, no page-hopping */}
+          <div className="card" style={{ marginBottom: 16 }}>
+            <strong>Decisions waiting for you</strong>
+            {data.actions.length === 0 ? (
+              <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>
+                Nothing to decide — ATLAS is caught up.
+              </p>
+            ) : (
+              <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
+                {data.actions.map((it) => (
+                  <div key={it.id} className="action-row">
+                    <span className="activity-icon">
+                      {it.kind === "code" ? "🔧" : it.kind === "canary" ? "🐤" : "🔬"}
+                    </span>
+                    <span className="action-body">
+                      <span className="action-title" title={it.title}>
+                        {it.title}
+                      </span>
+                      <span className="muted" style={{ fontSize: 11 }}>
+                        {it.detail}
+                      </span>
+                    </span>
+                    <span className="action-buttons">
+                      {it.action === "decide" && it.approval_id && (
+                        <>
+                          <button
+                            className="btn"
+                            disabled={busy}
+                            onClick={() => act(() => approveApproval(it.approval_id!))}
+                          >
+                            Approve
+                          </button>
+                          <button
+                            className="btn secondary"
+                            disabled={busy}
+                            onClick={() => act(() => rejectApproval(it.approval_id!))}
+                          >
+                            Reject
+                          </button>
+                        </>
+                      )}
+                      {it.action === "evaluate_canary" && it.proposal_id && (
+                        <button
+                          className="btn"
+                          disabled={busy}
+                          title="Run the health gate: promote if healthy, else auto-rollback"
+                          onClick={() => act(() => evaluateCanary(it.proposal_id!))}
+                        >
+                          Evaluate canary
+                        </button>
+                      )}
+                      {it.action === "rollout" && it.proposal_id && (
+                        <>
+                          <button
+                            className="btn"
+                            disabled={busy}
+                            title="Roll out to a watched canary, then promote or auto-rollback"
+                            onClick={() => act(() => startCanary(it.proposal_id!))}
+                          >
+                            Start canary
+                          </button>
+                          <button
+                            className="btn secondary"
+                            disabled={busy}
+                            onClick={() => act(() => applyProposal(it.proposal_id!))}
+                          >
+                            Apply
+                          </button>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Loops running */}
