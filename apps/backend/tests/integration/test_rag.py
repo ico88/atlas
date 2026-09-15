@@ -81,3 +81,12 @@ async def test_feedback_capture(client):
     listing = await client.get("/api/v1/feedback?target_id=m1")
     assert len(listing.json()) == 1
     assert listing.json()[0]["rating"] == 1
+
+    # Thumbs-down (rating -1) on a message uses the same endpoint (the chat
+    # 👎 posts here; a wrong path 404s as "not found").
+    down = await client.post(
+        "/api/v1/feedback",
+        json={"target_type": "message", "target_id": "m2", "rating": -1},
+    )
+    assert down.status_code == 201
+    assert down.json()["rating"] == -1

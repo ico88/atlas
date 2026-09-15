@@ -1688,14 +1688,14 @@ export interface FeedbackRead {
   created_at: string;
 }
 export const sendMessageFeedback = (messageId: string, rating: -1 | 0 | 1) =>
-  postJson<FeedbackRead>("/api/v1/rag/feedback", {
+  postJson<FeedbackRead>("/api/v1/feedback", {
     target_type: "message",
     target_id: messageId,
     rating,
   });
 export const fetchMessageFeedback = (messageId: string) =>
   getJson<FeedbackRead[]>(
-    `/api/v1/rag/feedback?target_id=${encodeURIComponent(messageId)}`,
+    `/api/v1/feedback?target_id=${encodeURIComponent(messageId)}`,
   );
 
 // --- Code self-review (self-improvement on ATLAS's own code, propose-only) ---
