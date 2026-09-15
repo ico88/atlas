@@ -13,6 +13,7 @@ import asyncio
 import json
 import logging
 import shutil
+import sys
 from pathlib import Path
 
 from sqlalchemy import select
@@ -65,34 +66,53 @@ def _iter_source_files(root: Path) -> list[Path]:
     return files
 
 
-async def _run_ruff(root: Path) -> list[sr.Finding]:
-    """Run ruff over the Python trees; returns [] if ruff isn't available."""
+# Python packages to lint, as (package dir, source subdir). Each is linted with
+# its OWN config, from inside its own directory, so findings match exactly what
+# the project's CI enforces — not some other ruff's default ruleset.
+_RUFF_PACKAGES = [("apps/backend", "app"), ("services/node-agent", "agent")]
 
-    if shutil.which("ruff") is None:
+
+def _ruff_binary() -> str | None:
+    """The project's pinned ruff (next to the running interpreter) if present,
+    else any ruff on PATH. Using the venv's ruff keeps the ruleset identical to CI."""
+
+    candidate = Path(sys.executable).parent / "ruff"
+    if candidate.is_file():
+        return str(candidate)
+    return shutil.which("ruff")
+
+
+async def _run_ruff(root: Path) -> list[sr.Finding]:
+    """Run ruff per package (each with its own config); [] if ruff isn't available."""
+
+    ruff = _ruff_binary()
+    if ruff is None:
         return []
-    targets = [d for d in ("apps/backend/app", "services/node-agent/agent") if (root / d).exists()]
-    if not targets:
-        return []
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            "ruff",
-            "check",
-            "--output-format=json",
-            *targets,
-            cwd=str(root),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.DEVNULL,
-        )
-        out, _ = await proc.communicate()
-    except OSError:
-        return []
-    try:
-        payload = json.loads(out.decode() or "[]")
-    except json.JSONDecodeError:
-        return []
-    if not isinstance(payload, list):
-        return []
-    return sr.parse_ruff_json(payload, str(root))
+    findings: list[sr.Finding] = []
+    for pkg, src in _RUFF_PACKAGES:
+        pkg_dir = root / pkg
+        if not (pkg_dir / src).exists():
+            continue
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                ruff,
+                "check",
+                "--output-format=json",
+                src,
+                cwd=str(pkg_dir),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            out, _ = await proc.communicate()
+        except OSError:
+            continue
+        try:
+            payload = json.loads(out.decode() or "[]")
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, list):
+            findings.extend(sr.parse_ruff_json(payload, str(root)))
+    return findings
 
 
 async def scan(root: Path | None = None) -> tuple[list[sr.Finding], int]:
