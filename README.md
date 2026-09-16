@@ -3,14 +3,49 @@
 > **ALMA** — Autonomous Layer for Multi-Agent orchestration
 
 ATLAS is a **local-first, distributed, multi-agent, human-governed** AI platform.
-This repository contains the **Sprint 1 bootstrap**: a working, testable
-foundation on which the full platform is built milestone by milestone.
+You run it on your own hardware: it chats, orchestrates tasks across a fleet of
+nodes, remembers, searches, evaluates and improves itself — and every
+irreversible step waits for a human. Nothing is sent to the cloud unless you
+explicitly allow it.
 
-> ⚠️ Sprint 1 scope is intentionally minimal. LLM inference (Ollama), RAG,
-> distributed nodes, the maintenance auto-fix agent and cloud providers are
-> **not** implemented yet — see the [implementation plan](docs/IMPLEMENTATION_PLAN.md).
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+![Local-first](https://img.shields.io/badge/local--first-yes-brightgreen)
+![Tests](https://img.shields.io/badge/backend%20tests-passing-brightgreen)
 
-## Architecture (Sprint 1)
+## Features
+
+- **Chat, your way** — a Claude-style chat with streaming, file upload, slash
+  commands, web-search grounding with citations, per-message 👍/👎 feedback, and
+  a multi-runtime router (Ollama, OpenAI-compatible, Anthropic, echo).
+- **Distributed by design** — a control plane plus worker **nodes** that join
+  over an encrypted overlay (ZeroTier), enroll with mTLS, advertise
+  capabilities, and execute tasks a guarded scheduler leases, checkpoints and
+  fails over.
+- **Guided setup** — role-aware installer and in-app wizards for the control
+  plane and for nodes (IPs, overlay, autodiscovery, approval, one-click model
+  pull with progress).
+- **Self-improvement, under guardrails** — an **Autopilot** that proposes model
+  changes *and* fixes to its **own code**, runs A/B experiments on eval suites,
+  rolls out behind a canary with a health gate + auto-rollback, and (with a
+  code-capable local model) writes real, sandbox-validated patches — all
+  **propose-only**: applying, merging or swapping the default always waits for
+  your approval.
+- **Learns from use** — thumbs-up replies become a curated dataset for local
+  **LoRA fine-tuning** (when a GPU is available); the quality signal feeds
+  adaptive routing.
+- **Knowledge & memory** — document RAG, a memory lifecycle (capture, retrieval,
+  provenance, retention), and workspace environments with snapshot/restore.
+- **Governed & secure** — RBAC, TOTP MFA, an encrypted-at-rest secret manager,
+  an internal PKI issuing node certificates, service accounts, a tamper-evident
+  audit log, SLOs/alerts, and an SBOM for supply-chain visibility.
+- **Honest by construction** — a feature that needs hardware or a model it
+  doesn't have fails clearly instead of faking a result.
+
+> Local models run as well as your hardware allows. ATLAS makes the *best use* of
+> the models you give it — it does not create a smarter base model out of thin
+> air. See [docs/](docs/) for the honest scope of each capability.
+
+## Architecture
 
 ```
                  Browser
@@ -33,12 +68,12 @@ Everything except Caddy stays on an internal network (spec §13).
 
 | Path | Contents |
 |------|----------|
-| `apps/backend` | FastAPI control plane, models, migrations, worker, tests |
-| `apps/frontend` | Next.js + TypeScript UI (sidebar shell, System Status) |
-| `services/` | Placeholders for future domain services (spec §6) |
-| `packages/` | Shared schemas / prompts / utilities (future) |
-| `infrastructure/` | Caddy, Postgres, LiteLLM, scripts |
-| `docs/` | Specification-derived documentation |
+| `apps/backend` | FastAPI control plane: models, migrations, services, worker, API, tests |
+| `apps/frontend` | Next.js + TypeScript UI (chat, Autopilot, fleet, admin, setup) |
+| `services/node-agent` | Async worker agent that runs on nodes (claims tasks, pulls models) |
+| `packages/` | Shared schemas / prompts / utilities |
+| `infrastructure/` | Caddy, Postgres, scripts (installer, guided setup, SBOM) |
+| `docs/` | Architecture, security, roadmap and per-capability documentation |
 | `.github/workflows` | CI (lint, typecheck, tests, Docker build, secret scan) |
 
 ## Prerequisites
@@ -447,6 +482,14 @@ See [SECURITY.md](SECURITY.md). Highlights: only HTTPS is exposed, secrets never
 touch Git, services run least-privilege, and critical actions require human
 approval.
 
+## Contributing
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for the dev
+setup and PR workflow, and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community
+standards. Report security issues privately per [SECURITY.md](SECURITY.md).
+
 ## License
 
-Proprietary — private repository.
+Licensed under the [Apache License 2.0](LICENSE). See [NOTICE](NOTICE) for
+attribution. Third-party components and any language models you run keep their
+own licenses.
