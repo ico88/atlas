@@ -116,7 +116,7 @@ jobs:
       - name: Build backend image
         run: docker build -t atlas-backend:ci ./apps/backend
       - name: Smoke-test backend image imports (catches missing runtime deps)
-        run: docker run --rm atlas-backend:ci python -c "import app.main"
+        run: docker run --rm --entrypoint python atlas-backend:ci -c "import app.main"
       - name: Build frontend image
         run: docker build -t atlas-frontend:ci ./apps/frontend
       - name: Build node-agent image

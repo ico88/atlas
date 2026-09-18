@@ -147,7 +147,7 @@ cmd_update() {
       result="aborted"
     else
       local prev_rev="" pulled=0
-      [ -d "${ROOT}/.git" ] && prev_rev="$(cd "$ROOT" && git rev-parse HEAD 2>/dev/null || true)"
+      [ -d "${ROOT}/.git" ] && prev_rev="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || true)"
 
       log "Snapshot: backing up settings and database..."
       cmd_backup >/dev/null
@@ -165,7 +165,9 @@ cmd_update() {
       # Migrations run via the backend entrypoint on start.
       log "Rebuilding and migrating (data volumes preserved)..."
       if _compose up -d --build && wait_healthy 180; then
-        [ -f "${STATE_DIR}/ollama.enabled" ] && { refresh_atlas_models && log "Model registry refreshed." || true; }
+        if [ -f "${STATE_DIR}/ollama.enabled" ] && refresh_atlas_models; then
+          log "Model registry refreshed."
+        fi
         result="completed"
       else
         warn "Update did not become healthy; rolling back..."

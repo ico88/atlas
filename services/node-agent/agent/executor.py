@@ -219,7 +219,9 @@ async def execute_task(
         return await pull_model(endpoint, model, on_progress=progress_cb)
 
     if task.get("type") == "fine_tune":
-        logger.info("fine-tuning %s from %s", payload.get("adapter_name"), payload.get("base_model"))
+        logger.info(
+            "fine-tuning %s from %s", payload.get("adapter_name"), payload.get("base_model")
+        )
         return await run_fine_tune(payload, on_progress=progress_cb)
 
     await asyncio.sleep(work_seconds)
