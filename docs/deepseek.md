@@ -21,7 +21,12 @@ systemd override containing `Environment="OLLAMA_HOST=0.0.0.0:11434"`) and allow
 TCP 11434 only from Atlas. Ollama has no built-in API authentication; never expose
 that port directly to the Internet.
 
-In **Runtimes**, add an `ollama` runtime with an endpoint such as
+The simplest route is Atlas's **Models** page: choose `deepseek-r1:1.5b` for a
+lightweight CPU-friendly installation or `deepseek-r1:8b` for better reasoning,
+then click **Download & use**. Atlas downloads the model, registers its runtime
+deployment, and makes it the default when the pull completes.
+
+Alternatively, in **Runtimes**, add an `ollama` runtime with an endpoint such as
 `http://10.0.0.20:11434`, then click **Discover models**. Atlas calls `/api/tags`,
 registers the advertised models/deployments, and exposes them in ALMA's selector.
 Replies use `/api/chat` streaming. Connection failures and read timeouts become

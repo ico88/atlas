@@ -15,7 +15,21 @@ import {
 
 // Curated open models that run locally via Ollama, far better than llama3.2:1b.
 // Sizes are approximate download sizes; on a CPU-only host smaller = faster.
-const RECOMMENDED: { name: string; size: string; note: string; tier: string }[] = [
+const RECOMMENDED: { name: string; size: string; note: string; tier: string; family?: string }[] = [
+  {
+    name: "deepseek-r1:1.5b",
+    size: "~1.1 GB",
+    note: "DeepSeek reasoning — lightweight and suitable for CPU-only hosts",
+    tier: "fast",
+    family: "DeepSeek",
+  },
+  {
+    name: "deepseek-r1:8b",
+    size: "~4.9 GB",
+    note: "★ DeepSeek recommended — stronger reasoning, more RAM required",
+    tier: "quality",
+    family: "DeepSeek",
+  },
   { name: "qwen2.5:3b", size: "~2 GB", note: "★ Recommended — great in Italian, 3B", tier: "balanced" },
   { name: "llama3.2:3b", size: "~2 GB", note: "Fast and solid, 3B", tier: "fast" },
   { name: "gemma2:2b", size: "~1.6 GB", note: "Very fast, 2B", tier: "fast" },
@@ -189,9 +203,8 @@ export default function ModelsPage() {
       <div className="card" style={{ marginBottom: 16 }}>
         <h3 style={{ marginTop: 0 }}>Recommended models</h3>
         <p className="muted" style={{ fontSize: 12 }}>
-          Better open models than <code>llama3.2:1b</code> that still run locally via
-          Ollama. On a CPU-only host, smaller = faster; 7B gives the best quality but
-          is slower.
+          One-click local models served by Ollama, including DeepSeek R1. On a CPU-only
+          host, smaller = faster; larger models give better quality but require more RAM.
         </p>
         <div className="rec-grid">
           {RECOMMENDED.map((r) => {
@@ -201,7 +214,10 @@ export default function ModelsPage() {
               <div key={r.name} className={`rec-card tier-${r.tier}`}>
                 <div className="rec-head">
                   <strong>{r.name}</strong>
-                  <span className="pill">{r.size}</span>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    {r.family && <span className="pill">{r.family}</span>}
+                    <span className="pill">{r.size}</span>
+                  </div>
                 </div>
                 <div className="muted" style={{ fontSize: 12, margin: "4px 0 10px" }}>
                   {r.note}
@@ -239,7 +255,8 @@ export default function ModelsPage() {
       <div className="card" style={{ marginBottom: 16 }}>
         <h3 style={{ marginTop: 0 }}>Download any model</h3>
         <p className="muted" style={{ fontSize: 12 }}>
-          Pull any Ollama model by name (e.g. <code>qwen2.5:3b</code>, <code>gemma2:2b</code>).
+          Pull any Ollama model by name (e.g. <code>deepseek-r1:8b</code>,{" "}
+          <code>qwen2.5:3b</code>, <code>gemma2:2b</code>).
         </p>
         <div style={{ display: "flex", gap: 8 }}>
           <input
