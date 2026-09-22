@@ -14,6 +14,7 @@ import {
   deleteModelDeployment,
   deletePolicy,
   deleteRuntime,
+  discoverRuntime,
   fetchAliases,
   fetchModelDeployments,
   fetchPolicies,
@@ -24,7 +25,7 @@ import {
 } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 
-const RUNTIME_TYPES = ["ollama", "llama_cpp", "vllm", "localai", "openai", "anthropic"];
+const RUNTIME_TYPES = ["ollama", "deepseek", "llama_cpp", "vllm", "localai", "openai", "anthropic"];
 
 function stateClass(state: string): string {
   if (state === "UP") return "ok";
@@ -42,7 +43,7 @@ export default function RuntimesPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Forms
-  const [rt, setRt] = useState({ name: "", runtime_type: "ollama", endpoint: "" });
+  const [rt, setRt] = useState({ name: "", runtime_type: "ollama", endpoint: "", api_key: "" });
   const [dep, setDep] = useState({ model_key: "", runtime_id: "", runtime_model_name: "", priority: "100", load_policy: "ON_DEMAND" });
   const [alias, setAlias] = useState({ alias: "", targets: "" });
   const [pol, setPol] = useState({ task_type: "", capabilities: "", preferred_alias: "", privacy: "LOCAL_PREFERRED", fallback: "" });
@@ -118,6 +119,16 @@ export default function RuntimesPage() {
             onChange={(e) => setRt({ ...rt, endpoint: e.target.value })}
             style={{ flex: "1 1 220px" }}
           />
+          {(["deepseek", "openai", "anthropic"].includes(rt.runtime_type)) && (
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={rt.api_key}
+              placeholder="API key (encrypted at rest)"
+              onChange={(e) => setRt({ ...rt, api_key: e.target.value })}
+              style={{ flex: "1 1 220px" }}
+            />
+          )}
           <button
             className="btn"
             disabled={!rt.name.trim()}
@@ -127,8 +138,9 @@ export default function RuntimesPage() {
                   name: rt.name.trim(),
                   runtime_type: rt.runtime_type,
                   endpoint: rt.endpoint.trim() || undefined,
+                  api_key: rt.api_key.trim() || undefined,
                 });
-                setRt({ name: "", runtime_type: "ollama", endpoint: "" });
+                setRt({ name: "", runtime_type: "ollama", endpoint: "", api_key: "" });
               })
             }
           >
@@ -167,6 +179,13 @@ export default function RuntimesPage() {
                 </div>
               )}
               {h?.detail && <p className="muted" style={{ fontSize: 12 }}>{h.detail}</p>}
+              <button
+                className="btn secondary"
+                style={{ marginTop: 8, marginRight: 6 }}
+                onClick={() => act(() => discoverRuntime(r.id))}
+              >
+                Discover models
+              </button>
               <button
                 className="btn secondary"
                 style={{ marginTop: 8 }}

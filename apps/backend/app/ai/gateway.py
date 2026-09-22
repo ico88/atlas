@@ -58,6 +58,7 @@ class Privacy(str):
 _OPENAI_COMPAT_TYPES = {
     RuntimeType.OPENAI_COMPAT.value,
     RuntimeType.OPENAI.value,
+    RuntimeType.DEEPSEEK.value,
     "llama_cpp",
     "localai",
     "vllm",
@@ -75,18 +76,36 @@ def adapter_for(runtime: Runtime) -> RuntimeAdapter:
         return OllamaProvider(runtime.endpoint or get_settings().ollama_url)
     if rtype in _OPENAI_COMPAT_TYPES:
         # OpenAI itself has a fixed endpoint; a self-hosted server needs one.
-        endpoint = runtime.endpoint or (
-            "https://api.openai.com" if rtype == RuntimeType.OPENAI.value else None
-        )
+        defaults = {
+            RuntimeType.OPENAI.value: "https://api.openai.com",
+            RuntimeType.DEEPSEEK.value: "https://api.deepseek.com",
+        }
+        endpoint = runtime.endpoint or defaults.get(rtype)
         if not endpoint:
             raise ValueError(f"runtime '{runtime.name}' has no endpoint")
-        return OpenAICompatAdapter(endpoint, name=runtime.name, api_key=runtime.api_key)
+        return OpenAICompatAdapter(
+            endpoint, name=runtime.name, api_key=_runtime_api_key(runtime.api_key)
+        )
     if rtype == RuntimeType.ANTHROPIC.value:
         return AnthropicAdapter(
-            runtime.api_key, base_url=runtime.endpoint or "https://api.anthropic.com",
+            _runtime_api_key(runtime.api_key),
+            base_url=runtime.endpoint or "https://api.anthropic.com",
             name=runtime.name,
         )
     raise ValueError(f"unsupported runtime_type: {rtype}")
+
+
+def _runtime_api_key(stored: str | None) -> str | None:
+    """Decrypt credentials written by runtime_service; accept legacy plaintext."""
+    if not stored or not stored.startswith("enc:v1:"):
+        return stored
+    from app.services.secret_service import decrypt
+
+    try:
+        return decrypt(stored.removeprefix("enc:v1:"))
+    except Exception:  # invalid/rotated master key: health reports DOWN, never leak it
+        logger.exception("could not decrypt runtime credential")
+        return None
 
 
 def is_cloud(runtime_type: str) -> bool:
@@ -214,10 +233,7 @@ async def build_candidates(
 ) -> list[_Candidate]:
     settings = get_settings()
     models = await _load_models_by_key(session)
-    runtimes = {
-        r.id: r
-        for r in (await session.execute(select(Runtime))).scalars().all()
-    }
+    runtimes = {r.id: r for r in (await session.execute(select(Runtime))).scalars().all()}
     alias_order = await _alias_targets(session, alias) if alias else []
     # Measured quality per model (M10). Best-effort: no evals -> no effect.
     try:
@@ -228,11 +244,7 @@ async def build_candidates(
         quality_map = {}
 
     deployments = (
-        (
-            await session.execute(
-                select(ModelDeployment).where(ModelDeployment.enabled.is_(True))
-            )
-        )
+        (await session.execute(select(ModelDeployment).where(ModelDeployment.enabled.is_(True))))
         .scalars()
         .all()
     )
@@ -353,9 +365,7 @@ async def resolve(
     return None
 
 
-async def resolve_for_task(
-    session: AsyncSession, task_type: str
-) -> RoutingDecision | None:
+async def resolve_for_task(session: AsyncSession, task_type: str) -> RoutingDecision | None:
     """Route by task type using its RoutingPolicy (Fase 3 / M9).
 
     Applies the policy's capabilities + privacy, tries the preferred alias, then
@@ -364,9 +374,7 @@ async def resolve_for_task(
     """
 
     policy = (
-        await session.execute(
-            select(RoutingPolicy).where(RoutingPolicy.task_type == task_type)
-        )
+        await session.execute(select(RoutingPolicy).where(RoutingPolicy.task_type == task_type))
     ).scalar_one_or_none()
     if policy is None or not policy.enabled:
         return await resolve(session)  # no policy -> default routing
@@ -381,6 +389,4 @@ async def resolve_for_task(
         if decision is not None:
             return decision
     # Last resort: any deployment satisfying the capabilities/privacy.
-    return await resolve(
-        session, required_capabilities=required, privacy=policy.privacy
-    )
+    return await resolve(session, required_capabilities=required, privacy=policy.privacy)

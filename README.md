@@ -451,8 +451,9 @@ every turn is persisted (**cronologia**) and listed in the sidebar. The
 **Models** page shows the registry and a host hardware scan (CPU/RAM/GPU) used to
 inform local model selection.
 
-> External/manual modes (ChatGPT/Claude) and cloud APIs are later milestones
-> (M7/M9). Set `ATLAS_OLLAMA_URL=` (empty) to force the echo provider.
+> Atlas supports local and cloud runtimes through the common model gateway.
+> See the [DeepSeek setup guide](docs/deepseek.md) for Ollama and the official
+> DeepSeek API. Set `ATLAS_OLLAMA_URL=` (empty) to disable the classic Ollama path.
 
 ## Authentication (M1)
 

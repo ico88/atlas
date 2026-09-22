@@ -682,7 +682,7 @@ export default function Chat() {
                   <option value="">{t("chat.auto")}</option>
                   {models.map((m) => (
                     <option key={`${m.provider}:${m.name}`} value={m.name}>
-                      {m.name}
+                      {m.name} · {m.provider}
                     </option>
                   ))}
                 </select>

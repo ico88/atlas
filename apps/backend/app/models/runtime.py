@@ -17,7 +17,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, Integer, String
+from sqlalchemy import JSON, Boolean, DateTime, Float, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, pk_column, utcnow
@@ -33,7 +33,8 @@ class Runtime(Base):
     runtime_type: Mapped[str] = mapped_column(String(32), nullable=False)
     version: Mapped[str | None] = mapped_column(String(32), nullable=True)
     endpoint: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    api_key: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Encrypted Fernet ciphertext; deliberately not exposed by RuntimeRead.
+    api_key: Mapped[str | None] = mapped_column(Text, nullable=True)
     node_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="UNKNOWN")
@@ -70,9 +71,7 @@ class ModelDeployment(Base):
     max_context: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_concurrency: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     estimated_tokens_per_second: Mapped[float | None] = mapped_column(Float, nullable=True)
-    last_benchmark: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_benchmark: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     meta: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(

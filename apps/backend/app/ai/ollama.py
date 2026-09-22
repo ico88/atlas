@@ -100,9 +100,7 @@ class OllamaProvider:
             )
         return models
 
-    async def stream_chat(
-        self, messages: list[ChatMessage], model: str
-    ) -> AsyncIterator[str]:
+    async def stream_chat(self, messages: list[ChatMessage], model: str) -> AsyncIterator[str]:
         settings = get_settings()
         options: dict[str, int] = {}
         if settings.ollama_num_ctx:
@@ -118,20 +116,28 @@ class OllamaProvider:
         }
         if options:
             payload["options"] = options
-        async with (
-            httpx.AsyncClient(timeout=None) as client,
-            client.stream("POST", f"{self._base_url}/api/chat", json=payload) as resp,
-        ):
-            resp.raise_for_status()
-            async for line in resp.aiter_lines():
-                if not line.strip():
-                    continue
-                try:
-                    chunk = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                piece = (chunk.get("message") or {}).get("content", "")
-                if piece:
-                    yield piece
-                if chunk.get("done"):
-                    break
+        timeout = httpx.Timeout(self._timeout, read=max(self._timeout, 120.0))
+        try:
+            async with (
+                httpx.AsyncClient(timeout=timeout) as client,
+                client.stream("POST", f"{self._base_url}/api/chat", json=payload) as resp,
+            ):
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    if not line.strip():
+                        continue
+                    try:
+                        chunk = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if chunk.get("error"):
+                        raise RuntimeError(f"Ollama: {chunk['error']}")
+                    piece = (chunk.get("message") or {}).get("content", "")
+                    if piece:
+                        yield piece
+                    if chunk.get("done"):
+                        break
+        except httpx.TimeoutException as exc:
+            raise RuntimeError("Ollama response timed out") from exc
+        except httpx.ConnectError as exc:
+            raise RuntimeError(f"Cannot connect to Ollama at {self._base_url}") from exc

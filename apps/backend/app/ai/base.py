@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
 
-class RuntimeType(str, enum.Enum):
+class RuntimeType(enum.StrEnum):
     """How a runtime speaks. One OpenAI-compatible adapter covers llama.cpp's
     ``llama-server``, LocalAI and vLLM's OpenAI server; Ollama and Anthropic
     have their own wire formats; ``echo`` is the dependency-free local fallback."""
@@ -23,16 +23,17 @@ class RuntimeType(str, enum.Enum):
     OLLAMA = "ollama"
     OPENAI_COMPAT = "openai_compat"  # llama.cpp / LocalAI / vLLM (OpenAI wire)
     OPENAI = "openai"
+    DEEPSEEK = "deepseek"
     ANTHROPIC = "anthropic"
 
 
-class RuntimeState(str, enum.Enum):
+class RuntimeState(enum.StrEnum):
     UP = "UP"
     DEGRADED = "DEGRADED"
     DOWN = "DOWN"
 
 
-class Capability(str, enum.Enum):
+class Capability(enum.StrEnum):
     """What a model/deployment can do. ALMA asks for capabilities, never names."""
 
     CHAT = "CHAT"
@@ -51,7 +52,7 @@ class Capability(str, enum.Enum):
 # Runtime types that reach an external (cloud) provider. Privacy LOCAL_ONLY must
 # exclude these from routing candidates.
 CLOUD_RUNTIME_TYPES: frozenset[str] = frozenset(
-    {RuntimeType.OPENAI.value, RuntimeType.ANTHROPIC.value}
+    {RuntimeType.OPENAI.value, RuntimeType.DEEPSEEK.value, RuntimeType.ANTHROPIC.value}
 )
 
 
@@ -108,9 +109,7 @@ class RuntimeAdapter(Protocol):
     async def list_models(self) -> list[ModelInfo]:
         """Models this runtime exposes."""
 
-    def stream_chat(
-        self, messages: list[ChatMessage], model: str
-    ) -> AsyncIterator[str]:
+    def stream_chat(self, messages: list[ChatMessage], model: str) -> AsyncIterator[str]:
         """Stream the assistant reply as text chunks."""
 
 

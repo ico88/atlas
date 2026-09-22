@@ -45,16 +45,23 @@ async def test_gateway_picks_highest_score(session, monkeypatch):
         session, name="node1-ollama", runtime_type="ollama", node_id="node1"
     )
     rt_b = await runtime_service.create_runtime(
-        session, name="node1-llama", runtime_type="llama_cpp",
-        endpoint="http://x", node_id="node1"
+        session, name="node1-llama", runtime_type="llama_cpp", endpoint="http://x", node_id="node1"
     )
     await runtime_service.create_deployment(
-        session, model_key="qwen-8b", runtime_id=rt_a.id,
-        runtime_model_name="qwen2.5:8b", priority=50, node_id="node1"
+        session,
+        model_key="qwen-8b",
+        runtime_id=rt_a.id,
+        runtime_model_name="qwen2.5:8b",
+        priority=50,
+        node_id="node1",
     )
     await runtime_service.create_deployment(
-        session, model_key="qwen-8b", runtime_id=rt_b.id,
-        runtime_model_name="qwen-8b-q4.gguf", priority=200, node_id="node1"
+        session,
+        model_key="qwen-8b",
+        runtime_id=rt_b.id,
+        runtime_model_name="qwen-8b-q4.gguf",
+        priority=200,
+        node_id="node1",
     )
 
     decision = await gateway.resolve(session, required_capabilities={"CHAT"})
@@ -76,16 +83,17 @@ async def test_gateway_falls_back_when_runtime_down(session, monkeypatch):
         session, name="node1-ollama", runtime_type="ollama", node_id="node1"
     )
     rt_b = await runtime_service.create_runtime(
-        session, name="node1-llama", runtime_type="llama_cpp",
-        endpoint="http://x", node_id="node1"
+        session, name="node1-llama", runtime_type="llama_cpp", endpoint="http://x", node_id="node1"
     )
     await runtime_service.create_deployment(
-        session, model_key="qwen-8b", runtime_id=rt_a.id,
-        runtime_model_name="qwen2.5:8b", priority=50
+        session,
+        model_key="qwen-8b",
+        runtime_id=rt_a.id,
+        runtime_model_name="qwen2.5:8b",
+        priority=50,
     )
     await runtime_service.create_deployment(
-        session, model_key="qwen-8b", runtime_id=rt_b.id,
-        runtime_model_name="q4.gguf", priority=200
+        session, model_key="qwen-8b", runtime_id=rt_b.id, runtime_model_name="q4.gguf", priority=200
     )
 
     decision = await gateway.resolve(session, required_capabilities={"CHAT"})
@@ -124,6 +132,39 @@ async def test_gateway_local_only_excludes_cloud(session, monkeypatch):
     )
     # Only a cloud deployment exists; LOCAL_ONLY must yield no candidate.
     assert await gateway.resolve(session, privacy=Privacy.LOCAL_ONLY) is None
+
+
+@pytest.mark.asyncio
+async def test_deepseek_is_cloud_and_credential_is_encrypted(session):
+    runtime = await runtime_service.create_runtime(
+        session, name="deepseek-cloud", runtime_type="deepseek", api_key="secret-value"
+    )
+    assert runtime.api_key != "secret-value"
+    assert runtime.api_key.startswith("enc:v1:")
+    adapter = gateway.adapter_for(runtime)
+    assert adapter._base_url == "https://api.deepseek.com"
+    assert adapter._headers()["Authorization"] == "Bearer secret-value"
+    assert not gateway.privacy_allows("deepseek", Privacy.LOCAL_ONLY, cloud_allowed=True)
+
+
+@pytest.mark.asyncio
+async def test_runtime_discovery_registers_deepseek_models(session, monkeypatch):
+    from app.ai.base import ModelInfo
+
+    runtime = await runtime_service.create_runtime(
+        session, name="deepseek-local", runtime_type="ollama", endpoint="http://ollama"
+    )
+    stub = _Stub("deepseek-local", RuntimeState.UP)
+
+    async def list_models():
+        return [ModelInfo("deepseek-r1:8b", "ollama")]
+
+    stub.list_models = list_models
+    monkeypatch.setattr(gateway, "adapter_for", lambda _runtime: stub)
+    models = await runtime_service.discover_runtime_models(session, runtime)
+    assert [model.name for model in models] == ["deepseek-r1:8b"]
+    deployments = await runtime_service.list_deployments(session)
+    assert deployments[0].runtime_model_name == "deepseek-r1:8b"
 
 
 @pytest.mark.asyncio
@@ -227,9 +268,7 @@ async def test_acceptance_two_runtimes_route_and_execute(client, session):
         )
 
     # 2) a chat request is routed through the gateway and executed end to end.
-    async with client.stream(
-        "POST", "/api/v1/chat/stream", json={"content": "ciao"}
-    ) as resp:
+    async with client.stream("POST", "/api/v1/chat/stream", json={"content": "ciao"}) as resp:
         assert resp.status_code == 200
         body = ""
         async for chunk in resp.aiter_text():

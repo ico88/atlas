@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai import circuit, gateway
+from app.models.provider import LLMModel
 from app.models.runtime import ModelAlias, ModelDeployment, RoutingPolicy, Runtime
 
 logger = logging.getLogger(__name__)
@@ -26,12 +27,14 @@ async def get_runtime(session: AsyncSession, runtime_id: str) -> Runtime | None:
 
 
 async def get_runtime_by_name(session: AsyncSession, name: str) -> Runtime | None:
-    return (
-        await session.execute(select(Runtime).where(Runtime.name == name))
-    ).scalar_one_or_none()
+    return (await session.execute(select(Runtime).where(Runtime.name == name))).scalar_one_or_none()
 
 
 async def create_runtime(session: AsyncSession, **fields) -> Runtime:
+    if fields.get("api_key"):
+        from app.services.secret_service import encrypt
+
+        fields["api_key"] = "enc:v1:" + encrypt(fields["api_key"])
     runtime = Runtime(**fields)
     session.add(runtime)
     await session.commit()
@@ -47,6 +50,10 @@ async def create_runtime(session: AsyncSession, **fields) -> Runtime:
 
 
 async def update_runtime(session: AsyncSession, runtime: Runtime, **fields) -> Runtime:
+    if fields.get("api_key"):
+        from app.services.secret_service import encrypt
+
+        fields["api_key"] = "enc:v1:" + encrypt(fields["api_key"])
     for key, value in fields.items():
         if value is not None:
             setattr(runtime, key, value)
@@ -89,13 +96,57 @@ async def health_all(session: AsyncSession) -> list[dict]:
     return out
 
 
+async def discover_runtime_models(session: AsyncSession, runtime: Runtime) -> list[LLMModel]:
+    """Probe a runtime and register its advertised models and deployments."""
+    infos = await gateway.adapter_for(runtime).list_models()
+    discovered: list[LLMModel] = []
+    for info in infos:
+        model = (
+            await session.execute(
+                select(LLMModel).where(
+                    LLMModel.provider == runtime.name, LLMModel.name == info.name
+                )
+            )
+        ).scalar_one_or_none()
+        if model is None:
+            model = LLMModel(
+                provider=runtime.name,
+                name=info.name,
+                model_key=info.name,
+                capabilities={"CHAT": True, "REASONING": "deepseek" in info.name.lower()},
+            )
+            session.add(model)
+        model.available = True
+        model.family = info.family
+        model.context_length = info.context_length
+        await session.flush()
+        deployment = (
+            await session.execute(
+                select(ModelDeployment).where(
+                    ModelDeployment.runtime_id == runtime.id,
+                    ModelDeployment.runtime_model_name == info.name,
+                )
+            )
+        ).scalar_one_or_none()
+        if deployment is None:
+            session.add(
+                ModelDeployment(
+                    model_key=info.name,
+                    runtime_id=runtime.id,
+                    runtime_model_name=info.name,
+                    node_id=runtime.node_id,
+                )
+            )
+        discovered.append(model)
+    await session.commit()
+    return discovered
+
+
 # --------------------------------------------------------------------------- #
 # Deployments
 # --------------------------------------------------------------------------- #
 async def list_deployments(session: AsyncSession) -> list[ModelDeployment]:
-    rows = await session.execute(
-        select(ModelDeployment).order_by(ModelDeployment.priority.desc())
-    )
+    rows = await session.execute(select(ModelDeployment).order_by(ModelDeployment.priority.desc()))
     return list(rows.scalars().all())
 
 
@@ -168,9 +219,7 @@ async def delete_alias(session: AsyncSession, alias_row: ModelAlias) -> None:
 # Routing policies (Fase 3 / M9)
 # --------------------------------------------------------------------------- #
 async def list_policies(session: AsyncSession) -> list[RoutingPolicy]:
-    rows = await session.execute(
-        select(RoutingPolicy).order_by(RoutingPolicy.task_type.asc())
-    )
+    rows = await session.execute(select(RoutingPolicy).order_by(RoutingPolicy.task_type.asc()))
     return list(rows.scalars().all())
 
 
@@ -187,9 +236,7 @@ async def upsert_policy(
     enabled: bool,
 ) -> RoutingPolicy:
     row = (
-        await session.execute(
-            select(RoutingPolicy).where(RoutingPolicy.task_type == task_type)
-        )
+        await session.execute(select(RoutingPolicy).where(RoutingPolicy.task_type == task_type))
     ).scalar_one_or_none()
     if row is None:
         row = RoutingPolicy(task_type=task_type)

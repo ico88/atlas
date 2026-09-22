@@ -79,9 +79,7 @@ class OpenAICompatAdapter:
     async def is_available(self) -> bool:
         try:
             async with httpx.AsyncClient(timeout=2.0) as client:
-                resp = await client.get(
-                    f"{self._base_url}/v1/models", headers=self._headers()
-                )
+                resp = await client.get(f"{self._base_url}/v1/models", headers=self._headers())
                 return resp.status_code == 200
         except (httpx.HTTPError, OSError):
             return False
@@ -94,9 +92,7 @@ class OpenAICompatAdapter:
     async def list_models(self) -> list[ModelInfo]:
         try:
             async with httpx.AsyncClient(timeout=self._timeout) as client:
-                resp = await client.get(
-                    f"{self._base_url}/v1/models", headers=self._headers()
-                )
+                resp = await client.get(f"{self._base_url}/v1/models", headers=self._headers())
                 resp.raise_for_status()
                 data = resp.json()
         except (httpx.HTTPError, OSError) as exc:
@@ -107,25 +103,29 @@ class OpenAICompatAdapter:
             for entry in data.get("data", [])
         ]
 
-    async def stream_chat(
-        self, messages: list[ChatMessage], model: str
-    ) -> AsyncIterator[str]:
+    async def stream_chat(self, messages: list[ChatMessage], model: str) -> AsyncIterator[str]:
         payload = {
             "model": model,
             "messages": [{"role": m.role, "content": m.content} for m in messages],
             "stream": True,
         }
-        async with (
-            httpx.AsyncClient(timeout=None) as client,
-            client.stream(
-                "POST",
-                f"{self._base_url}/v1/chat/completions",
-                json=payload,
-                headers=self._headers(),
-            ) as resp,
-        ):
-            resp.raise_for_status()
-            async for line in resp.aiter_lines():
-                piece = parse_sse_content(line)
-                if piece:
-                    yield piece
+        timeout = httpx.Timeout(self._timeout, read=max(self._timeout, 120.0))
+        try:
+            async with (
+                httpx.AsyncClient(timeout=timeout) as client,
+                client.stream(
+                    "POST",
+                    f"{self._base_url}/v1/chat/completions",
+                    json=payload,
+                    headers=self._headers(),
+                ) as resp,
+            ):
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    piece = parse_sse_content(line)
+                    if piece:
+                        yield piece
+        except httpx.TimeoutException as exc:
+            raise RuntimeError(f"{self.name} response timed out") from exc
+        except httpx.ConnectError as exc:
+            raise RuntimeError(f"Cannot connect to {self.name} at {self._base_url}") from exc

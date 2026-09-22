@@ -1329,9 +1329,14 @@ export async function createRuntime(body: {
   name: string;
   runtime_type: string;
   endpoint?: string;
+  api_key?: string;
   node_id?: string;
 }): Promise<Runtime> {
   return sendJson("/api/v1/runtimes", "POST", body);
+}
+
+export async function discoverRuntime(id: string): Promise<{ runtime: string; models: string[] }> {
+  return sendJson(`/api/v1/runtimes/${id}/discover`, "POST");
 }
 
 export async function updateRuntime(id: string, body: Partial<Runtime>): Promise<Runtime> {

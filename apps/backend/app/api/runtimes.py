@@ -82,6 +82,20 @@ async def runtimes_health(
     return [RuntimeHealthRead(**h) for h in await runtime_service.health_all(session)]
 
 
+@router.post("/runtimes/{runtime_id}/discover")
+async def discover_runtime(
+    runtime_id: str, session: AsyncSession = Depends(get_session)
+) -> dict[str, object]:
+    runtime = await runtime_service.get_runtime(session, runtime_id)
+    if runtime is None:
+        raise HTTPException(status_code=404, detail="runtime not found")
+    try:
+        models = await runtime_service.discover_runtime_models(session, runtime)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"runtime discovery failed: {exc}") from exc
+    return {"runtime": runtime.name, "models": [m.name for m in models]}
+
+
 # --------------------------------------------------------------------------- #
 # Deployments
 # --------------------------------------------------------------------------- #
@@ -128,9 +142,7 @@ async def delete_deployment(
 
 
 @router.post("/model-deployments/{dep_id}/benchmark")
-async def benchmark_deployment(
-    dep_id: str, session: AsyncSession = Depends(get_session)
-) -> dict:
+async def benchmark_deployment(dep_id: str, session: AsyncSession = Depends(get_session)) -> dict:
     dep = await runtime_service.get_deployment(session, dep_id)
     if dep is None:
         raise HTTPException(status_code=404, detail="deployment not found")
