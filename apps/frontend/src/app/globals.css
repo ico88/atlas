@@ -1,22 +1,24 @@
 :root {
-  /* ALMA / ATLAS design system — dark warm + copper (SPEC §1). The existing
-     token names are remapped to the copper palette so the whole app recolors;
-     the spec's own aliases are added below for new components. */
-  --bg: #11100f; /* --bg-primary */
-  --panel: #181715; /* --bg-secondary */
-  --panel-2: #201f1c; /* --bg-card */
-  --panel-3: #292824; /* --bg-hover */
-  --border: #34322d;
-  --text: #f2efe8; /* --text-primary */
-  --muted: #716e67; /* --text-muted */
-  --accent: #e97843; /* copper */
-  --accent-weak: rgba(233, 120, 67, 0.12); /* --accent-soft */
-  --ok: #65a86e; /* --success */
-  --bad: #c95c54; /* --danger */
-  --warn: #d6a34a; /* --warning */
+  /* ALMA / ATLAS design system — DwarfStar light (ref: antirez/ds4):
+     white background, pure-black text, solar-yellow accent. Minimal and native:
+     thin light borders, restrained shadows, no gradients or neon. The existing
+     token names are remapped so the whole app recolours; spec aliases follow. */
+  --bg: #ffffff; /* --bg-primary: page white */
+  --panel: #ffffff; /* --bg-secondary: cards are white, delineated by borders */
+  --panel-2: #f5f5f1; /* --bg-card: subtle surface (inputs, assistant bubble) */
+  --panel-3: #ebebe4; /* --bg-hover: deeper surface / hover */
+  --border: #e4e4dc;
+  --text: #000000; /* --text-primary: pure black */
+  --muted: #6f6f67; /* --text-muted */
+  --accent: #ffc400; /* solar yellow */
+  --accent-weak: rgba(255, 196, 0, 0.16); /* --accent-soft */
+  --on-accent: #000000; /* text/icons sitting on the yellow accent */
+  --ok: #1f9d55; /* --success (readable on white) */
+  --bad: #d23b30; /* --danger */
+  --warn: #b07d0a; /* --warning */
   --radius: 12px;
-  /* Subtle only — the spec forbids heavy shadows. */
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 18px rgba(0, 0, 0, 0.22);
+  /* Restrained — light theme keeps shadows barely-there. */
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.06);
   --ring: 0 0 0 3px var(--accent-weak);
 
   /* Spec aliases (§1) — usable directly by new ALMA / ATLAS Control screens. */
@@ -24,11 +26,11 @@
   --bg-secondary: var(--panel);
   --bg-card: var(--panel-2);
   --bg-hover: var(--panel-3);
-  --border-light: #45423b;
+  --border-light: #d4d4ca;
   --text-primary: var(--text);
-  --text-secondary: #aaa69d;
+  --text-secondary: #45453f;
   --text-muted: var(--muted);
-  --accent-hover: #f08754;
+  --accent-hover: #f0b400;
   --accent-soft: var(--accent-weak);
   --success: var(--ok);
   --warning: var(--warn);
@@ -37,12 +39,12 @@
   --radius-md: 12px;
   --radius-lg: 16px;
 
-  /* Highlighter accent for metrics & progress (reference: lime-yellow marker on
-     token/duration/GPU-temp readouts). Copper stays the interaction colour;
-     this lime is used ONLY to make live numbers pop, like a highlighter pen. */
-  --highlight: #e6f04a;
-  --highlight-dim: #c9d63f;
-  --highlight-soft: rgba(230, 240, 74, 0.16);
+  /* Solar-yellow highlighter for live metrics & progress — a marker on white
+     paper (ref: DwarfStar). Used as a wash behind mono numbers and as the
+     progress-bar fill; yellow is the one accent colour across the app. */
+  --highlight: #ffc400;
+  --highlight-dim: #ffd54a;
+  --highlight-soft: rgba(255, 196, 0, 0.22);
 
   --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
     "Segoe UI", Roboto, sans-serif;
@@ -290,9 +292,9 @@ button:active:not(:disabled) {
   font-size: 28px;
   font-weight: 750;
   letter-spacing: -0.02em;
-  /* Live numbers are highlighted like a marker (reference). Semantic .ok/.warn
-     below override for status metrics. */
-  color: var(--highlight);
+  /* Big KPI numbers: stark black mono on white. Semantic .ok/.warn below
+     override for status metrics. */
+  color: var(--text);
 }
 .stat-value.ok {
   color: var(--ok);
@@ -303,10 +305,18 @@ button:active:not(:disabled) {
 .stat-value.bad {
   color: var(--bad);
 }
-/* Reusable highlighter for inline metric numbers (token/s, RAM, temp, …). */
-.highlight,
+/* Inline metric values stay black mono; opt-in .highlight paints a solar-yellow
+   marker wash behind the number, like a highlighter pen on white paper. */
 .metric {
-  color: var(--highlight);
+  color: var(--text);
+}
+.highlight {
+  color: var(--text);
+  background: var(--highlight-soft);
+  padding: 0 4px;
+  border-radius: 4px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 .stat-label {
   margin-top: 4px;
@@ -516,7 +526,7 @@ button:active:not(:disabled) {
 .bubble.user {
   align-self: flex-end;
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
 }
 
 .bubble.assistant {
@@ -822,7 +832,7 @@ button:active:not(:disabled) {
   border-radius: 12px;
   border: none;
   background: var(--accent);
-  color: #1a0f08;
+  color: var(--on-accent);
   font-size: 18px;
   font-weight: 700;
   cursor: pointer;
@@ -897,7 +907,7 @@ button:active:not(:disabled) {
   border-radius: var(--radius-md);
   border: 1px solid transparent;
   background: var(--accent);
-  color: #1a0f08;
+  color: var(--on-accent);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -1442,7 +1452,7 @@ pre {
   border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.14);
 }
 .cmdk-input {
   width: 100%;

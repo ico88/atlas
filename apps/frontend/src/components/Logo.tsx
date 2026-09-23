@@ -1,8 +1,8 @@
 /**
  * ATLAS brand mark — an SVG recreation of the logo (network ring + gradient "A").
  * Uses currentColor for the ring/nodes so it adapts to the surrounding text
- * color; the "A" carries the cyan→blue brand gradient. Swap for the official
- * asset when available.
+ * color; the "A" carries the DwarfStar solar-yellow brand accent. Swap for the
+ * official asset when available.
  */
 export default function Logo({ size = 34 }: { size?: number }) {
   const nodes: [number, number][] = [
@@ -26,8 +26,8 @@ export default function Logo({ size = 34 }: { size?: number }) {
     >
       <defs>
         <linearGradient id="atlasGrad" x1="0" y1="1" x2="1" y2="0">
-          <stop offset="0" stopColor="#22d3ee" />
-          <stop offset="1" stopColor="#2563eb" />
+          <stop offset="0" stopColor="#e8a600" />
+          <stop offset="1" stopColor="#ffc400" />
         </linearGradient>
       </defs>
       <circle
