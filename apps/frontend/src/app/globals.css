@@ -381,18 +381,22 @@ button:active:not(:disabled) {
   height: 9px;
   border-radius: 50%;
   display: inline-block;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 18%, transparent);
 }
 
 .dot.ok {
   background: var(--ok);
+  color: var(--ok);
 }
 
 .dot.bad {
   background: var(--bad);
+  color: var(--bad);
 }
 
 .dot.warn {
   background: var(--warn);
+  color: var(--warn);
 }
 
 .muted {
@@ -402,11 +406,12 @@ button:active:not(:disabled) {
 
 .pill {
   display: inline-block;
-  padding: 2px 8px;
+  padding: 2px 9px;
   border-radius: 999px;
   font-size: 12px;
   background: var(--panel-2);
-  color: var(--muted);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
 }
 
 .error {
@@ -554,7 +559,7 @@ button:active:not(:disabled) {
 .feedback-btn.on {
   opacity: 1;
   background: var(--panel-2);
-  border-color: var(--accent, #6aa3ff);
+  border-color: var(--accent);
 }
 .feedback-row .meta {
   display: inline;
@@ -817,10 +822,14 @@ button:active:not(:disabled) {
   border-radius: 12px;
   border: none;
   background: var(--accent);
-  color: #fff;
+  color: #1a0f08;
   font-size: 18px;
   font-weight: 700;
   cursor: pointer;
+  transition: background 0.15s ease;
+}
+.composer-send:hover:not(:disabled) {
+  background: var(--accent-hover);
 }
 .composer-send:disabled {
   opacity: 0.45;
@@ -855,7 +864,7 @@ button:active:not(:disabled) {
   font-size: 12px;
   padding: 3px 8px;
   border-radius: 999px;
-  background: var(--panel-3, var(--panel-2, #eef));
+  background: var(--panel-3);
   border: 1px solid var(--border);
   color: var(--text);
 }
@@ -885,17 +894,26 @@ button:active:not(:disabled) {
 
 .btn {
   padding: 9px 16px;
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   border: 1px solid transparent;
   background: var(--accent);
-  color: white;
+  color: #1a0f08;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease,
+    box-shadow 0.15s ease, transform 0.05s ease;
 }
 
 .btn:hover:not(:disabled) {
-  background: #3f7cf0;
+  background: var(--accent-hover);
+}
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.btn:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
 }
 
 .btn:disabled {
@@ -911,6 +929,7 @@ button:active:not(:disabled) {
 
 .btn.secondary:hover:not(:disabled) {
   background: var(--panel-3);
+  border-color: var(--border-light);
 }
 
 table.data {
@@ -929,6 +948,15 @@ table.data td {
 table.data th {
   color: var(--muted);
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 11px;
+}
+table.data tbody tr {
+  transition: background 0.12s ease;
+}
+table.data tbody tr:hover {
+  background: var(--accent-weak);
 }
 
 /* Web citations in chat (ROADMAP PR 15) */
@@ -979,8 +1007,11 @@ table.data th {
   font-size: 12px;
   font-weight: 600;
 }
-.queue-badge.active { background: #16653433; color: #22c55e; }
-.queue-badge.idle { background: var(--panel-2); color: var(--text); }
+.queue-badge.active {
+  background: color-mix(in srgb, var(--ok) 18%, transparent);
+  color: var(--ok);
+}
+.queue-badge.idle { background: var(--panel-2); color: var(--muted); }
 
 /* Settings page form rows (ROADMAP PR 15) */
 .setting-row {
