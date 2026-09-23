@@ -4,6 +4,17 @@ All notable changes to ATLAS are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- **DeepSeek support** — run DeepSeek locally via Ollama (e.g. `deepseek-r1`,
+  `deepseek-coder-v2`) or through the DeepSeek cloud API as a first-class
+  `deepseek` runtime (defaults to `https://api.deepseek.com`, OpenAI-compatible).
+  Runtime API keys are encrypted at rest with the Fernet secret manager and are
+  never returned by the API. A `POST /runtimes/{id}/discover` endpoint probes a
+  runtime and registers its models/deployments; DeepSeek models are flagged with
+  the `REASONING` capability. See [docs/deepseek.md](docs/deepseek.md).
+
 ## [0.1.0] — 2026-09-16
 
 First public release under the Apache License 2.0. ATLAS is a **local-first,
