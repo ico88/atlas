@@ -1761,3 +1761,22 @@ export const proposePatch = (issueId: string) =>
   postJson<{ id: string; status: string }>(
     `/api/v1/maintenance/issues/${encodeURIComponent(issueId)}/propose-patch`,
   );
+
+// --- System Monitor (ATLAS Control, SPEC §11): live host metrics ---
+export interface GpuMetric {
+  name?: string | null;
+  vendor?: string | null;
+  vram_total?: number | null;
+  temperature?: number | null;
+  utilization?: number | null;
+}
+export interface SystemMonitor {
+  cpu: { percent: number | null; cores: number | null; load_average: number[] | null };
+  memory: { total: number | null; used: number | null; available: number | null; percent: number | null };
+  swap: { total: number | null; used: number | null; percent: number | null };
+  storage: { path: string; total: number | null; used: number | null; free: number | null; percent: number | null };
+  uptime_seconds: number | null;
+  cpu_temperature: number | null;
+  gpu: GpuMetric[];
+}
+export const fetchSystemMonitor = () => getJson<SystemMonitor>("/api/v1/system/monitor");

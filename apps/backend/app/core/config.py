@@ -116,6 +116,9 @@ class Settings(BaseSettings):
     code_patch_model: str = ""  # explicit coder model; blank -> auto-detect
     code_patch_max_file_bytes: int = 60000  # skip files too large to prompt safely
 
+    # System Monitor (SPEC §11-12): which filesystem the storage gauge measures.
+    monitor_storage_path: str = "/"
+
     # Critical review (ROADMAP PR 19). A proposer/critic/verifier/judge pipeline
     # runs up to N rounds and stops early once a candidate clears the accept
     # threshold (adaptive consensus).

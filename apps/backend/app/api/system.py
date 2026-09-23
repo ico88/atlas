@@ -77,6 +77,17 @@ async def system_hardware() -> dict:
     return scan_hardware()
 
 
+@router.get("/api/v1/system/monitor")
+async def system_monitor() -> dict:
+    """Live host metrics for the ATLAS Control System Monitor (SPEC §11):
+    CPU, load, RAM, swap, storage, uptime, CPU temperature and GPU/VRAM.
+    Real readings only — anything unavailable comes back as null (shown as N/A)."""
+
+    from app.services import system_monitor_service
+
+    return await system_monitor_service.snapshot(get_settings().monitor_storage_path)
+
+
 @router.get("/api/v1/system/metrics", response_model=SystemMetricsResponse)
 async def system_metrics(
     session: AsyncSession = Depends(get_session),
