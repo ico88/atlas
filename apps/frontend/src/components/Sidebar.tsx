@@ -7,13 +7,14 @@ import Logo from "@/components/Logo";
 import { Lang, useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 
+// ATLAS Control (admin cockpit) navigation. ALMA (the chat) is reached via the
+// "← ALMA" link, not listed here — keeping the two shells cleanly separated.
 const NAV_GROUPS: { section?: string; items: { href: string; key: string }[] }[] = [
   {
     items: [
-      { href: "/", key: "nav.chat" },
-      { href: "/setup", key: "nav.setup" },
       { href: "/dashboard", key: "nav.dashboard" },
       { href: "/autopilot", key: "nav.autopilot" },
+      { href: "/setup", key: "nav.setup" },
     ],
   },
   {
@@ -66,6 +67,12 @@ export default function Sidebar() {
   const { t, lang, setLang } = useI18n();
   const { user, logout } = useAuth();
 
+  // ALMA = the clean conversational shell (the chat, `/`); everything else is
+  // ATLAS Control, the technical cockpit. The two shells share this component
+  // but show completely different chrome (SPEC §2, §3, §25).
+  const isAlma = pathname === "/" || pathname === "/login";
+  const brand = isAlma ? "ALMA" : "ATLAS Control";
+
   // Close the mobile drawer whenever the route changes.
   useEffect(() => {
     setOpen(false);
@@ -85,36 +92,55 @@ export default function Sidebar() {
         </button>
         <span className="topbar-logo">
           <Logo size={24} />
-          ALMA
+          {brand}
         </span>
       </header>
 
       {open && <div className="scrim" onClick={() => setOpen(false)} />}
 
-      <aside className={`sidebar ${open ? "open" : ""}`}>
+      <aside className={`sidebar ${isAlma ? "sidebar-alma" : ""} ${open ? "open" : ""}`}>
         <div className="brand">
           <div className="brand-row">
             <Logo size={34} />
-            <span className="logo">ALMA</span>
+            <span className="logo">{brand}</span>
           </div>
-          <span className="tagline">{t("sidebar.tagline")}</span>
+          <span className="tagline">
+            {isAlma ? t("sidebar.tagline") : t("sidebar.controlTagline")}
+          </span>
         </div>
-        <nav className="nav">
-          {NAV_GROUPS.map((group, gi) => (
-            <div key={group.section ?? gi} className="nav-group">
-              {group.section && <div className="nav-section">{t(group.section)}</div>}
-              {group.items.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={pathname === item.href ? "active" : ""}
-                >
-                  {t(item.key)}
-                </Link>
-              ))}
+        {isAlma ? (
+          // ALMA: keep it clean — conversations live in the chat itself; the only
+          // navigation here is the doorway into the technical cockpit.
+          <nav className="nav">
+            <div className="nav-group">
+              <Link href="/dashboard" className="control-entry">
+                ⚙ {t("sidebar.openControl")}
+              </Link>
             </div>
-          ))}
-        </nav>
+          </nav>
+        ) : (
+          <nav className="nav">
+            <div className="nav-group">
+              <Link href="/" className="alma-back">
+                {t("sidebar.backToChat")}
+              </Link>
+            </div>
+            {NAV_GROUPS.map((group, gi) => (
+              <div key={group.section ?? gi} className="nav-group">
+                {group.section && <div className="nav-section">{t(group.section)}</div>}
+                {group.items.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={pathname === item.href ? "active" : ""}
+                  >
+                    {t(item.key)}
+                  </Link>
+                ))}
+              </div>
+            ))}
+          </nav>
+        )}
         <div style={{ marginTop: "auto" }}>
           <label className="lang-switch">
             <span className="muted">🌐 {t("sidebar.language")}</span>

@@ -74,7 +74,7 @@
   border-radius: 999px;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: #33415a;
+  background: var(--border-light);
 }
 
 html,
@@ -313,7 +313,7 @@ button:active:not(:disabled) {
 }
 .quick-link:hover {
   background: var(--panel-3);
-  border-color: #33415a;
+  border-color: var(--border-light);
 }
 
 .card {
@@ -326,7 +326,7 @@ button:active:not(:disabled) {
   transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
 }
 .cards .card:hover {
-  border-color: #33415a;
+  border-color: var(--border-light);
   box-shadow: var(--shadow);
 }
 
@@ -1432,4 +1432,29 @@ pre {
   border-top: 1px solid var(--border);
   color: var(--muted);
   font-size: 11px;
+}
+
+/* ALMA / ATLAS Control split (SPEC §2-3): the doorway between the two shells. */
+.control-entry {
+  display: block;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+  border: 1px solid transparent;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.control-entry:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+.alma-back {
+  display: block;
+  color: var(--text-secondary);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.alma-back:hover {
+  color: var(--accent);
 }
