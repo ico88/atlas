@@ -85,7 +85,7 @@ export default function Sidebar() {
         </button>
         <span className="topbar-logo">
           <Logo size={24} />
-          ATLAS
+          ALMA
         </span>
       </header>
 
@@ -95,7 +95,7 @@ export default function Sidebar() {
         <div className="brand">
           <div className="brand-row">
             <Logo size={34} />
-            <span className="logo">ATLAS</span>
+            <span className="logo">ALMA</span>
           </div>
           <span className="tagline">{t("sidebar.tagline")}</span>
         </div>

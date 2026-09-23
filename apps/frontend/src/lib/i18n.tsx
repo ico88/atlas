@@ -15,7 +15,7 @@ type Dict = Record<string, string>;
 
 // Translations. English is the fallback; add keys to both maps as UI grows.
 const EN: Dict = {
-  "nav.chat": "Chat",
+  "nav.chat": "ALMA",
   "nav.dashboard": "Dashboard",
   "nav.autopilot": "Autopilot",
   "nav.queries": "Queries",
@@ -41,7 +41,7 @@ const EN: Dict = {
   "nav.section.fleet": "Fleet",
   "nav.section.govern": "Governance",
   "nav.section.admin": "Admin",
-  "sidebar.tagline": "Adaptive Task & LLM Array System",
+  "sidebar.tagline": "Powered by ATLAS",
   "sidebar.footer": "Local-first · Human-governed",
   "sidebar.language": "Language",
   "auth.login": "Log in",
@@ -52,7 +52,7 @@ const EN: Dict = {
   "auth.signedInAs": "Signed in as",
   "auth.guest": "Not signed in",
 
-  "chat.title": "Chat",
+  "chat.title": "ALMA",
   "chat.subtitle":
     "Local-first chat. Type a message, or a command like /web, /remember, /recall, /search — everything from here.",
   "chat.newChat": "+ New chat",
@@ -163,10 +163,10 @@ const EN: Dict = {
   "wizard.pullDone": "Model downloaded on the node.",
   "wizard.attach": "Connect model",
   "wizard.attached": "Model connected to the node.",
-  "nav.admin": "Admin",
+  "nav.admin": "ATLAS Control",
   "nav.security": "Security",
-  "admin.title": "Admin",
-  "admin.subtitle": "Everything to run ATLAS, in one place \u2014 people, security, settings and health.",
+  "admin.title": "ATLAS Control",
+  "admin.subtitle": "Infrastructure & AI Runtime \u2014 models, runtime, routing, system and health.",
   "admin.users": "Users & roles",
   "admin.users.desc": "Add people, set admin/user, manage access.",
   "admin.security": "Security",
@@ -234,7 +234,7 @@ const EN: Dict = {
 };
 
 const IT: Dict = {
-  "nav.chat": "Chat",
+  "nav.chat": "ALMA",
   "nav.dashboard": "Cruscotto",
   "nav.autopilot": "Autopilot",
   "nav.queries": "Interrogazioni",
@@ -260,7 +260,7 @@ const IT: Dict = {
   "nav.section.fleet": "Fleet",
   "nav.section.govern": "Governance",
   "nav.section.admin": "Amministrazione",
-  "sidebar.tagline": "Sistema adattivo di attività e modelli LLM",
+  "sidebar.tagline": "Su piattaforma ATLAS",
   "sidebar.footer": "Locale · Governato dall'uomo",
   "sidebar.language": "Lingua",
   "auth.login": "Accedi",
@@ -271,7 +271,7 @@ const IT: Dict = {
   "auth.signedInAs": "Accesso come",
   "auth.guest": "Non autenticato",
 
-  "chat.title": "Chat",
+  "chat.title": "ALMA",
   "chat.subtitle":
     "Chat locale. Scrivi un messaggio o un comando come /web, /remember, /recall, /search — tutto da qui.",
   "chat.newChat": "+ Nuova chat",
@@ -382,10 +382,10 @@ const IT: Dict = {
   "wizard.pullDone": "Modello scaricato sul nodo.",
   "wizard.attach": "Collega modello",
   "wizard.attached": "Modello collegato al nodo.",
-  "nav.admin": "Amministrazione",
+  "nav.admin": "ATLAS Control",
   "nav.security": "Sicurezza",
-  "admin.title": "Amministrazione",
-  "admin.subtitle": "Tutto per gestire ATLAS in un posto solo \u2014 persone, sicurezza, impostazioni e salute.",
+  "admin.title": "ATLAS Control",
+  "admin.subtitle": "Infrastruttura e runtime AI \u2014 modelli, runtime, routing, sistema e salute.",
   "admin.users": "Utenti e ruoli",
   "admin.users.desc": "Aggiungi persone, imposta admin/utente, gestisci gli accessi.",
   "admin.security": "Sicurezza",

@@ -6,8 +6,8 @@ import { AuthProvider } from "@/lib/auth";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ATLAS Control Plane",
-  description: "Adaptive Task & LLM Array System — local-first AI orchestration",
+  title: "ALMA",
+  description: "ALMA — the human interface to ATLAS, a local-first AI platform",
 };
 
 export const viewport = {
