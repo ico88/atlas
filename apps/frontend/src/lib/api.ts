@@ -1546,6 +1546,32 @@ export const fetchAudit = () =>
 export const verifyAudit = () =>
   getJson<{ ok: boolean; count: number; broken_at?: number }>("/api/v1/audit/verify");
 
+// --- Logs (C/1) ---
+export interface LogEntry {
+  timestamp: string;
+  level: "INFO" | "WARN" | "ERROR";
+  source: string;
+  message: string;
+}
+export const fetchLogs = (filter?: string, limit = 100, offset = 0) =>
+  getJson<{ items: LogEntry[]; total: number; limit: number; offset: number }>(
+    `/api/v1/logs?limit=${limit}&offset=${offset}${filter ? `&filter=${encodeURIComponent(filter)}` : ""}`
+  );
+
+// --- Agents (C/1) ---
+export interface AgentStatus {
+  name: string;
+  status: "running" | "idle" | "error";
+  task: string;
+}
+export interface NodeAgents {
+  id: string;
+  state: "UP" | "DOWN";
+  agents: AgentStatus[];
+}
+export const fetchAgents = () =>
+  getJson<{ nodes: NodeAgents[] }>("/api/v1/agents");
+
 // --- SLO (R5) ---
 export interface SloItem {
   name: string;

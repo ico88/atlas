@@ -128,3 +128,104 @@ async def system_slo(session: AsyncSession = Depends(get_session)) -> dict:
     except Exception:  # noqa: BLE001 - unreachable Redis => unhealthy SLO
         healthy = False
     return await slo_service.report(session, healthy=healthy)
+
+
+@router.get("/api/v1/logs")
+async def logs_list(
+    filter: str = "",
+    limit: int = 100,
+    offset: int = 0,
+) -> dict:
+    """Control plane logs (C/1). Mock sample entries; TODO: wire to actual logging.
+
+    Query params:
+      filter: substring match on message or level (e.g. "error", "deepseek")
+      limit: max entries to return (default 100)
+      offset: pagination offset (default 0)
+    """
+    # Mock log entries (in a real system, these would come from a log aggregator)
+    sample_logs = [
+        {
+            "timestamp": "2026-09-26T18:15:42Z",
+            "level": "INFO",
+            "source": "backend",
+            "message": "DeepSeek V4 Flash loaded successfully on node-1",
+        },
+        {
+            "timestamp": "2026-09-26T18:14:18Z",
+            "level": "INFO",
+            "source": "llama.cpp",
+            "message": "Inference complete: 512 tokens in 4.2s (121.9 t/s)",
+        },
+        {
+            "timestamp": "2026-09-26T18:10:05Z",
+            "level": "WARN",
+            "source": "node-agent",
+            "message": "Memory usage approaching limit: 3.2GB / 3.5GB",
+        },
+        {
+            "timestamp": "2026-09-26T18:05:33Z",
+            "level": "INFO",
+            "source": "backend",
+            "message": "Autopilot experiment started: model_swap_candidate",
+        },
+        {
+            "timestamp": "2026-09-26T18:00:00Z",
+            "level": "ERROR",
+            "source": "llama.cpp",
+            "message": "GGUF load failed: insufficient context size",
+        },
+    ]
+
+    # Filter
+    if filter:
+        sample_logs = [
+            log
+            for log in sample_logs
+            if filter.lower() in log["message"].lower()
+            or filter.lower() in log["level"].lower()
+        ]
+
+    # Paginate
+    total = len(sample_logs)
+    items = sample_logs[offset : offset + limit]
+
+    return {
+        "items": items,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+@router.get("/api/v1/agents")
+async def agents_list(
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """List autonomous agents running on nodes (C/1).
+
+    Returns: { nodes: [ { id, state, agents: [ { name, status, task } ] } ] }
+    """
+    nodes = await node_service.list_nodes(session)
+
+    # Mock agent data per node
+    agent_data = {
+        "node-1": [
+            {"name": "improve-model", "status": "running", "task": "A/B experiment on DeepSeek"},
+            {"name": "monitor-health", "status": "idle", "task": "system health checks"},
+        ],
+        "node-2": [
+            {"name": "cache-manager", "status": "running", "task": "optimize KV cache"},
+        ],
+    }
+
+    return {
+        "nodes": [
+            {
+                "id": n.id,
+                "state": "UP" if node_service.is_online(n) else "DOWN",
+                "agents": agent_data.get(n.id, []),
+            }
+            for n in nodes
+        ]
+    }

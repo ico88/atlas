@@ -40,6 +40,13 @@ const NAV_GROUPS: { section?: string; items: { href: string; key: string }[] }[]
     ],
   },
   {
+    section: "nav.section.monitor",
+    items: [
+      { href: "/logs", key: "nav.logs" },
+      { href: "/agents", key: "nav.agents" },
+    ],
+  },
+  {
     section: "nav.section.govern",
     items: [
       { href: "/maintenance", key: "nav.maintenance" },
