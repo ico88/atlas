@@ -9,58 +9,36 @@ import { useAuth } from "@/lib/auth";
 
 // ATLAS Control (admin cockpit) navigation. ALMA (the chat) is reached via the
 // "← ALMA" link, not listed here — keeping the two shells cleanly separated.
+// Simplified 4-group navigation for clarity (Dashboard, Runtime, Observability, Settings)
 const NAV_GROUPS: { section?: string; items: { href: string; key: string }[] }[] = [
   {
     items: [
       { href: "/dashboard", key: "nav.dashboard" },
-      { href: "/autopilot", key: "nav.autopilot" },
-      { href: "/setup", key: "nav.setup" },
     ],
   },
   {
-    section: "nav.section.work",
-    items: [
-      { href: "/queries", key: "nav.queries" },
-      { href: "/queue", key: "nav.queue" },
-      { href: "/tasks", key: "nav.tasks" },
-      { href: "/knowledge", key: "nav.knowledge" },
-      { href: "/environments", key: "nav.environments" },
-    ],
-  },
-  {
-    section: "nav.section.fleet",
+    section: "nav.section.runtime",
     items: [
       { href: "/nodes", key: "nav.nodes" },
       { href: "/fleet", key: "nav.fleet" },
-      { href: "/compliance", key: "nav.compliance" },
-      { href: "/resources", key: "nav.resources" },
+      { href: "/environments", key: "nav.environments" },
       { href: "/models", key: "nav.models" },
       { href: "/runtimes", key: "nav.runtimes" },
-      { href: "/system", key: "nav.system" },
     ],
   },
   {
-    section: "nav.section.monitor",
+    section: "nav.section.observability",
     items: [
       { href: "/logs", key: "nav.logs" },
       { href: "/agents", key: "nav.agents" },
-    ],
-  },
-  {
-    section: "nav.section.govern",
-    items: [
-      { href: "/maintenance", key: "nav.maintenance" },
+      { href: "/autopilot", key: "nav.autopilot" },
       { href: "/improvements", key: "nav.improvements" },
-      { href: "/finetune", key: "nav.finetune" },
       { href: "/reviews", key: "nav.reviews" },
-      { href: "/evals", key: "nav.evals" },
-      { href: "/escalation", key: "nav.escalation" },
     ],
   },
   {
-    section: "nav.section.admin",
+    section: "nav.section.settings",
     items: [
-      { href: "/admin", key: "nav.admin" },
       { href: "/users", key: "nav.users" },
       { href: "/admin/security", key: "nav.security" },
       { href: "/settings", key: "nav.settings" },

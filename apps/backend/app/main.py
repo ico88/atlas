@@ -19,7 +19,6 @@ from app.api import (
     cluster,
     conversation_queue,
     deployment,
-    enrollment,
     environment,
     escalation,
     finetune,
@@ -46,9 +45,7 @@ from app.api import (
 from app.api import (
     eval as eval_api,
 )
-from app.api import (
-    settings as settings_api,
-)
+from app.domains.config import api as config_api
 from app.api.middleware import RequestContextMiddleware
 from app.core.config import get_settings
 from app.core.logging import configure_logging
@@ -161,8 +158,7 @@ def create_app() -> FastAPI:
     app.include_router(webtools.router)
     app.include_router(query.router)
     app.include_router(conversation_queue.router)
-    app.include_router(enrollment.router)
-    app.include_router(settings_api.router)
+    app.include_router(config_api.router)
     app.include_router(metrics.router)
     app.include_router(environment.router)
     app.include_router(eval_api.router)
