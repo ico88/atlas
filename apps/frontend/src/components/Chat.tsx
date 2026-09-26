@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Markdown from "@/components/Markdown";
+import AlmaWelcome from "@/components/AlmaWelcome";
 import { useI18n } from "@/lib/i18n";
 import {
   AttachmentInfo,
@@ -507,12 +508,7 @@ export default function Chat() {
         <div className="chat-main">
           <div className="chat-messages" ref={scrollRef}>
             {messages.length === 0 && !live && phase === "idle" && (
-              <div className="muted">
-                <p>{t("chat.empty")}</p>
-                <pre style={{ background: "var(--panel-2)", padding: 12, borderRadius: 8 }}>
-                  {HELP}
-                </pre>
-              </div>
+              <AlmaWelcome />
             )}
             {messages.map((m) => {
               // A reply still generating in the background (e.g. resumed after a
