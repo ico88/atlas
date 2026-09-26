@@ -18,8 +18,6 @@ from app.api import (
     escalation,
     maintenance,
     metrics,
-    query,
-    rag,
     service_accounts,
     setup,
     system,
@@ -34,6 +32,7 @@ from app.domains.config import api as config_api
 from app.domains.governance import api as governance_api
 from app.domains.runtime import api as runtime_api
 from app.domains.improvement import api as improvement_api
+from app.domains.knowledge import api as knowledge_api
 from app.api.middleware import RequestContextMiddleware
 from app.core.config import get_settings
 from app.core.logging import configure_logging
@@ -136,15 +135,14 @@ def create_app() -> FastAPI:
     app.include_router(tasks.router)
     app.include_router(chat.router)
     app.include_router(maintenance.router)
-    app.include_router(rag.router)
     app.include_router(escalation.router)
     app.include_router(webtools.router)
-    app.include_router(query.router)
     app.include_router(conversation_queue.router)
     app.include_router(config_api.router)
     app.include_router(governance_api.router)
     app.include_router(runtime_api.router)
     app.include_router(improvement_api.router)
+    app.include_router(knowledge_api.router)
     app.include_router(metrics.router)
     app.include_router(eval_api.router)
     app.include_router(cluster.router)
