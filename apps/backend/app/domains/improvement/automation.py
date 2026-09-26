@@ -1,0 +1,200 @@
+"""Semi-automatic advancement of the maintenance & improvement loops.
+
+The goal is to remove busywork without removing governance: the *analysis* and
+*experiment* phases run by themselves in the background, so a human is left with
+only the approve / apply decision. Irreversible steps (opening a PR, changing the
+default model) are never performed here — they stay behind the human approval
+gate.
+
+Each background worker owns its own DB session (it runs detached from any HTTP
+request) and is best-effort: a failure is logged and never propagates.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.config import get_settings
+from app.db import get_sessionmaker
+from app.models.improvement import ProposalStatus
+from app.models.maintenance import IssueStatus, RunStatus
+
+logger = logging.getLogger(__name__)
+
+# Strong references so detached workers are not garbage-collected mid-flight.
+_BACKGROUND: set[asyncio.Task] = set()
+
+
+def _spawn(coro) -> None:
+    task = asyncio.create_task(coro)
+    _BACKGROUND.add(task)
+    task.add_done_callback(_BACKGROUND.discard)
+
+
+# --------------------------------------------------------------------------- #
+# maintenance: ingest -> analyze -> sandbox-validated fix (awaiting approval)
+# --------------------------------------------------------------------------- #
+async def advance_issue(session: AsyncSession, issue_id: str) -> bool:
+    """Advance an OPEN issue to a fix that is awaiting approval. Returns did-work.
+
+    Idempotent and conservative: skips issues that already have a run awaiting or
+    past approval, so it never stacks duplicate fixes or approval gates.
+    """
+
+    from app.services import maintenance_service
+
+    issue = await maintenance_service.get_issue(session, issue_id)
+    if issue is None:
+        return False
+    if issue.status not in (IssueStatus.OPEN.value, IssueStatus.ANALYZING.value):
+        return False
+    # Don't re-propose if a run is already awaiting or past the approval gate.
+    blocking = {
+        RunStatus.NEEDS_APPROVAL.value,
+        RunStatus.APPROVED.value,
+        RunStatus.PR_OPENED.value,
+    }
+    if any(r.status in blocking for r in issue.runs):
+        return False
+
+    await maintenance_service.create_fix(session, issue)
+    return True
+
+
+async def _advance_issue_bg(issue_id: str) -> None:
+    async with get_sessionmaker()() as session:
+        try:
+            await advance_issue(session, issue_id)
+        except Exception:  # noqa: BLE001 - best-effort background work
+            logger.warning(
+                "auto issue advance failed",
+                extra={"event": "auto_issue_error", "context": {"issue_id": issue_id}},
+            )
+
+
+def maybe_advance_issue(issue_id: str) -> None:
+    """Fire-and-forget: prepare a fix for a freshly-seen issue, if auto is on."""
+
+    if get_settings().maintenance_auto_fix_enabled:
+        _spawn(_advance_issue_bg(issue_id))
+
+
+# --------------------------------------------------------------------------- #
+# improvement: create -> run experiment (awaiting approval)
+# --------------------------------------------------------------------------- #
+async def advance_proposal(session: AsyncSession, proposal_id: str) -> bool:
+    """Run the experiment for a DRAFT proposal that has a suite. Returns did-work."""
+
+    from app.services import improvement_service
+
+    proposal = await improvement_service.get_proposal(session, proposal_id)
+    if proposal is None:
+        return False
+    if proposal.status != ProposalStatus.DRAFT.value or not proposal.suite_id:
+        return False
+
+    await improvement_service.run_experiment(session, proposal)
+    return True
+
+
+async def _advance_proposal_bg(proposal_id: str) -> None:
+    async with get_sessionmaker()() as session:
+        try:
+            await advance_proposal(session, proposal_id)
+        except Exception:  # noqa: BLE001 - best-effort background work
+            logger.warning(
+                "auto proposal advance failed",
+                extra={
+                    "event": "auto_proposal_error",
+                    "context": {"proposal_id": proposal_id},
+                },
+            )
+
+
+def maybe_advance_proposal(proposal_id: str) -> None:
+    """Fire-and-forget: run the experiment for a new proposal, if auto is on."""
+
+    if get_settings().improvement_auto_experiment_enabled:
+        _spawn(_advance_proposal_bg(proposal_id))
+
+
+# --------------------------------------------------------------------------- #
+# autonomous proposer: ATLAS proposes improvements by itself, on a timer
+# --------------------------------------------------------------------------- #
+async def autonomous_propose() -> int:
+    """One proposer sweep: generate candidate proposals. Returns how many created."""
+
+    from app.services import improvement_service
+
+    async with get_sessionmaker()() as session:
+        created = await improvement_service.propose_model_candidates(session)
+        return len(created)
+
+
+async def _autonomous_loop() -> None:
+    settings = get_settings()
+    interval = max(60.0, settings.improvement_auto_propose_interval)
+    logger.info(
+        "autonomous proposer started",
+        extra={"event": "auto_propose_start", "context": {"interval_s": interval}},
+    )
+    from app.services import leadership_service
+
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            # In an HA cluster only the leader runs this singleton work.
+            if not await leadership_service.is_leader():
+                continue
+            await autonomous_propose()
+        except Exception:  # noqa: BLE001 - a bad sweep must not kill the loop
+            logger.warning("autonomous proposer sweep failed", extra={"event": "auto_propose_err"})
+
+
+def start_autonomous_proposer() -> None:
+    """Start the background proposer loop if enabled (called once at startup)."""
+
+    if get_settings().improvement_auto_propose_enabled:
+        _spawn(_autonomous_loop())
+
+
+# --------------------------------------------------------------------------- #
+# code self-review: ATLAS reviews its OWN code on a timer (propose-only)
+# --------------------------------------------------------------------------- #
+async def autonomous_self_review() -> int:
+    """One self-review sweep: file code findings as issues. Returns new issues."""
+
+    from app.services import code_review_service
+
+    async with get_sessionmaker()() as session:
+        summary = await code_review_service.run_self_review(session)
+        return summary["new_issues"]
+
+
+async def _self_review_loop() -> None:
+    settings = get_settings()
+    interval = max(300.0, settings.code_review_interval)
+    logger.info(
+        "code self-review started",
+        extra={"event": "self_review_start", "context": {"interval_s": interval}},
+    )
+    from app.services import leadership_service
+
+    while True:
+        try:
+            # In an HA cluster only the leader runs this singleton work.
+            if await leadership_service.is_leader():
+                await autonomous_self_review()
+        except Exception:  # noqa: BLE001 - a bad sweep must not kill the loop
+            logger.warning("code self-review sweep failed", extra={"event": "self_review_err"})
+        await asyncio.sleep(interval)
+
+
+def start_self_review() -> None:
+    """Start the background code self-review loop if enabled (once at startup)."""
+
+    if get_settings().code_review_auto_enabled:
+        _spawn(_self_review_loop())

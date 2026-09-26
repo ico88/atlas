@@ -12,18 +12,14 @@ from app import __version__
 from app.api import (
     attachments,
     audit,
-    autopilot,
     chat,
     cluster,
     conversation_queue,
     escalation,
-    finetune,
-    improvement,
     maintenance,
     metrics,
     query,
     rag,
-    review,
     service_accounts,
     setup,
     system,
@@ -37,6 +33,7 @@ from app.api import (
 from app.domains.config import api as config_api
 from app.domains.governance import api as governance_api
 from app.domains.runtime import api as runtime_api
+from app.domains.improvement import api as improvement_api
 from app.api.middleware import RequestContextMiddleware
 from app.core.config import get_settings
 from app.core.logging import configure_logging
@@ -147,10 +144,9 @@ def create_app() -> FastAPI:
     app.include_router(config_api.router)
     app.include_router(governance_api.router)
     app.include_router(runtime_api.router)
+    app.include_router(improvement_api.router)
     app.include_router(metrics.router)
     app.include_router(eval_api.router)
-    app.include_router(improvement.router)
-    app.include_router(review.router)
     app.include_router(cluster.router)
     app.include_router(zerotier.router)
     app.include_router(setup.router)
