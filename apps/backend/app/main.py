@@ -11,19 +11,13 @@ from fastapi import FastAPI
 from app import __version__
 from app.api import (
     attachments,
-    audit,
     chat,
-    cluster,
     conversation_queue,
     escalation,
     maintenance,
-    metrics,
     service_accounts,
-    setup,
-    system,
     tasks,
     webtools,
-    zerotier,
 )
 from app.api import (
     eval as eval_api,
@@ -33,6 +27,8 @@ from app.domains.governance import api as governance_api
 from app.domains.runtime import api as runtime_api
 from app.domains.improvement import api as improvement_api
 from app.domains.knowledge import api as knowledge_api
+from app.domains.infrastructure import api as infrastructure_api
+from app.domains.observability import api as observability_api
 from app.api.middleware import RequestContextMiddleware
 from app.core.config import get_settings
 from app.core.logging import configure_logging
@@ -131,7 +127,6 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(RequestContextMiddleware)
 
-    app.include_router(system.router)
     app.include_router(tasks.router)
     app.include_router(chat.router)
     app.include_router(maintenance.router)
@@ -143,16 +138,11 @@ def create_app() -> FastAPI:
     app.include_router(runtime_api.router)
     app.include_router(improvement_api.router)
     app.include_router(knowledge_api.router)
-    app.include_router(metrics.router)
+    app.include_router(infrastructure_api.router)
+    app.include_router(observability_api.router)
     app.include_router(eval_api.router)
-    app.include_router(cluster.router)
-    app.include_router(zerotier.router)
-    app.include_router(setup.router)
     app.include_router(attachments.router)
-    app.include_router(audit.router)
     app.include_router(service_accounts.router)
-    app.include_router(finetune.router)
-    app.include_router(autopilot.router)
 
     return app
 
