@@ -10,10 +10,8 @@ from fastapi import FastAPI
 
 from app import __version__
 from app.api import (
-    approvals,
     attachments,
     audit,
-    auth,
     autopilot,
     chat,
     cluster,
@@ -28,17 +26,14 @@ from app.api import (
     metrics,
     models,
     nodes,
-    pki,
     query,
     rag,
     review,
     runtimes,
-    secrets,
     service_accounts,
     setup,
     system,
     tasks,
-    users,
     webtools,
     zerotier,
 )
@@ -46,6 +41,7 @@ from app.api import (
     eval as eval_api,
 )
 from app.domains.config import api as config_api
+from app.domains.governance import api as governance_api
 from app.api.middleware import RequestContextMiddleware
 from app.core.config import get_settings
 from app.core.logging import configure_logging
@@ -144,21 +140,19 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(RequestContextMiddleware)
 
-    app.include_router(auth.router)
-    app.include_router(users.router)
     app.include_router(system.router)
     app.include_router(tasks.router)
     app.include_router(nodes.router)
     app.include_router(chat.router)
     app.include_router(models.router)
     app.include_router(maintenance.router)
-    app.include_router(approvals.router)
     app.include_router(rag.router)
     app.include_router(escalation.router)
     app.include_router(webtools.router)
     app.include_router(query.router)
     app.include_router(conversation_queue.router)
     app.include_router(config_api.router)
+    app.include_router(governance_api.router)
     app.include_router(metrics.router)
     app.include_router(environment.router)
     app.include_router(eval_api.router)
@@ -172,8 +166,6 @@ def create_app() -> FastAPI:
     app.include_router(setup.router)
     app.include_router(attachments.router)
     app.include_router(audit.router)
-    app.include_router(secrets.router)
-    app.include_router(pki.router)
     app.include_router(service_accounts.router)
     app.include_router(finetune.router)
     app.include_router(autopilot.router)
