@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import LlamaCppControl from "@/components/LlamaCppControl";
 import {
   ModelAlias,
   ModelDeployment,
@@ -90,6 +91,9 @@ export default function RuntimesPage() {
       <h1 className="page-title">{t("nav.runtimes")}</h1>
       <p className="page-subtitle">{t("runtimes.subtitle")}</p>
       {error && <p className="error">{error}</p>}
+
+      {/* llama.cpp engine control — B/2 */}
+      <LlamaCppControl />
 
       {/* Runtimes */}
       <h2 className="page-title" style={{ fontSize: 20, marginTop: 20 }}>
