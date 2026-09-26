@@ -1,0 +1,258 @@
+"""Runtime / deployment / alias registry operations (multi-runtime Fase 1)."""
+
+from __future__ import annotations
+
+import logging
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.ai import circuit, gateway
+from app.models.provider import LLMModel
+from app.models.runtime import ModelAlias, ModelDeployment, RoutingPolicy, Runtime
+
+logger = logging.getLogger(__name__)
+
+
+# --------------------------------------------------------------------------- #
+# Runtimes
+# --------------------------------------------------------------------------- #
+async def list_runtimes(session: AsyncSession) -> list[Runtime]:
+    rows = await session.execute(select(Runtime).order_by(Runtime.name.asc()))
+    return list(rows.scalars().all())
+
+
+async def get_runtime(session: AsyncSession, runtime_id: str) -> Runtime | None:
+    return await session.get(Runtime, runtime_id)
+
+
+async def get_runtime_by_name(session: AsyncSession, name: str) -> Runtime | None:
+    return (await session.execute(select(Runtime).where(Runtime.name == name))).scalar_one_or_none()
+
+
+async def create_runtime(session: AsyncSession, **fields) -> Runtime:
+    if fields.get("api_key"):
+        from app.services.secret_service import encrypt
+
+        fields["api_key"] = "enc:v1:" + encrypt(fields["api_key"])
+    runtime = Runtime(**fields)
+    session.add(runtime)
+    await session.commit()
+    await session.refresh(runtime)
+    logger.info(
+        "runtime registered",
+        extra={
+            "event": "runtime_add",
+            "context": {"name": runtime.name, "type": runtime.runtime_type},
+        },
+    )
+    return runtime
+
+
+async def update_runtime(session: AsyncSession, runtime: Runtime, **fields) -> Runtime:
+    if fields.get("api_key"):
+        from app.services.secret_service import encrypt
+
+        fields["api_key"] = "enc:v1:" + encrypt(fields["api_key"])
+    for key, value in fields.items():
+        if value is not None:
+            setattr(runtime, key, value)
+    await session.commit()
+    await session.refresh(runtime)
+    return runtime
+
+
+async def delete_runtime(session: AsyncSession, runtime: Runtime) -> None:
+    await session.delete(runtime)
+    await session.commit()
+
+
+async def health_all(session: AsyncSession) -> list[dict]:
+    """Probe every runtime and persist its status. Never raises per runtime."""
+
+    out: list[dict] = []
+    for runtime in await list_runtimes(session):
+        state, detail = "DOWN", "disabled"
+        if runtime.enabled:
+            try:
+                adapter = gateway.adapter_for(runtime)
+                health = await adapter.health()
+                state, detail = health.state.value, health.detail
+            except ValueError as exc:
+                state, detail = "DOWN", str(exc)
+        runtime.status = state
+        breaker = await circuit.state(runtime.name)
+        out.append(
+            {
+                "id": runtime.id,
+                "name": runtime.name,
+                "runtime_type": runtime.runtime_type,
+                "state": state,
+                "detail": detail,
+                "circuit": breaker,
+            }
+        )
+    await session.commit()
+    return out
+
+
+async def discover_runtime_models(session: AsyncSession, runtime: Runtime) -> list[LLMModel]:
+    """Probe a runtime and register its advertised models and deployments."""
+    infos = await gateway.adapter_for(runtime).list_models()
+    discovered: list[LLMModel] = []
+    for info in infos:
+        model = (
+            await session.execute(
+                select(LLMModel).where(
+                    LLMModel.provider == runtime.name, LLMModel.name == info.name
+                )
+            )
+        ).scalar_one_or_none()
+        if model is None:
+            model = LLMModel(
+                provider=runtime.name,
+                name=info.name,
+                model_key=info.name,
+                capabilities={"CHAT": True, "REASONING": "deepseek" in info.name.lower()},
+            )
+            session.add(model)
+        model.available = True
+        model.family = info.family
+        model.context_length = info.context_length
+        await session.flush()
+        deployment = (
+            await session.execute(
+                select(ModelDeployment).where(
+                    ModelDeployment.runtime_id == runtime.id,
+                    ModelDeployment.runtime_model_name == info.name,
+                )
+            )
+        ).scalar_one_or_none()
+        if deployment is None:
+            session.add(
+                ModelDeployment(
+                    model_key=info.name,
+                    runtime_id=runtime.id,
+                    runtime_model_name=info.name,
+                    node_id=runtime.node_id,
+                )
+            )
+        discovered.append(model)
+    await session.commit()
+    return discovered
+
+
+# --------------------------------------------------------------------------- #
+# Deployments
+# --------------------------------------------------------------------------- #
+async def list_deployments(session: AsyncSession) -> list[ModelDeployment]:
+    rows = await session.execute(select(ModelDeployment).order_by(ModelDeployment.priority.desc()))
+    return list(rows.scalars().all())
+
+
+async def get_deployment(session: AsyncSession, dep_id: str) -> ModelDeployment | None:
+    return await session.get(ModelDeployment, dep_id)
+
+
+async def create_deployment(session: AsyncSession, **fields) -> ModelDeployment:
+    dep = ModelDeployment(**fields)
+    session.add(dep)
+    await session.commit()
+    await session.refresh(dep)
+    logger.info(
+        "model deployment registered",
+        extra={
+            "event": "deployment_add",
+            "context": {"model_key": dep.model_key, "runtime_id": dep.runtime_id},
+        },
+    )
+    return dep
+
+
+async def update_deployment(
+    session: AsyncSession, dep: ModelDeployment, **fields
+) -> ModelDeployment:
+    for key, value in fields.items():
+        if value is not None:
+            setattr(dep, key, value)
+    await session.commit()
+    await session.refresh(dep)
+    return dep
+
+
+async def delete_deployment(session: AsyncSession, dep: ModelDeployment) -> None:
+    await session.delete(dep)
+    await session.commit()
+
+
+# --------------------------------------------------------------------------- #
+# Aliases
+# --------------------------------------------------------------------------- #
+async def list_aliases(session: AsyncSession) -> list[ModelAlias]:
+    rows = await session.execute(select(ModelAlias).order_by(ModelAlias.alias.asc()))
+    return list(rows.scalars().all())
+
+
+async def upsert_alias(
+    session: AsyncSession, *, alias: str, targets: list[str], description: str | None, enabled: bool
+) -> ModelAlias:
+    row = (
+        await session.execute(select(ModelAlias).where(ModelAlias.alias == alias))
+    ).scalar_one_or_none()
+    if row is None:
+        row = ModelAlias(alias=alias)
+        session.add(row)
+    row.targets = list(targets)
+    row.description = description
+    row.enabled = enabled
+    await session.commit()
+    await session.refresh(row)
+    return row
+
+
+async def delete_alias(session: AsyncSession, alias_row: ModelAlias) -> None:
+    await session.delete(alias_row)
+    await session.commit()
+
+
+# --------------------------------------------------------------------------- #
+# Routing policies (Fase 3 / M9)
+# --------------------------------------------------------------------------- #
+async def list_policies(session: AsyncSession) -> list[RoutingPolicy]:
+    rows = await session.execute(select(RoutingPolicy).order_by(RoutingPolicy.task_type.asc()))
+    return list(rows.scalars().all())
+
+
+async def upsert_policy(
+    session: AsyncSession,
+    *,
+    task_type: str,
+    required_capabilities: list[str],
+    preferred_alias: str | None,
+    privacy: str,
+    fallback: list[str],
+    max_latency_ms: int | None,
+    priority: int,
+    enabled: bool,
+) -> RoutingPolicy:
+    row = (
+        await session.execute(select(RoutingPolicy).where(RoutingPolicy.task_type == task_type))
+    ).scalar_one_or_none()
+    if row is None:
+        row = RoutingPolicy(task_type=task_type)
+        session.add(row)
+    row.required_capabilities = list(required_capabilities)
+    row.preferred_alias = preferred_alias
+    row.privacy = privacy
+    row.fallback = list(fallback)
+    row.max_latency_ms = max_latency_ms
+    row.priority = priority
+    row.enabled = enabled
+    await session.commit()
+    await session.refresh(row)
+    return row
+
+
+async def delete_policy(session: AsyncSession, policy: RoutingPolicy) -> None:
+    await session.delete(policy)
+    await session.commit()

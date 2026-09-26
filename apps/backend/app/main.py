@@ -16,20 +16,14 @@ from app.api import (
     chat,
     cluster,
     conversation_queue,
-    deployment,
-    environment,
     escalation,
     finetune,
-    fleet,
     improvement,
     maintenance,
     metrics,
-    models,
-    nodes,
     query,
     rag,
     review,
-    runtimes,
     service_accounts,
     setup,
     system,
@@ -42,6 +36,7 @@ from app.api import (
 )
 from app.domains.config import api as config_api
 from app.domains.governance import api as governance_api
+from app.domains.runtime import api as runtime_api
 from app.api.middleware import RequestContextMiddleware
 from app.core.config import get_settings
 from app.core.logging import configure_logging
@@ -142,9 +137,7 @@ def create_app() -> FastAPI:
 
     app.include_router(system.router)
     app.include_router(tasks.router)
-    app.include_router(nodes.router)
     app.include_router(chat.router)
-    app.include_router(models.router)
     app.include_router(maintenance.router)
     app.include_router(rag.router)
     app.include_router(escalation.router)
@@ -153,16 +146,13 @@ def create_app() -> FastAPI:
     app.include_router(conversation_queue.router)
     app.include_router(config_api.router)
     app.include_router(governance_api.router)
+    app.include_router(runtime_api.router)
     app.include_router(metrics.router)
-    app.include_router(environment.router)
     app.include_router(eval_api.router)
     app.include_router(improvement.router)
     app.include_router(review.router)
-    app.include_router(deployment.router)
-    app.include_router(fleet.router)
     app.include_router(cluster.router)
     app.include_router(zerotier.router)
-    app.include_router(runtimes.router)
     app.include_router(setup.router)
     app.include_router(attachments.router)
     app.include_router(audit.router)
