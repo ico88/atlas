@@ -13,6 +13,7 @@ from app.api import (
     attachments,
     chat,
     conversation_queue,
+    deployment,
     escalation,
     maintenance,
     service_accounts,
@@ -129,6 +130,7 @@ def create_app() -> FastAPI:
 
     app.include_router(tasks.router)
     app.include_router(chat.router)
+    app.include_router(deployment.router)
     app.include_router(maintenance.router)
     app.include_router(escalation.router)
     app.include_router(webtools.router)
