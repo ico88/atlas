@@ -16,6 +16,7 @@ from app.api import (
     deployment,
     escalation,
     maintenance,
+    nodes,
     service_accounts,
     tasks,
     webtools,
@@ -132,6 +133,7 @@ def create_app() -> FastAPI:
     app.include_router(chat.router)
     app.include_router(deployment.router)
     app.include_router(maintenance.router)
+    app.include_router(nodes.router)
     app.include_router(escalation.router)
     app.include_router(webtools.router)
     app.include_router(conversation_queue.router)
