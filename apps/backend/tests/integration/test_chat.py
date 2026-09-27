@@ -253,3 +253,43 @@ async def test_conversations_scoped_per_user(client, session):
     assert (await client.get("/api/v1/conversations", headers=atok)).json()["total"] == 1
     assert (await client.get("/api/v1/conversations", headers=btok)).json()["total"] == 0
     assert (await client.get("/api/v1/conversations")).json()["total"] == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("body", "expected"),
+    [
+        ({"language": "it"}, "rispondi in italiano"),
+        ({"language": "en"}, "reply in English"),
+        ({}, "same language the user writes in"),
+        ({"language": "it", "anonymous": True}, "rispondi in italiano"),
+    ],
+)
+async def test_reply_language_prompt_is_first(client, monkeypatch, body, expected):
+    """ALMA's identity + reply-language rule reaches the model before anything else."""
+
+    from app.ai.echo import EchoProvider
+
+    seen: list = []
+    original = EchoProvider.stream_chat
+
+    def capture(self, messages, model):
+        seen.extend(messages)
+        return original(self, messages, model)
+
+    monkeypatch.setattr(EchoProvider, "stream_chat", capture)
+    async with client.stream(
+        "POST", "/api/v1/chat/stream", json={"content": "ciao", **body}
+    ) as resp:
+        async for _ in resp.aiter_text():
+            pass
+
+    assert seen[0].role == "system"
+    assert expected in seen[0].content
+    assert seen[-1].role == "user" and seen[-1].content == "ciao"
+
+
+@pytest.mark.asyncio
+async def test_unknown_language_is_rejected(client):
+    resp = await client.post("/api/v1/chat/stream", json={"content": "hi", "language": "fr"})
+    assert resp.status_code == 422

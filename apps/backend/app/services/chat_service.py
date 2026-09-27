@@ -257,6 +257,38 @@ async def _history(session: AsyncSession, conversation_id: str) -> list[ChatMess
     return [ChatMessage(role=m.role, content=m.content) for m in rows]
 
 
+_BASE_PROMPTS = {
+    "it": (
+        "Sei ALMA, l'assistente di ATLAS, una piattaforma di intelligenza artificiale "
+        "locale. Rispondi sempre nella stessa lingua in cui scrive l'utente; se non è "
+        "chiaro, rispondi in italiano. Eventuali blocchi di contesto qui sotto possono "
+        "essere in inglese: questo non cambia la lingua della risposta."
+    ),
+    "en": (
+        "You are ALMA, the assistant of ATLAS, a local-first AI platform. Always "
+        "reply in the same language the user writes in; if it is unclear, reply in "
+        "English. Context blocks below may be in another language: that does not "
+        "change the reply language."
+    ),
+}
+_BASE_PROMPT_DEFAULT = (
+    "You are ALMA, the assistant of ATLAS, a local-first AI platform. Always reply "
+    "in the same language the user writes in, even if context blocks below are in "
+    "another language."
+)
+
+
+def _base_prompt(language: str | None) -> ChatMessage:
+    """ALMA's identity and reply-language rule, always the first message.
+
+    Without it small local models drift to English, especially since the
+    context blocks (memories, web results, attachments) are in English.
+    """
+    return ChatMessage(
+        role="system", content=_BASE_PROMPTS.get(language or "", _BASE_PROMPT_DEFAULT)
+    )
+
+
 # Keep strong references to detached turn workers so they are not garbage
 # collected mid-flight (see stream_chat).
 _BACKGROUND_TURNS: set[asyncio.Task] = set()
@@ -269,7 +301,7 @@ async def _generate_anonymous_turn(payload: ChatRequest) -> AsyncIterator[dict]:
     reply. The web-grounding option still works for the turn itself.
     """
 
-    history: list[ChatMessage] = []
+    history: list[ChatMessage] = [_base_prompt(payload.language)]
     # Attached-file context (chat file upload) — read-only, persists nothing else.
     if payload.attachment_ids:
         async with get_sessionmaker()() as s:
@@ -388,6 +420,8 @@ async def _generate_turn(payload: ChatRequest, user_id: str | None = None) -> As
                     ChatMessage(role="system", content=_format_web_context(citations))
                 ] + history
             yield {"type": "citations", "citations": citations, "note": note}
+
+        history = [_base_prompt(payload.language)] + history
 
         # 3) Route to a provider/model.
         decision = await router.select(mode=payload.mode.value, requested_model=payload.model)

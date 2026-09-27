@@ -542,6 +542,8 @@ export interface ChatStreamRequest {
   web?: boolean;
   anonymous?: boolean;
   attachment_ids?: string[];
+  /** UI language: the reply language when the user's own is unclear. */
+  language?: "it" | "en";
 }
 
 // --- Chat attachments (file upload) ---

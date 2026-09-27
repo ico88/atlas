@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -22,6 +22,9 @@ class ChatRequest(BaseModel):
     # Uploaded files to use as context for this turn (chat file upload). IDs come
     # from POST /api/v1/chat/attachments.
     attachment_ids: list[str] = Field(default_factory=list)
+    # The UI language, used as the reply language when the user's own language
+    # is unclear.
+    language: Literal["it", "en"] | None = None
 
 
 class MessageRead(BaseModel):
