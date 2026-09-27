@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Logo from "@/components/Logo";
 import Markdown from "@/components/Markdown";
-import { Lang, useI18n } from "@/lib/i18n";
+import { LanguageSelect, useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import {
   AttachmentInfo,
@@ -34,17 +34,6 @@ type Phase = "idle" | "waiting" | "streaming";
 type Bubble = Message & { attachments?: string[] };
 
 const MOBILE_QUERY = "(max-width: 900px)";
-
-const HELP = [
-  "Commands you can type here:",
-  "• /web <question> — answer using a web search (cites sources)",
-  "• /search <query> — show web results only",
-  "• /remember <text> — save a memory",
-  "• /recall <query> — recall saved memories",
-  "• /model <name> — pick the model (or /models to list)",
-  "• /task <title> — create a task · /nodes — list nodes · /status — health",
-  "• /help — show this help",
-].join("\n");
 
 const SUGGESTIONS: { icon: string; key: string; prefill: string }[] = [
   { icon: "🌐", key: "chat.suggest.web", prefill: "/web " },
@@ -96,7 +85,7 @@ function Typing() {
 }
 
 export default function Chat() {
-  const { t, lang, setLang } = useI18n();
+  const { t, lang } = useI18n();
   const { user, logout } = useAuth();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [viewArchived, setViewArchived] = useState(false);
@@ -209,9 +198,9 @@ export default function Chat() {
       setMessages(convo.messages);
     } catch (e) {
       setMessages([]);
-      setError(e instanceof Error ? e.message : "load failed");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("c");
@@ -257,7 +246,7 @@ export default function Chat() {
       if (id === activeId) newConversation();
       await loadConversations();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "archive failed");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     }
   };
 
@@ -268,7 +257,7 @@ export default function Chat() {
       if (id === activeId) newConversation();
       await loadConversations();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "delete failed");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     }
   };
 
@@ -301,7 +290,7 @@ export default function Chat() {
         setAttached((prev) => [...prev, info]);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "upload failed");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -314,14 +303,14 @@ export default function Chat() {
     const arg = rest.join(" ").trim();
     const c = cmd.toLowerCase();
     if (c === "help") {
-      pushBubble("assistant", HELP);
+      pushBubble("assistant", t("chat.cmd.help"));
       return true;
     }
     if (c === "remember") {
-      if (!arg) return pushBubble("assistant", "Usage: /remember <text>"), true;
+      if (!arg) return pushBubble("assistant", t("chat.cmd.rememberUsage")), true;
       pushBubble("user", raw);
       await addMemory({ content: arg, source: "chat" });
-      pushBubble("assistant", `🧠 Saved to memory: “${arg}”`);
+      pushBubble("assistant", t("chat.cmd.saved", { text: arg }));
       return true;
     }
     if (c === "recall") {
@@ -330,8 +319,8 @@ export default function Chat() {
       pushBubble(
         "assistant",
         hits.length
-          ? "🧠 Memories:\n" + hits.map((h, i) => `${i + 1}. ${h.content}`).join("\n")
-          : "No memories found.",
+          ? t("chat.cmd.memories") + "\n" + hits.map((h, i) => `${i + 1}. ${h.content}`).join("\n")
+          : t("chat.cmd.noMemories"),
       );
       return true;
     }
@@ -341,11 +330,11 @@ export default function Chat() {
         const res = await webSearch(arg);
         pushBubble(
           "assistant",
-          res.count ? `🔎 ${res.count} result(s) for “${arg}”:` : `No results for “${arg}”.`,
+          res.count ? t("chat.cmd.results", { n: res.count, q: arg }) : t("chat.cmd.noResults", { q: arg }),
           res.citations,
         );
       } catch (e) {
-        pushBubble("assistant", `⚠️ ${e instanceof Error ? e.message : "search failed"}`);
+        pushBubble("assistant", `⚠️ ${e instanceof Error ? e.message : t("common.failed")}`);
       }
       return true;
     }
@@ -353,28 +342,30 @@ export default function Chat() {
       pushBubble(
         "assistant",
         models.length
-          ? "Available models:\n" +
+          ? t("chat.cmd.models") +
+              "\n" +
               models.map((m) => `• ${m.name}`).join("\n") +
-              `\n\nCurrent: ${model || "Auto"}`
-          : "No models yet — download one from the Models page.",
+              "\n\n" +
+              t("chat.cmd.current", { model: model || t("chat.auto") })
+          : t("chat.cmd.noModels"),
       );
       return true;
     }
     if (c === "model") {
       if (!arg)
-        return pushBubble("assistant", `Current model: ${model || "Auto"}. Usage: /model <name>`), true;
+        return pushBubble("assistant", t("chat.cmd.modelUsage", { model: model || t("chat.auto") })), true;
       setModel(arg);
-      pushBubble("assistant", `✅ This chat will use model: ${arg}`);
+      pushBubble("assistant", t("chat.cmd.modelSet", { model: arg }));
       return true;
     }
     if (c === "task") {
-      if (!arg) return pushBubble("assistant", "Usage: /task <title>"), true;
+      if (!arg) return pushBubble("assistant", t("chat.cmd.taskUsage")), true;
       pushBubble("user", raw);
       try {
         const task = await createTask({ title: arg });
-        pushBubble("assistant", `📋 Task created: “${task.title}” (${task.status}).`);
+        pushBubble("assistant", t("chat.cmd.taskCreated", { title: task.title ?? "", status: task.status }));
       } catch (e) {
-        pushBubble("assistant", `⚠️ ${e instanceof Error ? e.message : "task failed"}`);
+        pushBubble("assistant", `⚠️ ${e instanceof Error ? e.message : t("common.failed")}`);
       }
       return true;
     }
@@ -385,14 +376,18 @@ export default function Chat() {
         pushBubble(
           "assistant",
           n.items.length
-            ? `🖥️ ${n.online}/${n.total} online:\n` +
+            ? t("chat.cmd.nodes", { online: n.online, total: n.total }) +
+                "\n" +
                 n.items
-                  .map((x) => `• ${x.label || x.node_id} — ${x.online ? "online" : "offline"}`)
+                  .map(
+                    (x) =>
+                      `• ${x.label || x.node_id} — ${x.online ? t("common.online") : t("common.offline")}`,
+                  )
                   .join("\n")
-            : "No nodes registered.",
+            : t("chat.cmd.noNodes"),
         );
       } catch (e) {
-        pushBubble("assistant", `⚠️ ${e instanceof Error ? e.message : "failed"}`);
+        pushBubble("assistant", `⚠️ ${e instanceof Error ? e.message : t("common.failed")}`);
       }
       return true;
     }
@@ -403,7 +398,7 @@ export default function Chat() {
         const parts = s.components.map((x) => `${x.name}: ${x.status}`).join(" · ");
         pushBubble("assistant", `⚙️ ${s.status} (v${s.version}) — ${parts}`);
       } catch (e) {
-        pushBubble("assistant", `⚠️ ${e instanceof Error ? e.message : "failed"}`);
+        pushBubble("assistant", `⚠️ ${e instanceof Error ? e.message : t("common.failed")}`);
       }
       return true;
     }
@@ -411,7 +406,7 @@ export default function Chat() {
       await send(arg, true);
       return true;
     }
-    pushBubble("assistant", `Unknown command “/${c}”. Type /help.`);
+    pushBubble("assistant", t("chat.cmd.unknown", { cmd: c }));
     return true;
   };
 
@@ -453,6 +448,7 @@ export default function Chat() {
         model: model || undefined,
         anonymous: anon || undefined,
         attachment_ids: attachmentIds.length ? attachmentIds : undefined,
+        language: lang,
       },
       {
         onStart: (e) => {
@@ -490,11 +486,11 @@ export default function Chat() {
               const convo = await fetchConversation(convoId);
               setMessages(convo.messages);
             } catch {
-              pushBubble("assistant", acc || "(no output)", citations);
+              pushBubble("assistant", acc || t("chat.noOutput"), citations);
             }
             loadConversations();
           } else {
-            pushBubble("assistant", acc || "(no output)", citations);
+            pushBubble("assistant", acc || t("chat.noOutput"), citations);
           }
         },
         onError: (detail) => {
@@ -522,7 +518,7 @@ export default function Chat() {
     try {
       await sendMessageFeedback(messageId, next);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "feedback failed");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     }
   };
 
@@ -539,7 +535,7 @@ export default function Chat() {
   const stop = () => {
     abortRef.current?.abort();
     stopTimer();
-    if (live) pushBubble("assistant", live + " …(stopped)");
+    if (live) pushBubble("assistant", `${live} …(${t("chat.stopped")})`);
     setLive("");
     setPhase("idle");
     abortRef.current = null;
@@ -760,14 +756,7 @@ export default function Chat() {
             ⚙ {t("sidebar.openControl")}
           </Link>
           <div className="alma-foot-row">
-            <select
-              value={lang}
-              onChange={(e) => setLang(e.target.value as Lang)}
-              aria-label={t("sidebar.language")}
-            >
-              <option value="it">Italiano</option>
-              <option value="en">English</option>
-            </select>
+            <LanguageSelect />
             {user ? (
               <button className="alma-foot-link" onClick={logout} title={user.email}>
                 {t("auth.logout")}

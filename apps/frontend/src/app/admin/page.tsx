@@ -16,7 +16,7 @@ const CARDS: Card[] = [
 ];
 
 export default function AdminPage() {
-  const { t } = useI18n();
+  const { t, tv } = useI18n();
   const { user } = useAuth();
   const [slo, setSlo] = useState<SloReport | null>(null);
 
@@ -40,8 +40,8 @@ export default function AdminPage() {
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 6 }}>
             {slo.slos.map((s) => (
               <span key={s.name} className="pill" style={{ fontSize: 12 }}>
-                <span className={`dot ${s.ok ? "ok" : "bad"}`} /> {s.name}:{" "}
-                {s.unit === "bool" ? (s.value ? "ok" : "down") : `${Math.round(s.value * 100)}%`}
+                <span className={`dot ${s.ok ? "ok" : "bad"}`} /> {tv(s.name)}:{" "}
+                {s.unit === "bool" ? (s.value ? t("v.ok") : t("v.down")) : `${Math.round(s.value * 100)}%`}
               </span>
             ))}
           </div>

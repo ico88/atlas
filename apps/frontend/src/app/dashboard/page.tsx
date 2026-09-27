@@ -38,7 +38,7 @@ const LINKS: { href: string; key: string }[] = [
 ];
 
 export default function DashboardPage() {
-  const { t } = useI18n();
+  const { t, tv } = useI18n();
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
   const [compliance, setCompliance] = useState<ComplianceReport | null>(null);
@@ -105,7 +105,7 @@ export default function DashboardPage() {
                 <span className="muted">{c.name}</span>
                 <span className="badge">
                   <span className={`dot ${c.status === "healthy" ? "ok" : "bad"}`} />
-                  {c.status}
+                  {tv(c.status)}
                 </span>
               </div>
             ))

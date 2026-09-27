@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { AppUser, createUser, fetchUsers, updateUser } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 export default function UsersPage() {
+  const { t, tv } = useI18n();
   const [users, setUsers] = useState<AppUser[]>([]);
   const [enforced, setEnforced] = useState(false);
   const [email, setEmail] = useState("");
@@ -20,9 +22,9 @@ export default function UsersPage() {
       setEnforced(list.auth_enforced);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to load users");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -45,7 +47,7 @@ export default function UsersPage() {
       setRole("user");
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "create failed");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     } finally {
       setBusy(false);
     }
@@ -57,34 +59,31 @@ export default function UsersPage() {
       await updateUser(id, body);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "update failed");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     }
   };
 
   return (
     <div>
-      <h1 className="page-title">Users</h1>
+      <h1 className="page-title">{t("nav.users")}</h1>
       <p className="page-subtitle">
-        Roles &amp; access (ROADMAP PR 27). <strong>admin</strong> manages everything;{" "}
-        <strong>user</strong> just uses the app. Enforcement is currently{" "}
-        <strong>{enforced ? "ON" : "OFF"}</strong> — turn it on with{" "}
-        <code>ATLAS_AUTH_ENFORCE=true</code> once you&apos;ve created an admin.
+        {t("users.subtitle")} <strong>{enforced ? t("users.on") : t("users.off")}</strong>.{" "}
+        {t("users.enableWith")} <code>ATLAS_AUTH_ENFORCE=true</code> {t("users.afterAdmin")}
       </p>
 
-      {error && <p className="error">Error: {error}</p>}
+      {error && <p className="error">{t("common.errorMsg", { error })}</p>}
 
       {!enforced && (
         <div className="card" style={{ marginBottom: 16, borderLeft: "3px solid var(--warn)" }}>
           <span className="muted" style={{ fontSize: 13 }}>
-            🔓 Open mode: the app is unauthenticated and everyone acts as admin.
-            Create an admin here, then set <code>ATLAS_AUTH_ENFORCE=true</code> to
-            require login.
+            🔓 {t("users.openMode")} <code>ATLAS_AUTH_ENFORCE=true</code>{" "}
+            {t("users.openMode2")}
           </span>
         </div>
       )}
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <h3 style={{ marginTop: 0 }}>Add a user</h3>
+        <h3 style={{ marginTop: 0 }}>{t("users.add")}</h3>
         <div style={{ display: "grid", gap: 8, maxWidth: 460 }}>
           <input
             value={email}
@@ -94,7 +93,7 @@ export default function UsersPage() {
           />
           <input
             value={fullName}
-            placeholder="Full name (optional)"
+            placeholder={t("users.namePh")}
             onChange={(e) => setFullName(e.target.value)}
             style={{ padding: "8px 10px", borderRadius: 8 }}
           />
@@ -102,7 +101,7 @@ export default function UsersPage() {
             <input
               value={password}
               type="password"
-              placeholder="Password (min 6)"
+              placeholder={t("users.passwordPh")}
               onChange={(e) => setPassword(e.target.value)}
               style={{ flex: "1 1 200px", padding: "8px 10px", borderRadius: 8 }}
             />
@@ -112,8 +111,8 @@ export default function UsersPage() {
               className="model-select"
               style={{ maxWidth: "none" }}
             >
-              <option value="user">user</option>
-              <option value="admin">admin</option>
+              <option value="user">{t("v.user")}</option>
+              <option value="admin">{t("v.admin")}</option>
             </select>
           </div>
           <button
@@ -121,23 +120,23 @@ export default function UsersPage() {
             onClick={submit}
             disabled={busy || !email.trim() || password.length < 6}
           >
-            Create user
+            {t("users.create")}
           </button>
         </div>
       </div>
 
       <div className="card" style={{ overflowX: "auto" }}>
         {users.length === 0 ? (
-          <p className="muted">No users yet.</p>
+          <p className="muted">{t("users.none")}</p>
         ) : (
           <table className="data">
             <thead>
               <tr>
-                <th>Email</th>
-                <th>Name</th>
-                <th>Role</th>
-                <th>Active</th>
-                <th>Actions</th>
+                <th>{t("auth.email")}</th>
+                <th>{t("common.name")}</th>
+                <th>{t("users.role")}</th>
+                <th>{t("users.active")}</th>
+                <th>{t("common.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -147,12 +146,12 @@ export default function UsersPage() {
                   <td>{u.full_name ?? "—"}</td>
                   <td>
                     <span className={`queue-badge ${u.role === "admin" ? "active" : "idle"}`}>
-                      {u.role}
+                      {tv(u.role)}
                     </span>
                   </td>
                   <td>
                     <span className={`dot ${u.is_active ? "ok" : "bad"}`} />{" "}
-                    {u.is_active ? "yes" : "no"}
+                    {u.is_active ? t("common.yes") : t("common.no")}
                   </td>
                   <td>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -162,13 +161,13 @@ export default function UsersPage() {
                           patch(u.id, { role: u.role === "admin" ? "user" : "admin" })
                         }
                       >
-                        {u.role === "admin" ? "Make user" : "Make admin"}
+                        {u.role === "admin" ? t("users.makeUser") : t("users.makeAdmin")}
                       </button>
                       <button
                         className="btn secondary"
                         onClick={() => patch(u.id, { is_active: !u.is_active })}
                       >
-                        {u.is_active ? "Deactivate" : "Activate"}
+                        {u.is_active ? t("users.deactivate") : t("users.activate")}
                       </button>
                     </div>
                   </td>

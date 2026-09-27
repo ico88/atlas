@@ -2,34 +2,41 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useI18n } from "@/lib/i18n";
 
-type Item = { label: string; hint?: string; href: string };
+type Item = { key: string; hint: string; href: string };
 
 const ITEMS: Item[] = [
-  { label: "Chat", hint: "ask anything", href: "/" },
-  { label: "Dashboard", hint: "overview", href: "/dashboard" },
-  { label: "Queries", hint: "background AI runs", href: "/queries" },
-  { label: "Queue", hint: "conversation queue", href: "/queue" },
-  { label: "Tasks", hint: "task engine", href: "/tasks" },
-  { label: "System Status", hint: "health", href: "/system" },
-  { label: "Nodes", hint: "workers & enrollment", href: "/nodes" },
-  { label: "Fleet Update", hint: "canary rollout", href: "/fleet" },
-  { label: "Fleet Health", hint: "compliance & remediation", href: "/compliance" },
-  { label: "Resources", hint: "telemetry", href: "/resources" },
-  { label: "Models", hint: "download / default", href: "/models" },
-  { label: "Knowledge", hint: "RAG & memory", href: "/knowledge" },
-  { label: "Environments", hint: "workspaces", href: "/environments" },
-  { label: "Maintenance", hint: "self-healing", href: "/maintenance" },
-  { label: "Evals", hint: "quality & safety", href: "/evals" },
-  { label: "Improvements", hint: "propose & experiment", href: "/improvements" },
-  { label: "Critical Review", hint: "critic · verify · judge", href: "/reviews" },
-  { label: "Escalation", hint: "external help", href: "/escalation" },
-  { label: "Users", hint: "roles & access", href: "/users" },
-  { label: "Settings", hint: "web tools & config", href: "/settings" },
+  { key: "nav.chat", hint: "cmdk.chat", href: "/" },
+  { key: "nav.dashboard", hint: "cmdk.dashboard", href: "/dashboard" },
+  { key: "nav.queries", hint: "cmdk.queries", href: "/queries" },
+  { key: "nav.queue", hint: "cmdk.queue", href: "/queue" },
+  { key: "nav.tasks", hint: "cmdk.tasks", href: "/tasks" },
+  { key: "nav.system", hint: "cmdk.system", href: "/system" },
+  { key: "nav.nodes", hint: "cmdk.nodes", href: "/nodes" },
+  { key: "nav.fleet", hint: "cmdk.fleet", href: "/fleet" },
+  { key: "nav.compliance", hint: "cmdk.compliance", href: "/compliance" },
+  { key: "nav.resources", hint: "cmdk.resources", href: "/resources" },
+  { key: "nav.models", hint: "cmdk.models", href: "/models" },
+  { key: "nav.runtimes", hint: "cmdk.runtimes", href: "/runtimes" },
+  { key: "nav.knowledge", hint: "cmdk.knowledge", href: "/knowledge" },
+  { key: "nav.environments", hint: "cmdk.environments", href: "/environments" },
+  { key: "nav.logs", hint: "cmdk.logs", href: "/logs" },
+  { key: "nav.agents", hint: "cmdk.agents", href: "/agents" },
+  { key: "nav.autopilot", hint: "cmdk.autopilot", href: "/autopilot" },
+  { key: "nav.maintenance", hint: "cmdk.maintenance", href: "/maintenance" },
+  { key: "nav.evals", hint: "cmdk.evals", href: "/evals" },
+  { key: "nav.improvements", hint: "cmdk.improvements", href: "/improvements" },
+  { key: "nav.reviews", hint: "cmdk.reviews", href: "/reviews" },
+  { key: "nav.escalation", hint: "cmdk.escalation", href: "/escalation" },
+  { key: "nav.users", hint: "cmdk.users", href: "/users" },
+  { key: "nav.security", hint: "cmdk.security", href: "/admin/security" },
+  { key: "nav.settings", hint: "cmdk.settings", href: "/settings" },
 ];
 
 export default function CommandPalette() {
   const router = useRouter();
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
@@ -60,9 +67,9 @@ export default function CommandPalette() {
     const term = q.trim().toLowerCase();
     if (!term) return ITEMS;
     return ITEMS.filter(
-      (i) => i.label.toLowerCase().includes(term) || (i.hint ?? "").includes(term),
+      (i) => t(i.key).toLowerCase().includes(term) || t(i.hint).toLowerCase().includes(term),
     );
-  }, [q]);
+  }, [q, t]);
 
   const go = (item?: Item) => {
     const target = item ?? results[active];
@@ -79,7 +86,7 @@ export default function CommandPalette() {
         <input
           ref={inputRef}
           className="cmdk-input"
-          placeholder="Jump to… (type a page)"
+          placeholder={t("cmdk.placeholder")}
           value={q}
           onChange={(e) => {
             setQ(e.target.value);
@@ -99,7 +106,7 @@ export default function CommandPalette() {
           }}
         />
         <div className="cmdk-list">
-          {results.length === 0 && <div className="cmdk-empty">No matches</div>}
+          {results.length === 0 && <div className="cmdk-empty">{t("cmdk.empty")}</div>}
           {results.map((item, i) => (
             <div
               key={item.href}
@@ -107,12 +114,12 @@ export default function CommandPalette() {
               onMouseEnter={() => setActive(i)}
               onClick={() => go(item)}
             >
-              <span>{item.label}</span>
-              {item.hint && <span className="cmdk-hint">{item.hint}</span>}
+              <span>{t(item.key)}</span>
+              <span className="cmdk-hint">{t(item.hint)}</span>
             </div>
           ))}
         </div>
-        <div className="cmdk-foot">↑↓ navigate · ↵ open · esc close · ⌘/Ctrl-K toggle</div>
+        <div className="cmdk-foot">{t("cmdk.foot")}</div>
       </div>
     </div>
   );

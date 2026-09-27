@@ -23,7 +23,7 @@ export default function LoginPage() {
       await login(email.trim(), password);
       router.push("/");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "login failed");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     } finally {
       setBusy(false);
     }

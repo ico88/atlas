@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Task, createTask, fetchSubtasks, fetchTasks } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 const STATUS_CLASS: Record<string, string> = {
   COMPLETED: "ok",
@@ -14,15 +15,17 @@ const STATUS_CLASS: Record<string, string> = {
 };
 
 function StatusBadge({ status }: { status: string }) {
+  const { tv } = useI18n();
   return (
     <span className="badge">
       <span className={`dot ${STATUS_CLASS[status] ?? "warn"}`} />
-      {status}
+      {tv(status)}
     </span>
   );
 }
 
 export default function TasksPage() {
+  const { t } = useI18n();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [objective, setObjective] = useState("");
   const [busy, setBusy] = useState(false);
@@ -37,9 +40,9 @@ export default function TasksPage() {
       setTasks(list.items.filter((t) => !t.parent_task_id));
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load tasks");
+      setError(err instanceof Error ? err.message : t("common.failed"));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -71,7 +74,7 @@ export default function TasksPage() {
       setObjective("");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Create failed");
+      setError(err instanceof Error ? err.message : t("common.failed"));
     } finally {
       setBusy(false);
     }
@@ -79,16 +82,15 @@ export default function TasksPage() {
 
   return (
     <div>
-      <h1 className="page-title">Tasks &amp; ALMA</h1>
+      <h1 className="page-title">{t("tasks.title")}</h1>
       <p className="page-subtitle">
-        Give ALMA an objective — it decomposes it into a DAG of subtasks, runs
-        them (independent ones in parallel), and aggregates the result (spec §7).
+        {t("tasks.subtitle")}
       </p>
 
       <div className="chat-input" style={{ border: "none", padding: 0, marginBottom: 20 }}>
         <input
           value={objective}
-          placeholder="e.g. Prepare release notes for v0.1"
+          placeholder={t("tasks.objectivePh")}
           onChange={(e) => setObjective(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") submit();
@@ -96,7 +98,7 @@ export default function TasksPage() {
           disabled={busy}
         />
         <button className="btn" onClick={submit} disabled={busy || !objective.trim()}>
-          {busy ? "…" : "Run with ALMA"}
+          {busy ? "…" : t("tasks.run")}
         </button>
       </div>
 
@@ -104,50 +106,50 @@ export default function TasksPage() {
 
       <div className="card" style={{ overflowX: "auto" }}>
         {tasks.length === 0 ? (
-          <p className="muted">No tasks yet.</p>
+          <p className="muted">{t("sys.noTasks")}</p>
         ) : (
           <table className="data">
             <thead>
               <tr>
-                <th>Title</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Where</th>
-                <th>Retries</th>
+                <th>{t("tasks.titleCol")}</th>
+                <th>{t("runtimes.type")}</th>
+                <th>{t("common.status")}</th>
+                <th>{t("tasks.where")}</th>
+                <th>{t("tasks.retries")}</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              {tasks.map((t) => (
-                <tr key={t.id}>
-                  <td>{t.title ?? t.id}</td>
+              {tasks.map((tk) => (
+                <tr key={tk.id}>
+                  <td>{tk.title ?? tk.id}</td>
                   <td>
-                    <span className="pill">{t.type}</span>
+                    <span className="pill">{tk.type}</span>
                   </td>
                   <td>
-                    <StatusBadge status={t.status} />
+                    <StatusBadge status={tk.status} />
                   </td>
                   <td>
-                    {t.required_capability ? (
-                      <span className="pill" title={t.assigned_node_id ?? undefined}>
-                        node:{t.required_capability}
+                    {tk.required_capability ? (
+                      <span className="pill" title={tk.assigned_node_id ?? undefined}>
+                        node:{tk.required_capability}
                       </span>
                     ) : (
-                      <span className="muted">local</span>
+                      <span className="muted">{t("tasks.local")}</span>
                     )}
                   </td>
                   <td>
-                    {t.retries}/{t.max_retries}
+                    {tk.retries}/{tk.max_retries}
                   </td>
                   <td>
-                    {t.type === "alma" && (
+                    {tk.type === "alma" && (
                       <button
                         className="btn secondary"
                         onClick={() =>
-                          setExpanded(expanded === t.id ? null : t.id)
+                          setExpanded(expanded === tk.id ? null : tk.id)
                         }
                       >
-                        {expanded === t.id ? "Hide" : "Subtasks"}
+                        {expanded === tk.id ? t("tasks.hide") : t("tasks.subtasks")}
                       </button>
                     )}
                   </td>
@@ -160,16 +162,16 @@ export default function TasksPage() {
 
       {expanded && (
         <div className="card" style={{ marginTop: 16, overflowX: "auto" }}>
-          <h3>Subtasks (DAG)</h3>
+          <h3>{t("tasks.subtasksDag")}</h3>
           {subtasks.length === 0 ? (
-            <p className="muted">No subtasks yet — ALMA may still be planning.</p>
+            <p className="muted">{t("tasks.noSubtasks")}</p>
           ) : (
             <table className="data">
               <thead>
                 <tr>
-                  <th>Title</th>
-                  <th>Status</th>
-                  <th>Retries</th>
+                  <th>{t("tasks.titleCol")}</th>
+                  <th>{t("common.status")}</th>
+                  <th>{t("tasks.retries")}</th>
                 </tr>
               </thead>
               <tbody>

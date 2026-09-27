@@ -78,7 +78,7 @@ export default function SecurityPage() {
     try {
       setSetup(await mfaSetup());
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "error");
+      setErr(e instanceof Error ? e.message : t("common.failed"));
     } finally {
       setBusy(false);
     }
@@ -120,7 +120,7 @@ export default function SecurityPage() {
       const r = await verifyAudit();
       setIntegrity(r);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "error");
+      setErr(e instanceof Error ? e.message : t("common.failed"));
     }
   };
 
@@ -193,7 +193,7 @@ export default function SecurityPage() {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
           <input
             value={newSecret.name}
-            placeholder="NAME (es. OPENAI_API_KEY)"
+            placeholder={t("sec.namePh")}
             onChange={(e) => setNewSecret({ ...newSecret, name: e.target.value })}
             style={{ flex: "1 1 160px" }}
           />
@@ -213,7 +213,7 @@ export default function SecurityPage() {
                 setNewSecret({ name: "", value: "" });
                 await loadSecrets();
               } catch (e) {
-                setErr(e instanceof Error ? e.message : "error");
+                setErr(e instanceof Error ? e.message : t("common.failed"));
               }
             }}
           >
@@ -261,7 +261,7 @@ export default function SecurityPage() {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
           <input
             value={cn}
-            placeholder="common name (es. node-worker-2)"
+            placeholder={t("sec.cnPh")}
             onChange={(e) => setCn(e.target.value)}
             style={{ flex: "1 1 200px" }}
           />
@@ -275,7 +275,7 @@ export default function SecurityPage() {
                 setCn("");
                 await loadCerts();
               } catch (e) {
-                setErr(e instanceof Error ? e.message : "error");
+                setErr(e instanceof Error ? e.message : t("common.failed"));
               }
             }}
           >

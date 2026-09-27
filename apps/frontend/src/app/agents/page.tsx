@@ -5,7 +5,7 @@ import { NodeAgents, fetchAgents } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 
 export default function AgentsPage() {
-  const { t } = useI18n();
+  const { t, tv } = useI18n();
   const [nodes, setNodes] = useState<NodeAgents[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -17,12 +17,12 @@ export default function AgentsPage() {
         setNodes(res.nodes);
         setError(null);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to load agents");
+        setError(e instanceof Error ? e.message : t("common.failed"));
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [t]);
 
   const statusDot = (state: string) => {
     if (state === "UP") return "🟢";
@@ -37,11 +37,11 @@ export default function AgentsPage() {
 
   return (
     <div>
-      <h1 className="page-title">Agents</h1>
-      <p className="page-subtitle">Autonomous agents running on nodes</p>
+      <h1 className="page-title">{t("nav.agents")}</h1>
+      <p className="page-subtitle">{t("agents.subtitle")}</p>
 
       {error && <p className="error">{error}</p>}
-      {loading && <p className="muted">Loading agents…</p>}
+      {loading && <p className="muted">{t("common.loading")}</p>}
 
       <div className="cards">
         {nodes.map((node) => (
@@ -52,12 +52,12 @@ export default function AgentsPage() {
                 {node.id}
               </h3>
               <span className="pill" style={{ marginLeft: "auto", fontSize: 11 }}>
-                {node.state}
+                {tv(node.state)}
               </span>
             </div>
 
             {node.agents.length === 0 ? (
-              <p className="muted" style={{ fontSize: 12, margin: 0 }}>No agents</p>
+              <p className="muted" style={{ fontSize: 12, margin: 0 }}>{t("agents.none")}</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {node.agents.map((agent, i) => (
@@ -89,7 +89,7 @@ export default function AgentsPage() {
                           fontWeight: 600,
                         }}
                       >
-                        {agent.status}
+                        {tv(agent.status)}
                       </span>
                     </div>
                     <div style={{ color: "var(--muted)", fontSize: 11 }}>{agent.task}</div>
@@ -103,7 +103,7 @@ export default function AgentsPage() {
 
       {nodes.length === 0 && !loading && (
         <p className="muted" style={{ textAlign: "center", padding: "40px 20px" }}>
-          No nodes with agents found
+          {t("agents.noNodes")}
         </p>
       )}
     </div>

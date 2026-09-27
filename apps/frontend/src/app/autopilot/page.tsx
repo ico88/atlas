@@ -13,6 +13,7 @@ import {
   rejectApproval,
   startCanary,
 } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 function hours(seconds: number): string {
   if (seconds >= 3600) return `${Math.round(seconds / 3600)}h`;
@@ -40,18 +41,19 @@ const KIND_HREF: Record<string, string> = {
   finetune: "/finetune",
 };
 
-function timeAgo(iso: string | null): string {
+function timeAgo(iso: string | null, t: (k: string, v?: Record<string, number>) => string): string {
   if (!iso) return "";
   const then = new Date(iso).getTime();
   const mins = Math.max(0, Math.round((Date.now() - then) / 60000));
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return t("common.justNow");
+  if (mins < 60) return t("common.agoM", { n: mins });
   const h = Math.round(mins / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.round(h / 24)}d ago`;
+  if (h < 24) return t("common.agoH", { n: h });
+  return t("common.agoD", { n: Math.round(h / 24) });
 }
 
 export default function AutopilotPage() {
+  const { t, tv } = useI18n();
   const [data, setData] = useState<AutopilotSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -61,9 +63,9 @@ export default function AutopilotPage() {
       setData(await fetchAutopilot());
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to load");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     }
-  }, []);
+  }, [t]);
 
   const act = useCallback(
     async (fn: () => Promise<unknown>) => {
@@ -73,12 +75,12 @@ export default function AutopilotPage() {
         await fn();
         await load();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "action failed");
+        setError(e instanceof Error ? e.message : t("common.failed"));
       } finally {
         setBusy(false);
       }
     },
-    [load],
+    [load, t],
   );
 
   useEffect(() => {
@@ -90,49 +92,45 @@ export default function AutopilotPage() {
   const a = data?.automation;
   const loops = a
     ? [
-        { on: a.auto_propose, label: "Proposes model improvements", freq: hours(a.propose_interval_s) },
-        { on: a.auto_experiment, label: "Runs A/B experiments", freq: "on new proposal" },
-        { on: a.self_review, label: "Reviews its own code", freq: hours(a.self_review_interval_s) },
-        { on: a.auto_fix, label: "Prepares sandbox-validated fixes", freq: "on new issue" },
+        { on: a.auto_propose, label: t("ap.loop.propose"), freq: t("ap.every", { n: hours(a.propose_interval_s) }) },
+        { on: a.auto_experiment, label: t("ap.loop.experiment"), freq: t("ap.onProposal") },
+        { on: a.self_review, label: t("ap.loop.review"), freq: t("ap.every", { n: hours(a.self_review_interval_s) }) },
+        { on: a.auto_fix, label: t("ap.loop.fix"), freq: t("ap.onIssue") },
       ]
     : [];
 
   return (
     <div>
-      <h1 className="page-title">Autopilot</h1>
-      <p className="page-subtitle">
-        What ATLAS is doing on its own — proposing model &amp; code improvements, running
-        experiments, and self-reviewing. Everything here is <strong>propose-only</strong>: the
-        irreversible step (apply / merge) always waits for you.
-      </p>
+      <h1 className="page-title">{t("nav.autopilot")}</h1>
+      <p className="page-subtitle">{t("ap.subtitle")}</p>
 
-      {error && <p className="error">Error: {error}</p>}
+      {error && <p className="error">{t("common.errorMsg", { error })}</p>}
       {!data ? (
-        <p className="muted">Loading…</p>
+        <p className="muted">{t("common.loading")}</p>
       ) : (
         <>
           {/* What needs you */}
           <div className="admin-grid" style={{ marginBottom: 16 }}>
             <Link href="/improvements" className="admin-card">
               <div className="stat-value">{data.pending.approvals}</div>
-              <div className="stat-label">awaiting your approval</div>
+              <div className="stat-label">{t("ap.awaiting")}</div>
             </Link>
             <Link href="/improvements" className="admin-card">
               <div className="stat-value">{data.pending.canary_awaiting_eval}</div>
-              <div className="stat-label">canary to evaluate</div>
+              <div className="stat-label">{t("ap.canaryEval")}</div>
             </Link>
             <Link href="/maintenance" className="admin-card">
               <div className="stat-value">{data.pending.open_issues}</div>
-              <div className="stat-label">open code issues</div>
+              <div className="stat-label">{t("ap.openIssues")}</div>
             </Link>
           </div>
 
           {/* Decisions waiting for you — act right here, no page-hopping */}
           <div className="card" style={{ marginBottom: 16 }}>
-            <strong>Decisions waiting for you</strong>
+            <strong>{t("ap.decisions")}</strong>
             {data.actions.length === 0 ? (
               <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>
-                Nothing to decide — ATLAS is caught up.
+                {t("ap.nothing")}
               </p>
             ) : (
               <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
@@ -157,14 +155,14 @@ export default function AutopilotPage() {
                             disabled={busy}
                             onClick={() => act(() => approveApproval(it.approval_id!))}
                           >
-                            Approve
+                            {t("common.approve")}
                           </button>
                           <button
                             className="btn secondary"
                             disabled={busy}
                             onClick={() => act(() => rejectApproval(it.approval_id!))}
                           >
-                            Reject
+                            {t("common.reject")}
                           </button>
                         </>
                       )}
@@ -172,10 +170,10 @@ export default function AutopilotPage() {
                         <button
                           className="btn"
                           disabled={busy}
-                          title="Run the health gate: promote if healthy, else auto-rollback"
+                          title={t("ap.evaluateHint")}
                           onClick={() => act(() => evaluateCanary(it.proposal_id!))}
                         >
-                          Evaluate canary
+                          {t("ap.evaluate")}
                         </button>
                       )}
                       {it.action === "rollout" && it.proposal_id && (
@@ -183,17 +181,17 @@ export default function AutopilotPage() {
                           <button
                             className="btn"
                             disabled={busy}
-                            title="Roll out to a watched canary, then promote or auto-rollback"
+                            title={t("ap.canaryHint")}
                             onClick={() => act(() => startCanary(it.proposal_id!))}
                           >
-                            Start canary
+                            {t("ap.startCanary")}
                           </button>
                           <button
                             className="btn secondary"
                             disabled={busy}
                             onClick={() => act(() => applyProposal(it.proposal_id!))}
                           >
-                            Apply
+                            {t("ap.apply")}
                           </button>
                         </>
                       )}
@@ -202,25 +200,25 @@ export default function AutopilotPage() {
                           <button
                             className="btn"
                             disabled={busy}
-                            title="Ask a code-capable model to write the fix (needs a coder model; propose-only)"
+                            title={t("ap.genFixHint")}
                             onClick={() => act(() => proposePatch(it.issue_id!))}
                           >
-                            Generate fix
+                            {t("ap.genFix")}
                           </button>
                           <Link
                             href="/maintenance"
                             className="btn secondary"
                             style={{ padding: "4px 10px", fontSize: 12 }}
                           >
-                            Review
+                            {t("ap.review")}
                           </Link>
                           <button
                             className="btn secondary"
                             disabled={busy}
-                            title="Ignore this code finding"
+                            title={t("ap.dismissHint")}
                             onClick={() => act(() => dismissIssue(it.issue_id!))}
                           >
-                            Dismiss
+                            {t("common.dismiss")}
                           </button>
                         </>
                       )}
@@ -233,7 +231,7 @@ export default function AutopilotPage() {
 
           {/* Loops running */}
           <div className="card" style={{ marginBottom: 16 }}>
-            <strong>Automations running</strong>
+            <strong>{t("ap.automations")}</strong>
             <div style={{ display: "grid", gap: 6, marginTop: 8 }}>
               {loops.map((l) => (
                 <div key={l.label} className="status-row">
@@ -241,24 +239,26 @@ export default function AutopilotPage() {
                     <span className={l.on ? "dot ok" : "dot"} /> {l.label}
                   </span>
                   <span className="muted" style={{ fontSize: 12 }}>
-                    {l.on ? `every ${l.freq}` : "off"}
+                    {l.on ? l.freq : t("ap.off")}
                   </span>
                 </div>
               ))}
             </div>
             <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-              {data.counts.self_review_issues} code finding(s) · {data.counts.proposals} proposal(s)
-              · {data.counts.finetune_jobs} fine-tune job(s)
+              {t("ap.counts", {
+                issues: data.counts.self_review_issues,
+                proposals: data.counts.proposals,
+                jobs: data.counts.finetune_jobs,
+              })}
             </p>
           </div>
 
           {/* Activity feed */}
           <div className="card">
-            <strong>Recent activity</strong>
+            <strong>{t("ap.activity")}</strong>
             {data.activity.length === 0 ? (
               <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>
-                Nothing yet — automations run on a timer; give 👍/👎 in chat and download a second
-                model to give ATLAS something to work with.
+                {t("ap.noActivity")}
               </p>
             ) : (
               <div style={{ display: "grid", gap: 6, marginTop: 8 }}>
@@ -272,8 +272,8 @@ export default function AutopilotPage() {
                     <span className="activity-title" title={item.title}>
                       {item.title}
                     </span>
-                    <span className={statusClass(item.status)}>{item.status}</span>
-                    <span className="muted activity-when">{timeAgo(item.when)}</span>
+                    <span className={statusClass(item.status)}>{tv(item.status)}</span>
+                    <span className="muted activity-when">{timeAgo(item.when, t)}</span>
                   </Link>
                 ))}
               </div>

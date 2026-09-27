@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { WebConfig, fetchWebConfig, updateWebConfig } from "@/lib/api";
+import { LanguageSelect, useI18n } from "@/lib/i18n";
 
 export default function SettingsPage() {
+  const { t } = useI18n();
   const [cfg, setCfg] = useState<WebConfig | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [saved, setSaved] = useState(false);
@@ -15,9 +17,9 @@ export default function SettingsPage() {
       setCfg(await fetchWebConfig());
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to load config");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -47,7 +49,7 @@ export default function SettingsPage() {
       setApiKey("");
       setSaved(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "save failed");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     } finally {
       setBusy(false);
     }
@@ -59,21 +61,26 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <h1 className="page-title">Settings</h1>
-      <p className="page-subtitle">
-        Runtime configuration (ROADMAP PR 15). Changes are stored server-side and
-        take effect immediately — no restart, no .env edit.
-      </p>
+      <h1 className="page-title">{t("nav.settings")}</h1>
+      <p className="page-subtitle">{t("set.subtitle")}</p>
 
-      {error && <p className="error">Error: {error}</p>}
+      <div className="card" style={{ maxWidth: 640, marginBottom: 16 }}>
+        <h3 style={{ marginTop: 0 }}>🗣 {t("set.language")}</h3>
+        <label className="setting-row">
+          <span>{t("set.languageHelp")}</span>
+          <LanguageSelect />
+        </label>
+      </div>
+
+      {error && <p className="error">{t("common.errorMsg", { error })}</p>}
       {!cfg ? (
-        <p className="muted">Loading…</p>
+        <p className="muted">{t("common.loading")}</p>
       ) : (
         <div className="card" style={{ maxWidth: 640 }}>
-          <h3 style={{ marginTop: 0 }}>🌐 Web tools</h3>
+          <h3 style={{ marginTop: 0 }}>🌐 {t("set.web")}</h3>
 
           <label className="setting-row">
-            <span>Enabled</span>
+            <span>{t("v.enabled")}</span>
             <input
               type="checkbox"
               checked={cfg.enabled}
@@ -82,18 +89,18 @@ export default function SettingsPage() {
           </label>
 
           <label className="setting-row">
-            <span>Search provider</span>
+            <span>{t("set.provider")}</span>
             <select
               value={cfg.provider}
               onChange={(e) => patch({ provider: e.target.value as WebConfig["provider"] })}
             >
-              <option value="none">none (offline)</option>
+              <option value="none">{t("set.providerNone")}</option>
               <option value="searxng">searxng</option>
             </select>
           </label>
 
           <label className="setting-row">
-            <span>Search URL</span>
+            <span>{t("set.url")}</span>
             <input
               value={cfg.url}
               placeholder="http://searxng:8080/search"
@@ -102,17 +109,17 @@ export default function SettingsPage() {
           </label>
 
           <label className="setting-row">
-            <span>API key {cfg.has_api_key && <em className="muted">(set)</em>}</span>
+            <span>{t("set.apiKey")} {cfg.has_api_key && <em className="muted">({t("set.isSet")})</em>}</span>
             <input
               type="password"
               value={apiKey}
-              placeholder={cfg.has_api_key ? "•••••• (leave blank to keep)" : "optional"}
+              placeholder={cfg.has_api_key ? t("set.keepKey") : t("set.optional")}
               onChange={(e) => setApiKey(e.target.value)}
             />
           </label>
 
           <label className="setting-row">
-            <span>Max results</span>
+            <span>{t("set.maxResults")}</span>
             <input
               type="number"
               min={1}
@@ -123,7 +130,7 @@ export default function SettingsPage() {
           </label>
 
           <label className="setting-row">
-            <span>Fetch timeout (s)</span>
+            <span>{t("set.timeout")}</span>
             <input
               type="number"
               min={1}
@@ -134,9 +141,7 @@ export default function SettingsPage() {
           </label>
 
           <label className="setting-row">
-            <span title="Dev only — enables SSRF; keep off in production">
-              Allow private IPs
-            </span>
+            <span title={t("set.privateHint")}>{t("set.private")}</span>
             <input
               type="checkbox"
               checked={cfg.allow_private_ips}
@@ -145,7 +150,7 @@ export default function SettingsPage() {
           </label>
 
           <label className="setting-row">
-            <span>Allowlist (comma)</span>
+            <span>{t("set.allow")}</span>
             <input
               defaultValue={csv(cfg.allowlist)}
               placeholder="example.com, docs.python.org"
@@ -154,7 +159,7 @@ export default function SettingsPage() {
           </label>
 
           <label className="setting-row">
-            <span>Denylist (comma)</span>
+            <span>{t("set.deny")}</span>
             <input
               defaultValue={csv(cfg.denylist)}
               onChange={(e) => patch({ denylist: parseCsv(e.target.value) })}
@@ -163,16 +168,15 @@ export default function SettingsPage() {
 
           <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12 }}>
             <button className="btn" onClick={save} disabled={busy}>
-              {busy ? "Saving…" : "Save"}
+              {busy ? t("set.saving") : t("common.save")}
             </button>
-            {saved && <span className="muted">Saved ✓</span>}
+            {saved && <span className="muted">{t("set.saved")} ✓</span>}
           </div>
 
           {cfg.enabled && cfg.provider === "none" && (
             <p className="muted" style={{ marginTop: 10, fontSize: 12 }}>
-              Web tools are on but no provider is set — search returns nothing. Start
-              SearXNG (<code>docker compose --profile web up -d searxng</code>) and pick
-              it above.
+              {t("set.noProvider")} <code>docker compose --profile web up -d searxng</code>{" "}
+              {t("set.noProvider2")}
             </p>
           )}
         </div>

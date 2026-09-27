@@ -17,6 +17,7 @@ import {
   fetchFtReadiness,
   setFtExampleIncluded,
 } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 function jobBadge(status: string): string {
   if (status === "COMPLETED") return "queue-badge active";
@@ -25,6 +26,7 @@ function jobBadge(status: string): string {
 }
 
 export default function FineTunePage() {
+  const { t, tv } = useI18n();
   const [readiness, setReadiness] = useState<FineTuneReadiness | null>(null);
   const [datasets, setDatasets] = useState<FineTuneDataset[]>([]);
   const [selected, setSelected] = useState<FineTuneDataset | null>(null);
@@ -46,9 +48,9 @@ export default function FineTunePage() {
       setDatasets(d.items);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to load");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     }
-  }, []);
+  }, [t]);
 
   const loadDetail = useCallback(async (id: string) => {
     const [ex, jb] = await Promise.all([fetchFtExamples(id), fetchFtJobs(id)]);
@@ -82,7 +84,7 @@ export default function FineTunePage() {
       await loadTop();
       if (selected) await loadDetail(selected.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "action failed");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     } finally {
       setBusy(false);
     }
@@ -93,15 +95,12 @@ export default function FineTunePage() {
 
   return (
     <div>
-      <h1 className="page-title">Fine-tuning (self-improvement)</h1>
+      <h1 className="page-title">{t("ft.title")}</h1>
       <p className="page-subtitle">
-        Turn ATLAS&apos;s own <strong>good answers</strong> into a better model — locally.
-        Curate a dataset from thumbs-up chat replies, train a <strong>LoRA adapter</strong> on a
-        GPU node, then adopt it through the same <em>eval + canary</em> guardrails as any other
-        change. Nothing is sent anywhere; the model only becomes the default if it actually wins.
+        {t("ft.subtitle")}
       </p>
 
-      {error && <p className="error">Error: {error}</p>}
+      {error && <p className="error">{t("common.errorMsg", { error })}</p>}
       {note && (
         <p className="muted" style={{ fontSize: 13 }}>
           {note}
@@ -110,41 +109,39 @@ export default function FineTunePage() {
 
       {readiness && (
         <div className="card" style={{ marginBottom: 16 }}>
-          <strong>Readiness</strong>
+          <strong>{t("ft.readiness")}</strong>
           <div className="status-row" style={{ marginTop: 6 }}>
-            <span className="muted">GPU training node</span>
+            <span className="muted">{t("ft.gpuNode")}</span>
             <span className={readiness.gpu_node_available ? "queue-badge active" : "queue-badge"}>
               {readiness.gpu_node_available
                 ? `✓ ${readiness.gpu_node_names.join(", ")}`
-                : "none online"}
+                : t("ft.noneOnline")}
             </span>
           </div>
           <div className="status-row">
-            <span className="muted">Positive feedback available</span>
+            <span className="muted">{t("ft.positive")}</span>
             <span>{readiness.positive_feedback}</span>
           </div>
           {!readiness.gpu_node_available && (
             <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
-              Fine-tuning trains on a real GPU. Add a node that advertises the{" "}
-              <code>gpu</code> capability (e.g. the Zotac), or run a job as a dry-run to test the
-              pipeline end-to-end without training.
+              {t("ft.needGpu")} <code>gpu</code>{t("ft.needGpu2")}
             </p>
           )}
         </div>
       )}
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <strong>New dataset</strong>
+        <strong>{t("ft.newDataset")}</strong>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
           <input
             value={dsName}
-            placeholder="Name (e.g. Good IT answers)"
+            placeholder={t("ft.namePh")}
             onChange={(e) => setDsName(e.target.value)}
             style={{ flex: "1 1 200px", padding: "8px 10px", borderRadius: 8 }}
           />
           <input
             value={baseModel}
-            placeholder="Base model (optional, blank = default)"
+            placeholder={t("ft.basePh")}
             onChange={(e) => setBaseModel(e.target.value)}
             style={{ flex: "1 1 200px", padding: "8px 10px", borderRadius: 8 }}
           />
@@ -163,14 +160,14 @@ export default function FineTunePage() {
               })
             }
           >
-            Create
+            {t("common.create")}
           </button>
         </div>
       </div>
 
       <div className="chat-layout">
         <div className="convo-list">
-          {datasets.length === 0 && <p className="muted">No datasets yet.</p>}
+          {datasets.length === 0 && <p className="muted">{t("ft.none")}</p>}
           {datasets.map((d) => (
             <div
               key={d.id}
@@ -185,19 +182,19 @@ export default function FineTunePage() {
 
         <div className="chat-main" style={{ padding: 16, overflowY: "auto" }}>
           {!selected ? (
-            <p className="muted">Select or create a dataset.</p>
+            <p className="muted">{t("ft.select")}</p>
           ) : (
             <div>
               <h3 style={{ marginTop: 0 }}>{selected.name}</h3>
               <div className="status-row">
-                <span className="muted">Base model</span>
-                <span>{selected.base_model || "current default"}</span>
+                <span className="muted">{t("ft.base")}</span>
+                <span>{selected.base_model || t("ft.currentDefault")}</span>
               </div>
               <div className="status-row">
-                <span className="muted">Included examples</span>
+                <span className="muted">{t("ft.included")}</span>
                 <span className={enoughData ? "queue-badge active" : "queue-badge idle"}>
                   {included}
-                  {readiness ? ` / ${readiness.recommended_min_examples} recommended` : ""}
+                  {readiness ? ` / ${t("ft.recommended", { n: readiness.recommended_min_examples })}` : ""}
                 </span>
               </div>
 
@@ -205,56 +202,56 @@ export default function FineTunePage() {
                 <button
                   className="btn"
                   disabled={busy}
-                  title="Harvest thumbs-up chat replies into this dataset"
+                  title={t("ft.harvestHint")}
                   onClick={() =>
                     act(async () => {
                       const r = await curateFtDataset(selected.id);
                       setNote(
                         r.added > 0
-                          ? `Added ${r.added} example(s) from positive feedback.`
-                          : "No new positively-rated replies to harvest yet — give 👍 to good chat answers first.",
+                          ? t("ft.added", { n: r.added })
+                          : t("ft.nothingToHarvest"),
                       );
                     })
                   }
                 >
-                  Harvest from feedback
+                  {t("ft.harvest")}
                 </button>
                 <button
                   className="btn"
                   disabled={busy || included === 0}
                   title={
                     readiness?.gpu_node_available
-                      ? "Dispatch a LoRA training job to the GPU node"
-                      : "No GPU node online — the job will wait for one (or fail honestly)"
+                      ? t("ft.trainHint")
+                      : t("ft.trainNoGpu")
                   }
                   onClick={() =>
                     act(async () => {
                       await createFtJob({ dataset_id: selected.id });
-                      setNote("Training job dispatched — it runs on a GPU node.");
+                      setNote(t("ft.dispatched"));
                     })
                   }
                 >
-                  Train LoRA adapter
+                  {t("ft.train")}
                 </button>
               </div>
 
               {jobs.length > 0 && (
                 <div className="card" style={{ background: "var(--panel-2)", margin: "10px 0" }}>
-                  <strong>Training jobs</strong>
+                  <strong>{t("ft.jobs")}</strong>
                   <table className="data" style={{ width: "100%", marginTop: 6 }}>
                     <tbody>
                       {jobs.map((j) => (
                         <tr key={j.id}>
                           <td>{j.adapter_name}</td>
                           <td>
-                            <span className={jobBadge(j.status)}>{j.status}</span>
+                            <span className={jobBadge(j.status)}>{tv(j.status)}</span>
                           </td>
-                          <td>{j.example_count} ex.</td>
+                          <td>{t("ft.examplesShort", { n: j.example_count })}</td>
                           <td>
                             {j.metrics?.final_loss != null
-                              ? `loss ${String(j.metrics.final_loss)}`
+                              ? t("ft.loss", { n: String(j.metrics.final_loss) })
                               : j.error
-                                ? <span className="muted" title={j.error}>error</span>
+                                ? <span className="muted" title={j.error}>{t("v.error")}</span>
                                 : "—"}
                           </td>
                           <td>
@@ -262,17 +259,17 @@ export default function FineTunePage() {
                               <button
                                 className="btn secondary"
                                 disabled={busy}
-                                title="Propose this adapter as the new default (eval + canary gated)"
+                                title={t("ft.adoptHint")}
                                 onClick={() =>
                                   act(async () => {
                                     await adoptFtJob(j.id);
                                     setNote(
-                                      "Created an improvement proposal — review it under Improvements; it must beat the baseline and pass the canary health gate.",
+                                      t("ft.adopted"),
                                     );
                                   })
                                 }
                               >
-                                Adopt →
+                                {t("ft.adopt")} →
                               </button>
                             )}
                           </td>
@@ -284,18 +281,18 @@ export default function FineTunePage() {
               )}
 
               <details style={{ margin: "10px 0" }}>
-                <summary style={{ cursor: "pointer" }}>Add an example by hand</summary>
+                <summary style={{ cursor: "pointer" }}>{t("ft.addByHand")}</summary>
                 <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
                   <textarea
                     value={exPrompt}
-                    placeholder="Prompt (user)"
+                    placeholder={t("ft.promptPh")}
                     onChange={(e) => setExPrompt(e.target.value)}
                     rows={2}
                     style={{ padding: "8px 10px", borderRadius: 8 }}
                   />
                   <textarea
                     value={exResponse}
-                    placeholder="Ideal response (assistant)"
+                    placeholder={t("ft.responsePh")}
                     onChange={(e) => setExResponse(e.target.value)}
                     rows={3}
                     style={{ padding: "8px 10px", borderRadius: 8 }}
@@ -314,15 +311,15 @@ export default function FineTunePage() {
                       })
                     }
                   >
-                    Add example
+                    {t("ft.addExample")}
                   </button>
                 </div>
               </details>
 
-              <strong>Examples ({examples.length})</strong>
+              <strong>{t("ft.examples", { n: examples.length })}</strong>
               {examples.length === 0 && (
                 <p className="muted" style={{ fontSize: 13 }}>
-                  None yet — harvest from feedback or add one by hand.
+                  {t("ft.noExamples")}
                 </p>
               )}
               <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
@@ -334,7 +331,7 @@ export default function FineTunePage() {
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
                       <span className="muted" style={{ fontSize: 12 }}>
-                        {ex.source}
+                        {tv(ex.source)}
                       </span>
                       <label style={{ fontSize: 12, display: "flex", gap: 4, alignItems: "center" }}>
                         <input
@@ -345,14 +342,14 @@ export default function FineTunePage() {
                             act(() => setFtExampleIncluded(ex.id, e.target.checked))
                           }
                         />
-                        include
+                        {t("ft.include")}
                       </label>
                     </div>
                     <div style={{ fontSize: 13, marginTop: 4 }}>
-                      <strong>Q:</strong> {ex.prompt}
+                      <strong>{t("ft.q")}:</strong> {ex.prompt}
                     </div>
                     <div style={{ fontSize: 13, marginTop: 2 }}>
-                      <strong>A:</strong> {ex.response}
+                      <strong>{t("ft.a")}:</strong> {ex.response}
                     </div>
                   </div>
                 ))}

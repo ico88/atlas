@@ -10,12 +10,14 @@ import {
   fetchEvalSuites,
   runEvalSuite,
 } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 function pct(v?: number | null): string {
   return v == null ? "—" : `${Math.round(v * 100)}%`;
 }
 
 export default function EvalsPage() {
+  const { t } = useI18n();
   const [suites, setSuites] = useState<EvalSuite[]>([]);
   const [selected, setSelected] = useState<EvalSuite | null>(null);
   const [runs, setRuns] = useState<EvalRun[]>([]);
@@ -30,9 +32,9 @@ export default function EvalsPage() {
       setSuites((await fetchEvalSuites()).items);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to load");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -73,7 +75,7 @@ export default function EvalsPage() {
       await runEvalSuite(selected.id, isBaseline);
       setRuns((await fetchEvalRuns(selected.id)).items);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "run failed");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     } finally {
       setBusy(false);
     }
@@ -81,32 +83,31 @@ export default function EvalsPage() {
 
   return (
     <div>
-      <h1 className="page-title">Evals</h1>
+      <h1 className="page-title">{t("nav.evals")}</h1>
       <p className="page-subtitle">
-        Quality, safety and performance evaluation suites (ROADMAP PR 16). Runs use
-        the active model; mark one as a baseline to compare against.
+        {t("ev.subtitle")}
       </p>
 
-      {error && <p className="error">Error: {error}</p>}
+      {error && <p className="error">{t("common.errorMsg", { error })}</p>}
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", gap: 8 }}>
           <input
             value={name}
-            placeholder="New suite name…"
+            placeholder={t("ev.namePh")}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && create()}
             style={{ flex: 1, padding: "8px 10px", borderRadius: 8 }}
           />
           <button className="btn" onClick={create} disabled={!name.trim()}>
-            Create suite
+            {t("ev.create")}
           </button>
         </div>
       </div>
 
       <div className="chat-layout">
         <div className="convo-list">
-          {suites.length === 0 && <p className="muted">No suites yet.</p>}
+          {suites.length === 0 && <p className="muted">{t("ev.none")}</p>}
           {suites.map((s) => (
             <div
               key={s.id}
@@ -120,53 +121,53 @@ export default function EvalsPage() {
 
         <div className="chat-main" style={{ padding: 16, overflowY: "auto" }}>
           {!selected ? (
-            <p className="muted">Select a suite.</p>
+            <p className="muted">{t("ev.select")}</p>
           ) : (
             <div>
               <h3 style={{ marginTop: 0 }}>{selected.name}</h3>
 
               <div className="card" style={{ background: "var(--panel-2)", marginBottom: 12 }}>
-                <strong>Add a case</strong>
+                <strong>{t("ev.addCase")}</strong>
                 <input
                   value={caseInput}
-                  placeholder="Prompt / input…"
+                  placeholder={t("ev.inputPh")}
                   onChange={(e) => setCaseInput(e.target.value)}
                   style={{ width: "100%", padding: "8px 10px", borderRadius: 8, margin: "8px 0" }}
                 />
                 <input
                   value={caseExpected}
-                  placeholder="Expected substrings (comma-separated)"
+                  placeholder={t("ev.expectedPh")}
                   onChange={(e) => setCaseExpected(e.target.value)}
                   style={{ width: "100%", padding: "8px 10px", borderRadius: 8 }}
                 />
                 <button className="btn secondary" style={{ marginTop: 8 }} onClick={addCase} disabled={!caseInput.trim()}>
-                  Add case
+                  {t("ev.addCaseBtn")}
                 </button>
               </div>
 
               <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                 <button className="btn" onClick={() => run(false)} disabled={busy}>
-                  {busy ? "Running…" : "Run"}
+                  {busy ? t("imp.running") : t("q.run")}
                 </button>
                 <button className="btn secondary" onClick={() => run(true)} disabled={busy}>
-                  Run as baseline
+                  {t("ev.runBaseline")}
                 </button>
               </div>
 
-              <h3 style={{ fontSize: 14 }}>Runs</h3>
+              <h3 style={{ fontSize: 14 }}>{t("ev.runs")}</h3>
               {runs.length === 0 ? (
-                <p className="muted">No runs yet.</p>
+                <p className="muted">{t("ev.noRuns")}</p>
               ) : (
                 <div className="card" style={{ overflowX: "auto" }}>
                   <table className="data" style={{ width: "100%" }}>
                     <thead>
                       <tr>
-                        <th>When</th>
-                        <th>Model</th>
-                        <th>Pass</th>
-                        <th>Quality</th>
-                        <th>Safety</th>
-                        <th>Latency</th>
+                        <th>{t("ev.when")}</th>
+                        <th>{t("res.model")}</th>
+                        <th>{t("ev.pass")}</th>
+                        <th>{t("imp.quality")}</th>
+                        <th>{t("imp.safety")}</th>
+                        <th>{t("ev.latency")}</th>
                         <th></th>
                       </tr>
                     </thead>
@@ -179,7 +180,7 @@ export default function EvalsPage() {
                           <td>{pct(r.metrics?.avg_quality)}</td>
                           <td>{pct(r.metrics?.avg_safety)}</td>
                           <td>{r.metrics?.avg_latency_ms != null ? `${r.metrics.avg_latency_ms} ms` : "—"}</td>
-                          <td>{r.is_baseline ? "⭐ baseline" : ""}</td>
+                          <td>{r.is_baseline ? `⭐ ${t("ev.baseline")}` : ""}</td>
                         </tr>
                       ))}
                     </tbody>

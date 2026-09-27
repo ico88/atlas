@@ -14,6 +14,7 @@ import {
   rejectApproval,
   runSelfReview,
 } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 const SEV_CLASS: Record<string, string> = {
   critical: "bad",
@@ -23,6 +24,7 @@ const SEV_CLASS: Record<string, string> = {
 };
 
 export default function MaintenancePage() {
+  const { t, tv } = useI18n();
   const [issues, setIssues] = useState<MaintenanceIssue[]>([]);
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [selected, setSelected] = useState<MaintenanceIssue | null>(null);
@@ -37,9 +39,9 @@ export default function MaintenancePage() {
       setApprovals(a.items);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load");
+      setError(err instanceof Error ? err.message : t("common.failed"));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -56,7 +58,7 @@ export default function MaintenancePage() {
       await load();
       if (issueId) setSelected(await fetchIssue(issueId));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Action failed");
+      setError(err instanceof Error ? err.message : t("common.failed"));
     } finally {
       setBusy(false);
     }
@@ -71,23 +73,17 @@ export default function MaintenancePage() {
 
   return (
     <div>
-      <h1 className="page-title">Maintenance</h1>
+      <h1 className="page-title">{t("nav.maintenance")}</h1>
       <p className="page-subtitle">
-        <strong>Semi-automatic:</strong> a new issue is analysed and a fix is
-        prepared &amp; validated in a real, isolated <strong>sandbox</strong> on its
-        own (this page refreshes as it progresses) — you are left with just{" "}
-        <em>Approve</em> then <em>Apply</em>. Only after you approve does it open
-        the PR — never touching <code>main</code>, never merging. Git actions are
-        guard-railed and audited (dry-run unless GitHub is explicitly enabled).
+        {t("mnt.subtitle")}
       </p>
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <span>
-            <strong>Self-review — improve my own code</strong>
+            <strong>{t("mnt.selfReview")}</strong>
             <span className="muted" style={{ marginLeft: 8, fontSize: 12 }}>
-              ATLAS scans its own source (lint, TODO/FIXME, oversized files) and files each
-              finding as an issue awaiting approval. Runs automatically; this is a manual sweep.
+              {t("mnt.selfReviewHelp")}
             </span>
           </span>
           <button
@@ -100,17 +96,17 @@ export default function MaintenancePage() {
               try {
                 const r = await runSelfReview();
                 setNote(
-                  `Scanned ${r.scanned} file(s): ${r.findings} finding(s), ${r.new_issues} new issue(s).`,
+                  t("mnt.scanned", { files: r.scanned, findings: r.findings, issues: r.new_issues }),
                 );
                 await load();
               } catch (err) {
-                setError(err instanceof Error ? err.message : "self-review failed");
+                setError(err instanceof Error ? err.message : t("common.failed"));
               } finally {
                 setBusy(false);
               }
             }}
           >
-            Scan my code now
+            {t("mnt.scanNow")}
           </button>
         </div>
         {note && (
@@ -125,7 +121,7 @@ export default function MaintenancePage() {
       <div className="chat-layout">
         <div className="convo-list">
           <div className="muted" style={{ padding: "6px 10px", fontSize: 12 }}>
-            {issues.length} issue(s)
+            {t("mnt.issues", { n: issues.length })}
           </div>
           {issues.map((i) => (
             <div
@@ -141,23 +137,23 @@ export default function MaintenancePage() {
 
         <div className="chat-main" style={{ padding: 18, display: "block", overflowY: "auto" }}>
           {!selected ? (
-            <p className="muted">Select an issue to see details.</p>
+            <p className="muted">{t("mnt.select")}</p>
           ) : (
             <div>
               <div className="status-row">
                 <strong>{selected.title}</strong>
-                <span className="pill">{selected.status}</span>
+                <span className="pill">{tv(selected.status)}</span>
               </div>
               <div className="status-row">
-                <span className="muted">Service</span>
+                <span className="muted">{t("mnt.service")}</span>
                 <span>{selected.service ?? "—"}</span>
               </div>
               <div className="status-row">
-                <span className="muted">Severity</span>
-                <span>{selected.severity}</span>
+                <span className="muted">{t("mnt.severity")}</span>
+                <span>{tv(selected.severity)}</span>
               </div>
               <div className="status-row">
-                <span className="muted">Occurrences</span>
+                <span className="muted">{t("mnt.occurrences")}</span>
                 <span className="pill">{selected.occurrences}</span>
               </div>
 
@@ -167,26 +163,26 @@ export default function MaintenancePage() {
                   disabled={busy}
                   onClick={() => act(() => analyzeIssue(selected.id), selected.id)}
                 >
-                  Analyze
+                  {t("mnt.analyze")}
                 </button>
                 <button
                   className="btn"
                   disabled={busy}
                   onClick={() => act(() => createFix(selected.id), selected.id)}
                 >
-                  Create fix
+                  {t("mnt.createFix")}
                 </button>
               </div>
 
               {(selected.runs ?? []).map((r) => (
                 <div className="card" key={r.id} style={{ marginBottom: 10 }}>
                   <div className="status-row">
-                    <span className="muted">Run</span>
-                    <span className="pill">{r.status}</span>
+                    <span className="muted">{t("mnt.run")}</span>
+                    <span className="pill">{tv(r.status)}</span>
                   </div>
                   {r.branch && (
                     <div className="status-row">
-                      <span className="muted">Branch</span>
+                      <span className="muted">{t("mnt.branch")}</span>
                       <span>{r.branch}</span>
                     </div>
                   )}
@@ -209,19 +205,17 @@ export default function MaintenancePage() {
                         disabled={busy}
                         onClick={() => act(() => applyFix(selected.id), selected.id)}
                       >
-                        Apply approved fix (open PR)
+                        {t("mnt.applyFix")}
                       </button>
                       <p className="muted" style={{ marginTop: 6, fontSize: 12 }}>
-                        Governed action: opens the PR via the configured provider
-                        (dry-run unless GitHub is enabled). Never pushes to a
-                        protected branch or merges.
+                        {t("mnt.applyHelp")}
                       </p>
                     </div>
                   )}
                   {r.status === "PR_OPENED" && (
                     <div className="status-row">
-                      <span className="muted">Applied</span>
-                      <span className="pill">PR opened</span>
+                      <span className="muted">{t("v.applied")}</span>
+                      <span className="pill">{t("v.pr_opened")}</span>
                     </div>
                   )}
                 </div>
@@ -232,7 +226,7 @@ export default function MaintenancePage() {
                 if (!pending) return null;
                 return (
                   <div className="card" style={{ borderColor: "var(--accent)" }}>
-                    <h3>Approval required</h3>
+                    <h3>{t("mnt.approvalRequired")}</h3>
                     <p className="muted">{pending.reason}</p>
                     <div style={{ display: "flex", gap: 8 }}>
                       <button
@@ -240,14 +234,14 @@ export default function MaintenancePage() {
                         disabled={busy}
                         onClick={() => act(() => approveApproval(pending.id), selected.id)}
                       >
-                        Approve
+                        {t("common.approve")}
                       </button>
                       <button
                         className="btn secondary"
                         disabled={busy}
                         onClick={() => act(() => rejectApproval(pending.id), selected.id)}
                       >
-                        Reject
+                        {t("common.reject")}
                       </button>
                     </div>
                   </div>

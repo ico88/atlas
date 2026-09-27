@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Logo from "@/components/Logo";
-import { Lang, useI18n } from "@/lib/i18n";
+import { LanguageSelect, useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 
 // ATLAS Control (admin cockpit) navigation. ALMA (the chat) is reached via the
@@ -49,7 +49,7 @@ const NAV_GROUPS: { section?: string; items: { href: string; key: string }[] }[]
 export default function Sidebar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const { t, lang, setLang } = useI18n();
+  const { t } = useI18n();
   const { user, logout } = useAuth();
 
   // ALMA = the clean conversational shell (the chat, `/`); everything else is
@@ -72,7 +72,7 @@ export default function Sidebar() {
       <header className="topbar">
         <button
           className="hamburger"
-          aria-label="Toggle navigation"
+          aria-label={t("chat.toggleSidebar")}
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
         >
@@ -132,14 +132,7 @@ export default function Sidebar() {
         <div style={{ marginTop: "auto" }}>
           <label className="lang-switch">
             <span className="muted">🌐 {t("sidebar.language")}</span>
-            <select
-              value={lang}
-              onChange={(e) => setLang(e.target.value as Lang)}
-              aria-label={t("sidebar.language")}
-            >
-              <option value="it">Italiano</option>
-              <option value="en">English</option>
-            </select>
+            <LanguageSelect />
           </label>
           <div className="account">
             {user ? (

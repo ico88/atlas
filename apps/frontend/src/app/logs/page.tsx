@@ -23,11 +23,11 @@ export default function LogsPage() {
       setTotal(res.total);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load logs");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     } finally {
       setLoading(false);
     }
-  }, [filter, offset, limit]);
+  }, [filter, offset, limit, t]);
 
   useEffect(() => {
     load();
@@ -41,8 +41,8 @@ export default function LogsPage() {
 
   return (
     <div>
-      <h1 className="page-title">Logs</h1>
-      <p className="page-subtitle">Control plane activity & system events</p>
+      <h1 className="page-title">{t("nav.logs")}</h1>
+      <p className="page-subtitle">{t("logs.subtitle")}</p>
 
       {error && <p className="error">{error}</p>}
 
@@ -50,7 +50,7 @@ export default function LogsPage() {
       <div className="card" style={{ marginBottom: 16, display: "flex", gap: 8, alignItems: "center" }}>
         <input
           type="text"
-          placeholder="Filter by message or level (e.g. 'error', 'deepseek')…"
+          placeholder={t("logs.filterPh")}
           value={filter}
           onChange={(e) => {
             setFilter(e.target.value);
@@ -59,7 +59,7 @@ export default function LogsPage() {
           style={{ flex: 1, padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--panel)", color: "var(--text)", fontSize: 14 }}
         />
         <button className="btn secondary" onClick={() => load()} disabled={loading} style={{ fontSize: 13, padding: "8px 14px" }}>
-          {loading ? "Loading…" : "Refresh"}
+          {loading ? t("common.loading") : t("common.refresh")}
         </button>
       </div>
 
@@ -67,10 +67,10 @@ export default function LogsPage() {
       <table className="data" style={{ marginBottom: 16 }}>
         <thead>
           <tr>
-            <th style={{ width: "160px" }}>Timestamp</th>
-            <th style={{ width: "60px" }}>Level</th>
-            <th style={{ width: "100px" }}>Source</th>
-            <th>Message</th>
+            <th style={{ width: "160px" }}>{t("logs.time")}</th>
+            <th style={{ width: "60px" }}>{t("logs.level")}</th>
+            <th style={{ width: "100px" }}>{t("logs.source")}</th>
+            <th>{t("logs.message")}</th>
           </tr>
         </thead>
         <tbody>
@@ -99,7 +99,7 @@ export default function LogsPage() {
 
       {logs.length === 0 && !loading && (
         <p className="muted" style={{ textAlign: "center", padding: "20px" }}>
-          No logs found
+          {t("logs.none")}
         </p>
       )}
 
@@ -107,7 +107,7 @@ export default function LogsPage() {
       {total > 0 && (
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, color: "var(--muted)" }}>
           <span>
-            Showing {offset + 1}–{Math.min(offset + limit, total)} of {total}
+            {t("common.showing", { from: offset + 1, to: Math.min(offset + limit, total), total })}
           </span>
           <div style={{ display: "flex", gap: 6 }}>
             <button
@@ -116,7 +116,7 @@ export default function LogsPage() {
               onClick={() => setOffset(Math.max(0, offset - limit))}
               style={{ padding: "6px 10px", fontSize: 12 }}
             >
-              ← Previous
+              ← {t("common.previous")}
             </button>
             <button
               className="btn secondary"
@@ -124,7 +124,7 @@ export default function LogsPage() {
               onClick={() => setOffset(offset + limit)}
               style={{ padding: "6px 10px", fontSize: 12 }}
             >
-              Next →
+              {t("common.next")} →
             </button>
           </div>
         </div>

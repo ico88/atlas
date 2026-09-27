@@ -35,7 +35,7 @@ function stateClass(state: string): string {
 }
 
 export default function RuntimesPage() {
-  const { t } = useI18n();
+  const { t, tv } = useI18n();
   const [runtimes, setRuntimes] = useState<Runtime[]>([]);
   const [health, setHealth] = useState<Record<string, RuntimeHealth>>({});
   const [deployments, setDeployments] = useState<ModelDeployment[]>([]);
@@ -69,9 +69,9 @@ export default function RuntimesPage() {
         /* health probe is best-effort */
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to load");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -82,7 +82,7 @@ export default function RuntimesPage() {
       await fn();
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "action failed");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     }
   };
 
@@ -119,7 +119,7 @@ export default function RuntimesPage() {
           </select>
           <input
             value={rt.endpoint}
-            placeholder="endpoint (http://host:port)"
+            placeholder={t("rt.endpointPh")}
             onChange={(e) => setRt({ ...rt, endpoint: e.target.value })}
             style={{ flex: "1 1 220px" }}
           />
@@ -128,7 +128,7 @@ export default function RuntimesPage() {
               type="password"
               autoComplete="new-password"
               value={rt.api_key}
-              placeholder="API key (encrypted at rest)"
+              placeholder={t("rt.apiKeyPh")}
               onChange={(e) => setRt({ ...rt, api_key: e.target.value })}
               style={{ flex: "1 1 220px" }}
             />
@@ -161,7 +161,7 @@ export default function RuntimesPage() {
                 <strong>{r.name}</strong>
                 <span className="badge">
                   <span className={`dot ${h ? stateClass(h.state) : "bad"}`} />
-                  {h ? h.state : r.status}
+                  {tv(h ? h.state : r.status)}
                 </span>
               </div>
               <div className="status-row">
@@ -169,17 +169,17 @@ export default function RuntimesPage() {
                 <span className="pill">{r.runtime_type}</span>
               </div>
               <div className="status-row">
-                <span className="muted">Endpoint</span>
+                <span className="muted">{t("rt.endpoint")}</span>
                 <span>{r.endpoint || "—"}</span>
               </div>
               <div className="status-row">
-                <span className="muted">Node</span>
+                <span className="muted">{t("fleet.node")}</span>
                 <span>{r.node_id || "control-plane"}</span>
               </div>
               {h?.circuit === "OPEN" && (
                 <div className="status-row">
-                  <span className="muted">Circuit</span>
-                  <span className="queue-badge idle">OPEN</span>
+                  <span className="muted">{t("rt.circuit")}</span>
+                  <span className="queue-badge idle">{t("rt.circuitOpen")}</span>
                 </div>
               )}
               {h?.detail && <p className="muted" style={{ fontSize: 12 }}>{h.detail}</p>}
@@ -188,7 +188,7 @@ export default function RuntimesPage() {
                 style={{ marginTop: 8, marginRight: 6 }}
                 onClick={() => act(() => discoverRuntime(r.id))}
               >
-                Discover models
+                {t("rt.discover")}
               </button>
               <button
                 className="btn secondary"
@@ -212,12 +212,12 @@ export default function RuntimesPage() {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <input
             value={dep.model_key}
-            placeholder="model_key (es. qwen-8b)"
+            placeholder={t("rt.modelKeyPh")}
             onChange={(e) => setDep({ ...dep, model_key: e.target.value })}
             style={{ flex: "1 1 150px" }}
           />
           <select value={dep.runtime_id} onChange={(e) => setDep({ ...dep, runtime_id: e.target.value })}>
-            <option value="">runtime…</option>
+            <option value="">{t("rt.runtimePh")}</option>
             {runtimes.map((r) => (
               <option key={r.id} value={r.id}>
                 {r.name}
@@ -226,13 +226,13 @@ export default function RuntimesPage() {
           </select>
           <input
             value={dep.runtime_model_name}
-            placeholder="runtime model name"
+            placeholder={t("rt.runtimeModelPh")}
             onChange={(e) => setDep({ ...dep, runtime_model_name: e.target.value })}
             style={{ flex: "1 1 160px" }}
           />
           <input
             value={dep.priority}
-            placeholder="priority"
+            placeholder={t("rt.priority")}
             style={{ width: 90 }}
             onChange={(e) => setDep({ ...dep, priority: e.target.value })}
           />
@@ -269,11 +269,11 @@ export default function RuntimesPage() {
         <table className="data">
           <thead>
             <tr>
-              <th>model_key</th>
-              <th>runtime</th>
-              <th>model name</th>
-              <th>priority</th>
-              <th>load</th>
+              <th>{t("rt.modelKey")}</th>
+              <th>{t("rt.runtime")}</th>
+              <th>{t("rt.modelName")}</th>
+              <th>{t("rt.priority")}</th>
+              <th>{t("rt.load")}</th>
               <th>tok/s</th>
               <th />
             </tr>
@@ -320,13 +320,13 @@ export default function RuntimesPage() {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <input
             value={alias.alias}
-            placeholder="alias (es. atlas.general)"
+            placeholder={t("rt.aliasPh")}
             onChange={(e) => setAlias({ ...alias, alias: e.target.value })}
             style={{ flex: "1 1 160px" }}
           />
           <input
             value={alias.targets}
-            placeholder="model_keys, in ordine (es. qwen-8b, qwen-4b)"
+            placeholder={t("rt.targetsPh")}
             onChange={(e) => setAlias({ ...alias, targets: e.target.value })}
             style={{ flex: "1 1 260px" }}
           />
@@ -360,7 +360,7 @@ export default function RuntimesPage() {
               </button>
             </div>
             <div className="status-row">
-              <span className="muted">targets</span>
+              <span className="muted">{t("rt.targets")}</span>
               <span>{(a.targets || []).join(" → ") || "—"}</span>
             </div>
           </div>
@@ -377,19 +377,19 @@ export default function RuntimesPage() {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <input
             value={pol.task_type}
-            placeholder="task type (es. coding)"
+            placeholder={t("rt.taskTypePh")}
             onChange={(e) => setPol({ ...pol, task_type: e.target.value })}
             style={{ flex: "1 1 120px" }}
           />
           <input
             value={pol.capabilities}
-            placeholder="capabilities (CODING, REASONING)"
+            placeholder={t("rt.capsPh")}
             onChange={(e) => setPol({ ...pol, capabilities: e.target.value })}
             style={{ flex: "1 1 180px" }}
           />
           <input
             value={pol.preferred_alias}
-            placeholder="alias preferito"
+            placeholder={t("rt.preferredPh")}
             onChange={(e) => setPol({ ...pol, preferred_alias: e.target.value })}
             style={{ flex: "1 1 140px" }}
           />
@@ -401,7 +401,7 @@ export default function RuntimesPage() {
           </select>
           <input
             value={pol.fallback}
-            placeholder="fallback alias (in ordine)"
+            placeholder={t("rt.fallbackPh")}
             onChange={(e) => setPol({ ...pol, fallback: e.target.value })}
             style={{ flex: "1 1 160px" }}
           />
@@ -439,11 +439,11 @@ export default function RuntimesPage() {
               <span className="pill">{p.privacy}</span>
             </div>
             <div className="status-row">
-              <span className="muted">capabilities</span>
+              <span className="muted">{t("nodes.capabilities")}</span>
               <span>{(p.required_capabilities || []).join(", ") || "—"}</span>
             </div>
             <div className="status-row">
-              <span className="muted">route</span>
+              <span className="muted">{t("rt.route")}</span>
               <span>
                 {[p.preferred_alias, ...(p.fallback || [])].filter(Boolean).join(" → ") || "—"}
               </span>

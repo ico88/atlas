@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useI18n } from "@/lib/i18n";
 
 const SAMPLE_MODELS = [
   "deepseek-7b-q4.gguf",
@@ -10,6 +11,7 @@ const SAMPLE_MODELS = [
 ];
 
 export default function LlamaCppControl() {
+  const { t } = useI18n();
   const [running, setRunning] = useState(true);
   const [loadedModel, setLoadedModel] = useState("deepseek-7b-q4.gguf");
   const [context, setContext] = useState(2048);
@@ -45,7 +47,7 @@ export default function LlamaCppControl() {
     <div className="card" style={{ marginBottom: 20, borderColor: "var(--highlight-soft)" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <h3 style={{ margin: 0, fontSize: 14, textTransform: "uppercase", letterSpacing: "1px", color: "var(--muted)" }}>
-          ⚙ llama.cpp Engine Control
+          ⚙ {t("llama.title")}
         </h3>
         <span
           style={{
@@ -61,14 +63,14 @@ export default function LlamaCppControl() {
           }}
         >
           <span style={{ width: 8, height: 8, borderRadius: "50%", background: "currentColor" }} />
-          {running ? "Running" : "Stopped"}
+          {running ? t("v.running") : t("v.stopped")}
         </span>
       </div>
 
       {/* Model section */}
       <div style={{ marginBottom: 16, padding: "12px 0", borderBottom: "1px solid var(--border)" }}>
         <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--muted)", marginBottom: 8 }}>
-          Current Model
+          {t("llama.current")}
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
           <span className="metric" style={{ fontSize: 13, fontWeight: 600 }}>
@@ -94,7 +96,7 @@ export default function LlamaCppControl() {
             onClick={handleLoadModel}
             style={{ fontSize: 13, padding: "8px 14px" }}
           >
-            {loading ? "Loading..." : "Load"}
+            {loading ? t("common.loading") : t("llama.load")}
           </button>
         </div>
       </div>
@@ -102,13 +104,13 @@ export default function LlamaCppControl() {
       {/* Inference parameters */}
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--muted)", marginBottom: 12 }}>
-          Inference Parameters
+          {t("llama.params")}
         </div>
 
         {/* Context */}
         <div style={{ marginBottom: 12 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-            <label style={{ fontSize: 12, color: "var(--text)" }}>Context (tokens)</label>
+            <label style={{ fontSize: 12, color: "var(--text)" }}>{t("llama.context")}</label>
             <span className="highlight" style={{ fontSize: 12, fontWeight: 600 }}>
               {context}
             </span>
@@ -135,7 +137,7 @@ export default function LlamaCppControl() {
         {/* Temperature */}
         <div style={{ marginBottom: 12 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-            <label style={{ fontSize: 12, color: "var(--text)" }}>Temperature</label>
+            <label style={{ fontSize: 12, color: "var(--text)" }}>{t("llama.temperature")}</label>
             <span className="highlight" style={{ fontSize: 12, fontWeight: 600 }}>
               {temperature.toFixed(2)}
             </span>
@@ -162,7 +164,7 @@ export default function LlamaCppControl() {
         {/* Top-P */}
         <div style={{ marginBottom: 12 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-            <label style={{ fontSize: 12, color: "var(--text)" }}>Top-P (nucleus)</label>
+            <label style={{ fontSize: 12, color: "var(--text)" }}>{t("llama.topP")}</label>
             <span className="highlight" style={{ fontSize: 12, fontWeight: 600 }}>
               {topP.toFixed(2)}
             </span>
@@ -195,7 +197,7 @@ export default function LlamaCppControl() {
           disabled={running}
           style={{ flex: 1 }}
         >
-          ▶ Start
+          ▶ {t("llama.start")}
         </button>
         <button
           className={`btn ${!running ? "secondary" : ""}`}
@@ -203,7 +205,7 @@ export default function LlamaCppControl() {
           disabled={!running}
           style={{ flex: 1 }}
         >
-          ⏹ Stop
+          ⏹ {t("llama.stop")}
         </button>
       </div>
 
@@ -211,11 +213,11 @@ export default function LlamaCppControl() {
       {running && (
         <div style={{ marginTop: 12, padding: "10px 12px", background: "var(--panel-2)", borderRadius: 8, fontSize: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div>
-            <div style={{ color: "var(--muted)", fontSize: 11 }}>Memory</div>
+            <div style={{ color: "var(--muted)", fontSize: 11 }}>{t("llama.memory")}</div>
             <div className="metric" style={{ fontSize: 12, fontWeight: 600 }}>2.8 GB / 3.5 GB</div>
           </div>
           <div>
-            <div style={{ color: "var(--muted)", fontSize: 11 }}>Throughput</div>
+            <div style={{ color: "var(--muted)", fontSize: 11 }}>{t("llama.throughput")}</div>
             <div className="metric" style={{ fontSize: 12, fontWeight: 600 }}>126.4 t/s</div>
           </div>
         </div>

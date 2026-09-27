@@ -38,9 +38,9 @@ export default function SetupPage() {
       }
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to load");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -74,7 +74,7 @@ export default function SetupPage() {
             if (poll.current) clearInterval(poll.current);
             setProgress(null);
             setBusy(null);
-            setError(item.status || "pull failed");
+            setError(item.status || t("common.failed"));
           }
         } catch {
           /* transient */
@@ -83,7 +83,7 @@ export default function SetupPage() {
     } catch (e) {
       setBusy(null);
       setProgress(null);
-      setError(e instanceof Error ? e.message : "install failed");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     }
   };
 
@@ -93,7 +93,7 @@ export default function SetupPage() {
       await setupActivate(model);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "activate failed");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     } finally {
       setBusy(null);
     }
@@ -113,7 +113,7 @@ export default function SetupPage() {
       await attachNodeModel(n.node_id, f.model.trim(), f.endpoint.trim());
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "attach failed");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     } finally {
       setBusy(null);
     }
@@ -187,7 +187,7 @@ export default function SetupPage() {
           <h2 className="page-title" style={{ fontSize: 18 }}>{t("setup.hardware")}</h2>
           <div className="cards" style={{ marginBottom: 8 }}>
             <div className="card">
-              <div className="status-row"><span className="muted">CPU</span><span>{status.hardware.cpu_cores ?? "—"} core</span></div>
+              <div className="status-row"><span className="muted">CPU</span><span>{t("sys.cores", { n: status.hardware.cpu_cores ?? "—" })}</span></div>
               <div className="status-row"><span className="muted">RAM</span><span>{gb(status.hardware.ram_total_mb)}</span></div>
               <div className="status-row">
                 <span className="muted">GPU</span>
@@ -270,12 +270,12 @@ export default function SetupPage() {
                   <div style={{ display: "grid", gap: 6, marginTop: 6 }}>
                     <input
                       value={f.model}
-                      placeholder="modello (es. qwen2.5:3b)"
+                      placeholder={t("wizard.modelPh")}
                       onChange={(e) => setF({ model: e.target.value })}
                     />
                     <input
                       value={f.endpoint}
-                      placeholder="endpoint del nodo (es. http://10.147.x.x:11434)"
+                      placeholder={t("setup.nodeEndpointPh")}
                       onChange={(e) => setF({ endpoint: e.target.value })}
                     />
                     <button

@@ -100,7 +100,7 @@ export default function NodeWizard() {
       if (ok) setMsg(ok);
       await refresh();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "error");
+      setErr(e instanceof Error ? e.message : t("common.failed"));
     } finally {
       setBusy(false);
     }
@@ -128,7 +128,7 @@ export default function NodeWizard() {
           } else if (tp.status === "FAILED") {
             if (pullPoll.current) clearInterval(pullPoll.current);
             setPull(null);
-            setErr(tp.error || "pull failed");
+            setErr(tp.error || t("common.failed"));
           } else if (p) {
             setPull({ percent: p.percent, status: p.status || "pulling" });
           }
@@ -138,7 +138,7 @@ export default function NodeWizard() {
       }, 1500);
     } catch (e) {
       setPull(null);
-      setErr(e instanceof Error ? e.message : "pull failed");
+      setErr(e instanceof Error ? e.message : t("common.failed"));
     }
   };
 
@@ -188,7 +188,7 @@ export default function NodeWizard() {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <input
             value={nodeId}
-            placeholder="node id (es. worker-2)"
+            placeholder={t("nodes.nodeIdPh")}
             onChange={(e) => setNodeId(e.target.value)}
             style={{ flex: "1 1 160px" }}
           />
@@ -275,7 +275,7 @@ export default function NodeWizard() {
               </p>
             )}
             <div style={{ display: "grid", gap: 6 }}>
-              <input value={model} placeholder="modello (es. qwen2.5:3b)" onChange={(e) => setModel(e.target.value)} />
+              <input value={model} placeholder={t("wizard.modelPh")} onChange={(e) => setModel(e.target.value)} />
               <button
                 className="btn secondary"
                 disabled={!model.trim() || (pull !== null && pull.percent < 100)}
@@ -286,11 +286,11 @@ export default function NodeWizard() {
                   : t("wizard.pull")}
               </button>
               {pull !== null && (
-                <div className="progress-bar" aria-label="download">
+                <div className="progress-bar" aria-label={t("wizard.download")}>
                   <div className="progress-fill" style={{ width: `${pull.percent}%` }} />
                 </div>
               )}
-              <input value={endpoint} placeholder="endpoint (es. http://10.147.x.x:11434)" onChange={(e) => setEndpoint(e.target.value)} />
+              <input value={endpoint} placeholder={t("wizard.endpointPh")} onChange={(e) => setEndpoint(e.target.value)} />
               <button className="btn" disabled={busy || !model.trim() || !endpoint.trim()} onClick={() => run(() => attachNodeModel(nodeId, model.trim(), endpoint.trim()), t("wizard.attached"))}>
                 {t("wizard.attach")}
               </button>

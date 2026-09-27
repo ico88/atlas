@@ -8,6 +8,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { STRINGS } from "./strings";
 
 export type Lang = "en" | "it";
 
@@ -502,14 +503,55 @@ const IT: Dict = {
   "runtimes.policies.help": "Instrada un tipo di task a capacità, alias preferito, livello di privacy e catena di fallback (locale → cloud).",
 };
 
+// Page strings live in strings.ts as [en, it] pairs so both languages are
+// always defined together.
+for (const [key, [en, it]] of Object.entries(STRINGS)) {
+  EN[key] = en;
+  IT[key] = it;
+}
+
 const DICT: Record<Lang, Dict> = { en: EN, it: IT };
 
-type I18n = { lang: Lang; setLang: (l: Lang) => void; t: (key: string) => string };
+/** "auto" follows the visitor's OS/browser language; otherwise a fixed choice. */
+export type LangPref = "auto" | Lang;
+
+type Vars = Record<string, string | number>;
+
+type I18n = {
+  lang: Lang;
+  pref: LangPref;
+  setPref: (p: LangPref) => void;
+  t: (key: string, vars?: Vars) => string;
+  /** Translate a status/enum value from the API ("RUNNING", "healthy"); unknown values pass through. */
+  tv: (value: string | null | undefined) => string;
+};
+
+function interpolate(text: string, vars?: Vars): string {
+  if (!vars) return text;
+  return text.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m));
+}
+
+/** First supported language in the visitor's preference list (OS/browser). */
+export function detectLang(languages: readonly string[]): Lang {
+  for (const l of languages) {
+    const base = l.toLowerCase().split("-")[0];
+    if (base === "it" || base === "en") return base;
+  }
+  return "en";
+}
+
+function systemLang(): Lang {
+  if (typeof navigator === "undefined") return "en";
+  const list = navigator.languages?.length ? navigator.languages : [navigator.language];
+  return detectLang(list.filter(Boolean));
+}
 
 const I18nContext = createContext<I18n>({
   lang: "en",
-  setLang: () => {},
-  t: (k) => EN[k] ?? k,
+  pref: "auto",
+  setPref: () => {},
+  t: (k, v) => interpolate(EN[k] ?? k, v),
+  tv: (v) => (v ? EN[`v.${v.toLowerCase()}`] ?? v : ""),
 });
 
 const STORAGE_KEY = "atlas.lang";
@@ -517,41 +559,73 @@ const STORAGE_KEY = "atlas.lang";
 export function I18nProvider({ children }: { children: ReactNode }) {
   // Start "en" so server and first client render match (no hydration mismatch);
   // the real preference is applied right after mount.
-  const [lang, setLangState] = useState<Lang>("en");
+  const [pref, setPrefState] = useState<LangPref>("auto");
+  const [sysLang, setSysLang] = useState<Lang>("en");
 
   useEffect(() => {
+    setSysLang(systemLang());
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved === "en" || saved === "it") {
-        setLangState(saved);
-        return;
-      }
+      if (saved === "en" || saved === "it") setPrefState(saved);
     } catch {
       /* storage unavailable */
     }
-    if (typeof navigator !== "undefined" && navigator.language?.toLowerCase().startsWith("it")) {
-      setLangState("it");
-    }
+    const onChange = () => setSysLang(systemLang());
+    window.addEventListener("languagechange", onChange);
+    return () => window.removeEventListener("languagechange", onChange);
   }, []);
 
-  const setLang = useCallback((l: Lang) => {
-    setLangState(l);
+  const lang: Lang = pref === "auto" ? sysLang : pref;
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
+
+  const setPref = useCallback((p: LangPref) => {
+    setPrefState(p);
     try {
-      localStorage.setItem(STORAGE_KEY, l);
-      document.documentElement.lang = l;
+      if (p === "auto") localStorage.removeItem(STORAGE_KEY);
+      else localStorage.setItem(STORAGE_KEY, p);
     } catch {
       /* storage unavailable */
     }
   }, []);
 
   const t = useCallback(
-    (key: string) => DICT[lang][key] ?? EN[key] ?? key,
+    (key: string, vars?: Vars) => interpolate(DICT[lang][key] ?? EN[key] ?? key, vars),
+    [lang],
+  );
+
+  const tv = useCallback(
+    (value: string | null | undefined) => {
+      if (!value) return "";
+      const key = `v.${value.toLowerCase()}`;
+      return DICT[lang][key] ?? EN[key] ?? value;
+    },
     [lang],
   );
 
   return (
-    <I18nContext.Provider value={{ lang, setLang, t }}>{children}</I18nContext.Provider>
+    <I18nContext.Provider value={{ lang, pref, setPref, t, tv }}>{children}</I18nContext.Provider>
   );
 }
 
 export const useI18n = (): I18n => useContext(I18nContext);
+
+/** Language picker: automatic (from the visitor's system) or a fixed language. */
+export function LanguageSelect({ className }: { className?: string }) {
+  const { t, pref, setPref } = useI18n();
+  return (
+    <select
+      className={className}
+      value={pref}
+      onChange={(e) => setPref(e.target.value as LangPref)}
+      aria-label={t("sidebar.language")}
+      title={t("sidebar.language")}
+    >
+      <option value="auto">{t("lang.auto")}</option>
+      <option value="it">Italiano</option>
+      <option value="en">English</option>
+    </select>
+  );
+}

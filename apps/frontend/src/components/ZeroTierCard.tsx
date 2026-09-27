@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ZeroTierStatus, authorizeZeroTier, fetchZeroTier } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 /** Optional ZeroTier overlay controller (ROADMAP PR 7). Renders nothing noisy
  *  when the controller is disabled — just a hint on how to enable it. */
 export default function ZeroTierCard() {
+  const { t } = useI18n();
   const [zt, setZt] = useState<ZeroTierStatus | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -35,23 +37,22 @@ export default function ZeroTierCard() {
 
   return (
     <div className="card" style={{ marginTop: 16 }}>
-      <h3>Overlay network — ZeroTier</h3>
+      <h3>{t("zt.title")}</h3>
       {!zt.controller_enabled ? (
         <p className="muted" style={{ fontSize: 13 }}>
-          Controller disabled. Nodes still join the overlay via the installer. To
-          manage members here, set <code>ATLAS_ZEROTIER_CONTROLLER_ENABLED=true</code>,
-          an API token and a network id.
+          {t("zt.disabled1")} <code>ATLAS_ZEROTIER_CONTROLLER_ENABLED=true</code>,{" "}
+          {t("zt.disabled2")}
         </p>
       ) : (
         <>
           <div className="status-row">
-            <span className="muted">Network</span>
+            <span className="muted">{t("zt.network")}</span>
             <span className="pill">{zt.network_id || "—"}</span>
           </div>
           <div className="status-row">
-            <span className="muted">Members</span>
+            <span className="muted">{t("zt.members")}</span>
             <span className="pill">
-              {zt.authorized_count}/{zt.member_count} authorized
+              {t("zt.authorizedCount", { n: zt.authorized_count, total: zt.member_count })}
             </span>
           </div>
           {zt.error && <p className="error">{zt.error}</p>}
@@ -59,10 +60,10 @@ export default function ZeroTierCard() {
             <table className="data">
               <thead>
                 <tr>
-                  <th>Member</th>
+                  <th>{t("zt.member")}</th>
                   <th>IP</th>
-                  <th>Online</th>
-                  <th>Access</th>
+                  <th>{t("common.online")}</th>
+                  <th>{t("zt.access")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -72,7 +73,7 @@ export default function ZeroTierCard() {
                     <td>{m.ip_assignments.join(", ") || "—"}</td>
                     <td>
                       <span className={`dot ${m.online ? "ok" : "bad"}`} />{" "}
-                      {m.online ? "yes" : "no"}
+                      {m.online ? t("common.yes") : t("common.no")}
                     </td>
                     <td>
                       <button
@@ -80,13 +81,13 @@ export default function ZeroTierCard() {
                         disabled={busy}
                         onClick={() => toggle(m.id, !m.authorized)}
                       >
-                        {m.authorized ? "Deauthorize" : "Authorize"}
+                        {m.authorized ? t("wizard.deauth") : t("wizard.auth")}
                       </button>
                     </td>
                   </tr>
                 ))}
                 {zt.members.length === 0 && (
-                  <tr><td colSpan={4} className="muted">No members.</td></tr>
+                  <tr><td colSpan={4} className="muted">{t("zt.noMembers")}</td></tr>
                 )}
               </tbody>
             </table>

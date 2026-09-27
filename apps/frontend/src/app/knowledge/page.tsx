@@ -12,8 +12,10 @@ import {
   ragQuery,
   searchMemories,
 } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 export default function KnowledgePage() {
+  const { t, tv } = useI18n();
   const [docs, setDocs] = useState<DocumentRead[]>([]);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -50,7 +52,7 @@ export default function KnowledgePage() {
       setContent("");
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ingest failed");
+      setError(err instanceof Error ? err.message : t("common.failed"));
     } finally {
       setBusy(false);
     }
@@ -63,7 +65,7 @@ export default function KnowledgePage() {
     try {
       setHits((await ragQuery(query.trim())).hits);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Query failed");
+      setError(err instanceof Error ? err.message : t("common.failed"));
     } finally {
       setBusy(false);
     }
@@ -80,7 +82,7 @@ export default function KnowledgePage() {
       setMemText("");
       setMemPinned(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "add memory failed");
+      setError(err instanceof Error ? err.message : t("common.failed"));
     }
   };
 
@@ -89,36 +91,36 @@ export default function KnowledgePage() {
     try {
       setMemHits(await searchMemories(memQuery.trim()));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "recall failed");
+      setError(err instanceof Error ? err.message : t("common.failed"));
     }
   };
 
   const prune = async () => {
     const r = await pruneMemories();
-    setError(`Pruned ${r.pruned} expired memories.`);
+    setError(t("kb.pruned", { n: r.pruned }));
   };
 
   return (
     <div>
-      <h1 className="page-title">Knowledge (RAG)</h1>
+      <h1 className="page-title">{t("kb.title")}</h1>
       <p className="page-subtitle">
-        Index documents and retrieve relevant passages with citations (spec §6).
+        {t("kb.subtitle")}
       </p>
 
       {error && <p className="error">{error}</p>}
 
       <div className="cards" style={{ gridTemplateColumns: "1fr 1fr" }}>
         <div className="card">
-          <h3>Add a document</h3>
+          <h3>{t("kb.add")}</h3>
           <input
             className="chat-input"
             style={{ width: "100%", padding: "8px 10px", marginBottom: 8 }}
-            placeholder="Title"
+            placeholder={t("tasks.titleCol")}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
           />
           <textarea
-            placeholder="Paste document text…"
+            placeholder={t("kb.textPh")}
             value={content}
             onChange={(e) => setContent(e.target.value)}
             rows={7}
@@ -134,15 +136,15 @@ export default function KnowledgePage() {
             }}
           />
           <button className="btn" style={{ marginTop: 8 }} onClick={ingest} disabled={busy}>
-            Index document
+            {t("kb.index")}
           </button>
           <p className="muted" style={{ marginTop: 10 }}>
-            {docs.length} document(s) indexed
+            {t("kb.indexed", { n: docs.length })}
           </p>
         </div>
 
         <div className="card">
-          <h3>Ask the knowledge base</h3>
+          <h3>{t("kb.ask")}</h3>
           <div style={{ display: "flex", gap: 8 }}>
             <input
               style={{
@@ -153,7 +155,7 @@ export default function KnowledgePage() {
                 background: "var(--bg)",
                 color: "var(--text)",
               }}
-              placeholder="Ask a question…"
+              placeholder={t("kb.questionPh")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
@@ -161,21 +163,21 @@ export default function KnowledgePage() {
               }}
             />
             <button className="btn" onClick={search} disabled={busy}>
-              Search
+              {t("kb.search")}
             </button>
           </div>
 
           {hits && hits.length === 0 && (
-            <p className="muted" style={{ marginTop: 12 }}>No matches.</p>
+            <p className="muted" style={{ marginTop: 12 }}>{t("cmdk.empty")}</p>
           )}
           <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
             {hits?.map((h) => (
               <div key={h.chunk_id} className="card" style={{ background: "var(--panel-2)" }}>
                 <div className="status-row">
                   <strong>{h.document_title}</strong>
-                  <span className="pill">score {h.score.toFixed(3)}</span>
+                  <span className="pill">{t("kb.score", { n: h.score.toFixed(3) })}</span>
                 </div>
-                {h.source && <div className="muted">source: {h.source}</div>}
+                {h.source && <div className="muted">{t("kb.source", { s: h.source })}</div>}
                 <p style={{ fontSize: 13, marginTop: 6 }}>{h.content}</p>
               </div>
             ))}
@@ -184,16 +186,16 @@ export default function KnowledgePage() {
       </div>
 
       <h2 className="page-title" style={{ fontSize: 20, marginTop: 28 }}>
-        Memory
+        {t("kb.memory")}
       </h2>
       <p className="page-subtitle">
-        Durable facts with provenance and retention (ROADMAP PR 14).
+        {t("kb.memorySubtitle")}
       </p>
       <div className="cards" style={{ gridTemplateColumns: "1fr 1fr" }}>
         <div className="card">
-          <h3>Remember a fact</h3>
+          <h3>{t("kb.remember")}</h3>
           <textarea
-            placeholder="Something to remember…"
+            placeholder={t("kb.rememberPh")}
             value={memText}
             onChange={(e) => setMemText(e.target.value)}
             rows={3}
@@ -211,7 +213,7 @@ export default function KnowledgePage() {
             <input
               value={memSource}
               onChange={(e) => setMemSource(e.target.value)}
-              placeholder="source"
+              placeholder={t("kb.sourcePh")}
               style={{ flex: 1, padding: "8px 10px", borderRadius: 8 }}
             />
             <label className="web-toggle">
@@ -220,43 +222,43 @@ export default function KnowledgePage() {
                 checked={memPinned}
                 onChange={(e) => setMemPinned(e.target.checked)}
               />
-              pin
+              {t("kb.pin")}
             </label>
             <button className="btn" onClick={rememberFact} disabled={!memText.trim()}>
-              Save
+              {t("common.save")}
             </button>
           </div>
           <button className="btn secondary" style={{ marginTop: 8 }} onClick={prune}>
-            Prune expired
+            {t("kb.prune")}
           </button>
         </div>
 
         <div className="card">
-          <h3>Recall</h3>
+          <h3>{t("kb.recall")}</h3>
           <div style={{ display: "flex", gap: 8 }}>
             <input
               style={{ flex: 1, padding: "10px 12px", borderRadius: 8 }}
-              placeholder="Recall a memory…"
+              placeholder={t("kb.recallPh")}
               value={memQuery}
               onChange={(e) => setMemQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && recall()}
             />
-            <button className="btn" onClick={recall}>Recall</button>
+            <button className="btn" onClick={recall}>{t("kb.recallBtn")}</button>
           </div>
           {memHits && memHits.length === 0 && (
-            <p className="muted" style={{ marginTop: 12 }}>No memories.</p>
+            <p className="muted" style={{ marginTop: 12 }}>{t("chat.cmd.noMemories")}</p>
           )}
           <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
             {memHits?.map((h) => (
               <div key={h.id} className="card" style={{ background: "var(--panel-2)" }}>
                 <div className="status-row">
                   <strong>{h.pinned ? "📌 " : ""}{h.content}</strong>
-                  <span className="pill">score {h.score.toFixed(3)}</span>
+                  <span className="pill">{t("kb.score", { n: h.score.toFixed(3) })}</span>
                 </div>
                 <div className="muted" style={{ fontSize: 12 }}>
-                  {h.mem_type}
-                  {h.source ? ` · source: ${h.source}` : ""}
-                  {h.importance ? ` · importance ${h.importance}` : ""}
+                  {tv(h.mem_type)}
+                  {h.source ? ` · ${t("kb.source", { s: h.source })}` : ""}
+                  {h.importance ? ` · ${t("kb.importance", { n: h.importance })}` : ""}
                   {h.tags && h.tags.length ? ` · ${h.tags.join(", ")}` : ""}
                 </div>
               </div>

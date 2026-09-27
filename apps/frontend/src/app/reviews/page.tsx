@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Markdown from "@/components/Markdown";
 import { Review, ReviewSummary, fetchReview, fetchReviews, runReview } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 function decisionClass(d: string): string {
   if (d === "accept") return "queue-badge active";
@@ -17,6 +18,7 @@ function sevColor(sev: string): string {
 }
 
 export default function ReviewsPage() {
+  const { t, tv } = useI18n();
   const [items, setItems] = useState<ReviewSummary[]>([]);
   const [selected, setSelected] = useState<Review | null>(null);
   const [prompt, setPrompt] = useState("");
@@ -29,9 +31,9 @@ export default function ReviewsPage() {
     try {
       setItems((await fetchReviews()).items);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to load");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -55,7 +57,7 @@ export default function ReviewsPage() {
       setSelected(review);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "review failed");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     } finally {
       setBusy(false);
     }
@@ -63,35 +65,30 @@ export default function ReviewsPage() {
 
   return (
     <div>
-      <h1 className="page-title">Critical Review</h1>
-      <p className="page-subtitle">
-        A proposer answers, then a <strong>critic</strong> finds flaws, a{" "}
-        <strong>verifier</strong> checks claims against your reference facts, and a{" "}
-        <strong>judge</strong> scores &amp; decides — across several rounds, keeping the
-        best by adaptive consensus (ROADMAP PR 19).
-      </p>
+      <h1 className="page-title">{t("nav.reviews")}</h1>
+      <p className="page-subtitle">{t("rev.subtitle")}</p>
 
-      {error && <p className="error">Error: {error}</p>}
+      {error && <p className="error">{t("common.errorMsg", { error })}</p>}
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div style={{ display: "grid", gap: 8 }}>
           <textarea
             value={prompt}
-            placeholder="Question / prompt to review…"
+            placeholder={t("rev.promptPh")}
             onChange={(e) => setPrompt(e.target.value)}
             rows={2}
             style={{ padding: "8px 10px", borderRadius: 8, resize: "vertical" }}
           />
           <textarea
             value={refs}
-            placeholder="Reference facts the answer should contain (one per line or comma-separated) — optional"
+            placeholder={t("rev.refsPh")}
             onChange={(e) => setRefs(e.target.value)}
             rows={2}
             style={{ padding: "8px 10px", borderRadius: 8, resize: "vertical" }}
           />
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
             <label className="muted" style={{ fontSize: 13 }}>
-              Max rounds{" "}
+              {t("rev.maxRounds")}{" "}
               <input
                 type="number"
                 min={1}
@@ -102,7 +99,7 @@ export default function ReviewsPage() {
               />
             </label>
             <button className="btn" onClick={run} disabled={busy || !prompt.trim()}>
-              {busy ? "Reviewing…" : "Run review"}
+              {busy ? t("rev.reviewing") : t("rev.run")}
             </button>
           </div>
         </div>
@@ -110,7 +107,7 @@ export default function ReviewsPage() {
 
       <div className="chat-layout">
         <div className="convo-list">
-          {items.length === 0 && <p className="muted">No reviews yet.</p>}
+          {items.length === 0 && <p className="muted">{t("rev.none")}</p>}
           {items.map((r) => (
             <div
               key={r.id}
@@ -126,34 +123,37 @@ export default function ReviewsPage() {
 
         <div className="chat-main" style={{ padding: 16, overflowY: "auto" }}>
           {!selected ? (
-            <p className="muted">Run a review or select one.</p>
+            <p className="muted">{t("rev.select")}</p>
           ) : (
             <div>
               <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                <span className={decisionClass(selected.decision)}>{selected.decision}</span>
-                <span className="pill">score {Math.round(selected.best_score * 100)}%</span>
+                <span className={decisionClass(selected.decision)}>{tv(selected.decision)}</span>
+                <span className="pill">{t("rev.score", { n: Math.round(selected.best_score * 100) })}</span>
                 <span className="muted">
-                  {selected.round_count} round(s) · agreement{" "}
-                  {selected.consensus ? Math.round(selected.consensus.agreement * 100) : 0}% ·{" "}
+                  {t("rev.roundsAgreement", {
+                    n: selected.round_count,
+                    pct: selected.consensus ? Math.round(selected.consensus.agreement * 100) : 0,
+                  })}{" "}
+                  ·{" "}
                   {selected.provider} · {selected.model}
                 </span>
               </div>
 
-              <h3 style={{ fontSize: 14, marginTop: 14 }}>Best answer</h3>
+              <h3 style={{ fontSize: 14, marginTop: 14 }}>{t("rev.best")}</h3>
               <div className="card result-card" style={{ background: "var(--panel-2)" }}>
                 <Markdown text={selected.best_answer || ""} />
               </div>
 
-              <h3 style={{ fontSize: 14, marginTop: 14 }}>Rounds</h3>
+              <h3 style={{ fontSize: 14, marginTop: 14 }}>{t("rev.rounds")}</h3>
               {(selected.rounds ?? []).map((rd) => (
                 <div key={rd.attempt} className="card" style={{ marginBottom: 8 }}>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                     <strong>#{rd.attempt}</strong>
-                    <span className={decisionClass(rd.decision)}>{rd.decision}</span>
+                    <span className={decisionClass(rd.decision)}>{tv(rd.decision)}</span>
                     <span className="pill">{Math.round(rd.score * 100)}%</span>
                     {rd.verification.grounding != null && (
                       <span className="muted">
-                        grounding {Math.round(rd.verification.grounding * 100)}%
+                        {t("rev.grounding", { n: Math.round(rd.verification.grounding * 100) })}
                       </span>
                     )}
                   </div>
@@ -161,14 +161,14 @@ export default function ReviewsPage() {
                     <ul style={{ margin: "8px 0 0", paddingLeft: 18, fontSize: 13 }}>
                       {rd.findings.map((f, i) => (
                         <li key={i} style={{ color: sevColor(f.severity) }}>
-                          [{f.severity}] {f.message}
+                          [{tv(f.severity)}] {f.message}
                         </li>
                       ))}
                     </ul>
                   )}
                   {rd.verification.unsupported.length > 0 && (
                     <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
-                      Unsupported: {rd.verification.unsupported.join(", ")}
+                      {t("rev.unsupported")}: {rd.verification.unsupported.join(", ")}
                     </p>
                   )}
                 </div>

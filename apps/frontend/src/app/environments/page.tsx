@@ -11,8 +11,10 @@ import {
   snapshotEnvironment,
   updateEnvironment,
 } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 export default function EnvironmentsPage() {
+  const { t, tv } = useI18n();
   const [envs, setEnvs] = useState<Environment[]>([]);
   const [selected, setSelected] = useState<Environment | null>(null);
   const [snaps, setSnaps] = useState<EnvironmentSnapshot[]>([]);
@@ -26,9 +28,9 @@ export default function EnvironmentsPage() {
       setEnvs((await fetchEnvironments()).items);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to load environments");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -53,7 +55,7 @@ export default function EnvironmentsPage() {
       await load();
       await open(env);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "create failed");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     }
   };
 
@@ -62,7 +64,7 @@ export default function EnvironmentsPage() {
       const v = JSON.parse(s);
       return typeof v === "object" && v ? v : {};
     } catch {
-      throw new Error("invalid JSON");
+      throw new Error(t("common.invalidJson"));
     }
   };
 
@@ -76,7 +78,7 @@ export default function EnvironmentsPage() {
       setSelected(env);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "save failed");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     }
   };
 
@@ -94,32 +96,29 @@ export default function EnvironmentsPage() {
 
   return (
     <div>
-      <h1 className="page-title">Environments</h1>
-      <p className="page-subtitle">
-        Isolated workspaces with a declarative manifest; scope tasks, queries and
-        memory, and snapshot / restore config (ROADMAP PR 13).
-      </p>
+      <h1 className="page-title">{t("nav.environments")}</h1>
+      <p className="page-subtitle">{t("env.subtitle")}</p>
 
-      {error && <p className="error">Error: {error}</p>}
+      {error && <p className="error">{t("common.errorMsg", { error })}</p>}
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", gap: 8 }}>
           <input
             value={name}
-            placeholder="New environment name…"
+            placeholder={t("env.namePh")}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && create()}
             style={{ flex: 1, padding: "8px 10px", borderRadius: 8 }}
           />
           <button className="btn" onClick={create} disabled={!name.trim()}>
-            Create
+            {t("common.create")}
           </button>
         </div>
       </div>
 
       <div className="chat-layout">
         <div className="convo-list">
-          {envs.length === 0 && <p className="muted">No environments yet.</p>}
+          {envs.length === 0 && <p className="muted">{t("env.none")}</p>}
           {envs.map((e) => (
             <div
               key={e.id}
@@ -128,7 +127,7 @@ export default function EnvironmentsPage() {
             >
               {e.name}{" "}
               <span className={`queue-badge ${e.status === "ACTIVE" ? "active" : "idle"}`}>
-                {e.status}
+                {tv(e.status)}
               </span>
             </div>
           ))}
@@ -136,20 +135,20 @@ export default function EnvironmentsPage() {
 
         <div className="chat-main" style={{ padding: 16, overflowY: "auto" }}>
           {!selected ? (
-            <p className="muted">Select an environment.</p>
+            <p className="muted">{t("env.select")}</p>
           ) : (
             <div>
               <h3 style={{ marginTop: 0 }}>
                 {selected.name} <span className="muted">/{selected.slug}</span>
               </h3>
-              <label className="muted" style={{ fontSize: 13 }}>Manifest (JSON)</label>
+              <label className="muted" style={{ fontSize: 13 }}>{t("env.manifest")}</label>
               <textarea
                 value={manifestText}
                 onChange={(e) => setManifestText(e.target.value)}
                 rows={6}
                 style={{ width: "100%", fontFamily: "monospace", fontSize: 13, marginBottom: 8 }}
               />
-              <label className="muted" style={{ fontSize: 13 }}>Variables (JSON)</label>
+              <label className="muted" style={{ fontSize: 13 }}>{t("env.variables")}</label>
               <textarea
                 value={varsText}
                 onChange={(e) => setVarsText(e.target.value)}
@@ -157,24 +156,24 @@ export default function EnvironmentsPage() {
                 style={{ width: "100%", fontFamily: "monospace", fontSize: 13 }}
               />
               <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                <button className="btn" onClick={saveManifest}>Save</button>
-                <button className="btn secondary" onClick={snapshot}>Snapshot</button>
+                <button className="btn" onClick={saveManifest}>{t("common.save")}</button>
+                <button className="btn secondary" onClick={snapshot}>{t("env.snapshot")}</button>
               </div>
 
-              <h3 style={{ fontSize: 14, marginTop: 18 }}>Snapshots</h3>
+              <h3 style={{ fontSize: 14, marginTop: 18 }}>{t("env.snapshots")}</h3>
               {snaps.length === 0 ? (
-                <p className="muted">No snapshots yet.</p>
+                <p className="muted">{t("env.noSnapshots")}</p>
               ) : (
                 snaps.map((s) => (
                   <div key={s.id} className="queue-item" style={{ display: "flex", justifyContent: "space-between" }}>
                     <span>
                       {s.name || s.id.slice(0, 8)}{" "}
                       <span className="meta">
-                        {s.stats ? `tasks ${s.stats.tasks ?? 0} · mem ${s.stats.memories ?? 0}` : ""}
+                        {s.stats ? t("env.stats", { tasks: s.stats.tasks ?? 0, mem: s.stats.memories ?? 0 }) : ""}
                       </span>
                     </span>
                     <button className="btn secondary" onClick={() => restore(s.id)}>
-                      Restore
+                      {t("env.restore")}
                     </button>
                   </div>
                 ))

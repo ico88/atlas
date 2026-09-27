@@ -12,6 +12,7 @@ import {
   refreshModels,
   setDefaultModel,
 } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 // Curated open models that run locally via Ollama, far better than llama3.2:1b.
 // Sizes are approximate download sizes; on a CPU-only host smaller = faster.
@@ -19,26 +20,27 @@ const RECOMMENDED: { name: string; size: string; note: string; tier: string; fam
   {
     name: "deepseek-r1:1.5b",
     size: "~1.1 GB",
-    note: "DeepSeek reasoning — lightweight and suitable for CPU-only hosts",
+    note: "models.rec.r1small",
     tier: "fast",
     family: "DeepSeek",
   },
   {
     name: "deepseek-r1:8b",
     size: "~4.9 GB",
-    note: "★ DeepSeek recommended — stronger reasoning, more RAM required",
+    note: "models.rec.r1big",
     tier: "quality",
     family: "DeepSeek",
   },
-  { name: "qwen2.5:3b", size: "~2 GB", note: "★ Recommended — great in Italian, 3B", tier: "balanced" },
-  { name: "llama3.2:3b", size: "~2 GB", note: "Fast and solid, 3B", tier: "fast" },
-  { name: "gemma2:2b", size: "~1.6 GB", note: "Very fast, 2B", tier: "fast" },
-  { name: "phi3.5", size: "~2.2 GB", note: "Strong reasoning for its size, 3.8B", tier: "balanced" },
-  { name: "qwen2.5:7b", size: "~4.7 GB", note: "Best quality, slower on CPU, 7B", tier: "quality" },
-  { name: "mistral:7b", size: "~4.1 GB", note: "Solid generalist, 7B", tier: "quality" },
+  { name: "qwen2.5:3b", size: "~2 GB", note: "models.rec.qwen3", tier: "balanced" },
+  { name: "llama3.2:3b", size: "~2 GB", note: "models.rec.llama3", tier: "fast" },
+  { name: "gemma2:2b", size: "~1.6 GB", note: "models.rec.gemma2", tier: "fast" },
+  { name: "phi3.5", size: "~2.2 GB", note: "models.rec.phi", tier: "balanced" },
+  { name: "qwen2.5:7b", size: "~4.7 GB", note: "models.rec.qwen7", tier: "quality" },
+  { name: "mistral:7b", size: "~4.1 GB", note: "models.rec.mistral", tier: "quality" },
 ];
 
 export default function ModelsPage() {
+  const { t, tv } = useI18n();
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [hardware, setHardware] = useState<Record<string, unknown> | null>(null);
   const [defaultModel, setDefault] = useState("");
@@ -60,9 +62,9 @@ export default function ModelsPage() {
       setDefault(def.default_model || "");
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load");
+      setError(err instanceof Error ? err.message : t("common.failed"));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -103,7 +105,7 @@ export default function ModelsPage() {
       const r = await setDefaultModel(name);
       setDefault(r.default_model);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "set default failed");
+      setError(err instanceof Error ? err.message : t("common.failed"));
     }
   };
 
@@ -115,7 +117,7 @@ export default function ModelsPage() {
       setPulls((p) => ({ ...p, [clean]: { state: "starting", status: "queued" } }));
       if (asDefault) setWantDefault((w) => (w.includes(clean) ? w : [...w, clean]));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "pull failed");
+      setError(err instanceof Error ? err.message : t("common.failed"));
     }
   };
 
@@ -128,12 +130,12 @@ export default function ModelsPage() {
     pulls[name]?.state === "pulling" || pulls[name]?.state === "starting";
 
   const doDelete = async (name: string) => {
-    if (!confirm(`Delete model ${name}?`)) return;
+    if (!confirm(t("models.confirmDelete", { name }))) return;
     try {
       const m = await deleteModel(name);
       setModels(m.items);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "delete failed");
+      setError(err instanceof Error ? err.message : t("common.failed"));
     }
   };
 
@@ -144,7 +146,7 @@ export default function ModelsPage() {
       setModels(m.items);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Refresh failed");
+      setError(err instanceof Error ? err.message : t("common.failed"));
     } finally {
       setBusy(false);
     }
@@ -153,9 +155,9 @@ export default function ModelsPage() {
   const hw = hardware ?? {};
 
   function gpuSummary(gpu: unknown): string {
-    if (!gpu || typeof gpu !== "object") return "none";
+    if (!gpu || typeof gpu !== "object") return t("models.none");
     const g = gpu as { count?: number; devices?: Array<{ name?: string; vendor?: string }> };
-    if (!g.count) return "none";
+    if (!g.count) return t("models.none");
     const first = g.devices?.[0];
     const label = first?.name || first?.vendor || "GPU";
     return g.count > 1 ? `${label} (+${g.count - 1})` : label;
@@ -163,28 +165,26 @@ export default function ModelsPage() {
 
   return (
     <div>
-      <h1 className="page-title">Models</h1>
-      <p className="page-subtitle">
-        Model registry and host hardware scan (spec §16 M2).
-      </p>
+      <h1 className="page-title">{t("nav.models")}</h1>
+      <p className="page-subtitle">{t("models.subtitle")}</p>
 
       {error && <p className="error">{error}</p>}
 
       <div className="cards" style={{ marginBottom: 20 }}>
         <div className="card">
-          <h3>Host hardware</h3>
+          <h3>{t("models.hardware")}</h3>
           <div className="status-row">
-            <span className="muted">Platform</span>
+            <span className="muted">{t("models.platform")}</span>
             <span>
               {String(hw.platform ?? "—")} {String(hw.arch ?? "")}
             </span>
           </div>
           <div className="status-row">
-            <span className="muted">CPU cores</span>
+            <span className="muted">{t("models.cpuCores")}</span>
             <span className="pill">{String(hw.cpu_cores ?? "—")}</span>
           </div>
           <div className="status-row">
-            <span className="muted">RAM total</span>
+            <span className="muted">{t("models.ramTotal")}</span>
             <span className="pill">
               {hw.ram_total_mb ? `${hw.ram_total_mb} MB` : "—"}
             </span>
@@ -194,17 +194,16 @@ export default function ModelsPage() {
             <span>{gpuSummary(hw.gpu)}</span>
           </div>
           <div className="status-row">
-            <span className="muted">Ollama backend</span>
+            <span className="muted">{t("models.ollamaBackend")}</span>
             <span className="pill">{String(hw.recommended_ollama_backend ?? "—")}</span>
           </div>
         </div>
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <h3 style={{ marginTop: 0 }}>Recommended models</h3>
+        <h3 style={{ marginTop: 0 }}>{t("models.recommended")}</h3>
         <p className="muted" style={{ fontSize: 12 }}>
-          One-click local models served by Ollama, including DeepSeek R1. On a CPU-only
-          host, smaller = faster; larger models give better quality but require more RAM.
+          {t("models.recommendedHelp")}
         </p>
         <div className="rec-grid">
           {RECOMMENDED.map((r) => {
@@ -220,29 +219,29 @@ export default function ModelsPage() {
                   </div>
                 </div>
                 <div className="muted" style={{ fontSize: 12, margin: "4px 0 10px" }}>
-                  {r.note}
+                  {t(r.note)}
                 </div>
                 {installed ? (
                   <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                    <span className="queue-badge active">installed</span>
+                    <span className="queue-badge active">{t("models.installed")}</span>
                     {r.name !== defaultModel && (
                       <button className="btn secondary" onClick={() => makeDefault(r.name)}>
-                        Use as default
+                        {t("models.useDefault")}
                       </button>
                     )}
-                    {r.name === defaultModel && <span className="pill">⭐ default</span>}
+                    {r.name === defaultModel && <span className="pill">⭐ {t("models.default")}</span>}
                   </div>
                 ) : (
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                     <button className="btn" disabled={pulling} onClick={() => pull(r.name, true)}>
-                      {pulling ? "Downloading…" : "Download & use"}
+                      {pulling ? t("models.downloading") : t("models.downloadUse")}
                     </button>
                     <button
                       className="btn secondary"
                       disabled={pulling}
                       onClick={() => pull(r.name, false)}
                     >
-                      Download
+                      {t("models.download")}
                     </button>
                   </div>
                 )}
@@ -253,10 +252,10 @@ export default function ModelsPage() {
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <h3 style={{ marginTop: 0 }}>Download any model</h3>
+        <h3 style={{ marginTop: 0 }}>{t("models.any")}</h3>
         <p className="muted" style={{ fontSize: 12 }}>
-          Pull any Ollama model by name (e.g. <code>deepseek-r1:8b</code>,{" "}
-          <code>qwen2.5:3b</code>, <code>gemma2:2b</code>).
+          {t("models.anyHelp")} <code>deepseek-r1:8b</code>, <code>qwen2.5:3b</code>,{" "}
+          <code>gemma2:2b</code>.
         </p>
         <div style={{ display: "flex", gap: 8 }}>
           <input
@@ -267,14 +266,14 @@ export default function ModelsPage() {
             style={{ flex: 1, padding: "8px 10px", borderRadius: 8 }}
           />
           <button className="btn" onClick={doPull} disabled={!pullName.trim()}>
-            Download
+            {t("models.download")}
           </button>
         </div>
         {Object.entries(pulls).map(([name, p]) => (
           <div key={name} className="queue-item" style={{ marginTop: 8 }}>
             <strong>{name}</strong>{" "}
             <span className="meta">
-              {p.state}
+              {tv(p.state)}
               {p.status ? ` · ${p.status}` : ""}
               {p.completed && p.total
                 ? ` · ${Math.round((p.completed / p.total) * 100)}%`
@@ -286,29 +285,29 @@ export default function ModelsPage() {
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h3 style={{ color: "var(--muted)" }}>
-          Registered models{" "}
-          {defaultModel && <span className="pill">default: {defaultModel}</span>}
+          {t("models.registered")}{" "}
+          {defaultModel && <span className="pill">{t("models.default")}: {defaultModel}</span>}
         </h3>
         <button className="btn secondary" onClick={doRefresh} disabled={busy}>
-          {busy ? "Refreshing…" : "Refresh from providers"}
+          {busy ? t("models.refreshing") : t("models.refresh")}
         </button>
       </div>
 
       <div className="card" style={{ marginTop: 10, overflowX: "auto" }}>
         {models.length === 0 ? (
           <p className="muted">
-            No models yet. Click “Refresh from providers” to discover them.
+            {t("models.empty")}
           </p>
         ) : (
           <table className="data">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Provider</th>
-                <th>Family</th>
-                <th>Context</th>
-                <th>Available</th>
-                <th>Actions</th>
+                <th>{t("common.name")}</th>
+                <th>{t("models.provider")}</th>
+                <th>{t("models.family")}</th>
+                <th>{t("models.context")}</th>
+                <th>{t("models.available")}</th>
+                <th>{t("common.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -323,18 +322,18 @@ export default function ModelsPage() {
                   <td>{m.context_length ?? "—"}</td>
                   <td>
                     <span className={`dot ${m.available ? "ok" : "bad"}`} />{" "}
-                    {m.available ? "yes" : "no"}
+                    {m.available ? t("common.yes") : t("common.no")}
                   </td>
                   <td>
                     <div style={{ display: "flex", gap: 6 }}>
                       {m.name !== defaultModel && (
                         <button className="btn secondary" onClick={() => makeDefault(m.name)}>
-                          Set default
+                          {t("models.setDefault")}
                         </button>
                       )}
                       {m.provider === "ollama" && (
                         <button className="btn secondary" onClick={() => doDelete(m.name)}>
-                          Delete
+                          {t("common.delete")}
                         </button>
                       )}
                     </div>

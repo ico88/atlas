@@ -17,6 +17,7 @@ import {
   rejectApproval,
   startCanary,
 } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 function pct(v?: number | null): string {
   return v == null ? "—" : `${Math.round(v * 100)}%`;
@@ -29,6 +30,7 @@ function verdictClass(v?: string | null): string {
 }
 
 export default function ImprovementsPage() {
+  const { t, tv } = useI18n();
   const [proposals, setProposals] = useState<ImprovementProposal[]>([]);
   const [suites, setSuites] = useState<EvalSuite[]>([]);
   const [approvals, setApprovals] = useState<Approval[]>([]);
@@ -55,9 +57,9 @@ export default function ImprovementsPage() {
       setApprovals(a.items);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to load");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -95,7 +97,7 @@ export default function ImprovementsPage() {
       await fn();
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "action failed");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     } finally {
       setBusy(false);
     }
@@ -121,25 +123,17 @@ export default function ImprovementsPage() {
 
   return (
     <div>
-      <h1 className="page-title">Continuous Improvement</h1>
-      <p className="page-subtitle">
-        <strong>Semi-automatic:</strong> create a proposal and the{" "}
-        <strong>experiment</strong> (candidate vs baseline on an eval suite) runs
-        by itself — this page refreshes until a verdict and an approval gate
-        appear. You are left with just <em>Approve</em> then <em>Apply</em>
-        (ROADMAP PR 18). Safety is the overriding signal: a candidate that lowers
-        safety is always a regression.
-      </p>
+      <h1 className="page-title">{t("nav.improvements")}</h1>
+      <p className="page-subtitle">{t("imp.subtitle")}</p>
 
-      {error && <p className="error">Error: {error}</p>}
+      {error && <p className="error">{t("common.errorMsg", { error })}</p>}
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <span>
-            <strong>Let ATLAS propose</strong>
+            <strong>{t("imp.letPropose")}</strong>
             <span className="muted" style={{ marginLeft: 8, fontSize: 12 }}>
-              generates a proposal for each available model vs the current default,
-              then experiments them automatically
+              {t("imp.letProposeHelp")}
             </span>
           </span>
           <button
@@ -153,18 +147,18 @@ export default function ImprovementsPage() {
                 const res = await autoPropose();
                 setNote(
                   res.total > 0
-                    ? `Created ${res.total} proposal(s); the experiment runs automatically.`
-                    : "Nothing to propose yet — you need at least two models (download another on the Models page). A starter eval suite was created for you.",
+                    ? t("imp.created", { n: res.total })
+                    : t("imp.nothingToPropose"),
                 );
                 await load();
               } catch (e) {
-                setError(e instanceof Error ? e.message : "auto-propose failed");
+                setError(e instanceof Error ? e.message : t("common.failed"));
               } finally {
                 setBusy(false);
               }
             }}
           >
-            Generate proposals now
+            {t("imp.generate")}
           </button>
         </div>
         {note && (
@@ -175,11 +169,11 @@ export default function ImprovementsPage() {
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <strong>New proposal</strong>
+        <strong>{t("imp.new")}</strong>
         <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
           <input
             value={title}
-            placeholder="Title (e.g. Adopt llama3.2:3b as default)"
+            placeholder={t("imp.titlePh")}
             onChange={(e) => setTitle(e.target.value)}
             style={{ padding: "8px 10px", borderRadius: 8 }}
           />
@@ -189,7 +183,7 @@ export default function ImprovementsPage() {
             className="model-select"
             style={{ maxWidth: "none", width: "100%" }}
           >
-            <option value="">Eval suite (required to experiment)…</option>
+            <option value="">{t("imp.suitePh")}</option>
             {suites.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
@@ -199,26 +193,26 @@ export default function ImprovementsPage() {
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <input
               value={baseline}
-              placeholder="Baseline model (blank = current default)"
+              placeholder={t("imp.baselinePh")}
               onChange={(e) => setBaseline(e.target.value)}
               style={{ flex: "1 1 200px", padding: "8px 10px", borderRadius: 8 }}
             />
             <input
               value={candidate}
-              placeholder="Candidate model"
+              placeholder={t("imp.candidatePh")}
               onChange={(e) => setCandidate(e.target.value)}
               style={{ flex: "1 1 200px", padding: "8px 10px", borderRadius: 8 }}
             />
           </div>
           <button className="btn" onClick={create} disabled={!title.trim() || busy}>
-            Create proposal
+            {t("imp.create")}
           </button>
         </div>
       </div>
 
       <div className="chat-layout">
         <div className="convo-list">
-          {proposals.length === 0 && <p className="muted">No proposals yet.</p>}
+          {proposals.length === 0 && <p className="muted">{t("imp.none")}</p>}
           {proposals.map((p) => (
             <div
               key={p.id}
@@ -233,49 +227,49 @@ export default function ImprovementsPage() {
 
         <div className="chat-main" style={{ padding: 16, overflowY: "auto" }}>
           {!selected ? (
-            <p className="muted">Select a proposal.</p>
+            <p className="muted">{t("imp.select")}</p>
           ) : (
             <div>
               <h3 style={{ marginTop: 0 }}>{selected.title}</h3>
               <div className="status-row">
-                <span className="muted">Status</span>
-                <span className="pill">{selected.status}</span>
+                <span className="muted">{t("common.status")}</span>
+                <span className="pill">{tv(selected.status)}</span>
               </div>
               <div className="status-row">
-                <span className="muted">Candidate</span>
+                <span className="muted">{t("imp.candidate")}</span>
                 <span>
                   {selected.candidate_model || "—"}
-                  {selected.baseline_model ? ` vs ${selected.baseline_model}` : " vs current default"}
+                  {selected.baseline_model ? ` vs ${selected.baseline_model}` : ` ${t("imp.vsDefault")}`}
                 </span>
               </div>
               {selected.recommendation && (
                 <div className="status-row">
-                  <span className="muted">Verdict</span>
+                  <span className="muted">{t("imp.verdict")}</span>
                   <span className={verdictClass(selected.recommendation)}>
-                    {selected.recommendation}
+                    {tv(selected.recommendation)}
                   </span>
                 </div>
               )}
 
               {selected.comparison?.deltas && (
                 <div className="card" style={{ background: "var(--panel-2)", margin: "10px 0" }}>
-                  <strong>Metric deltas (candidate − baseline)</strong>
+                  <strong>{t("imp.deltas")}</strong>
                   <table className="data" style={{ width: "100%", marginTop: 6 }}>
                     <tbody>
                       <tr>
-                        <td>Pass rate</td>
+                        <td>{t("imp.passRate")}</td>
                         <td>{deltas.pass_rate == null ? "—" : pct(deltas.pass_rate)}</td>
                       </tr>
                       <tr>
-                        <td>Quality</td>
+                        <td>{t("imp.quality")}</td>
                         <td>{deltas.avg_quality == null ? "—" : pct(deltas.avg_quality)}</td>
                       </tr>
                       <tr>
-                        <td>Safety</td>
+                        <td>{t("imp.safety")}</td>
                         <td>{deltas.avg_safety == null ? "—" : pct(deltas.avg_safety)}</td>
                       </tr>
                       <tr>
-                        <td>p95 latency</td>
+                        <td>{t("imp.p95")}</td>
                         <td>{deltas.p95_latency_ms == null ? "—" : `${deltas.p95_latency_ms} ms`}</td>
                       </tr>
                     </tbody>
@@ -288,10 +282,10 @@ export default function ImprovementsPage() {
                   <button
                     className="btn"
                     disabled={busy || !selected.suite_id}
-                    title={selected.suite_id ? "" : "Attach an eval suite first"}
+                    title={selected.suite_id ? "" : t("imp.attachSuite")}
                     onClick={() => act(() => experimentProposal(selected.id))}
                   >
-                    {busy ? "Running…" : "Run experiment"}
+                    {busy ? t("imp.running") : t("imp.run")}
                   </button>
                 )}
 
@@ -305,7 +299,7 @@ export default function ImprovementsPage() {
                           act(() => approveApproval(pendingApprovalFor(selected.id)!.id))
                         }
                       >
-                        Approve
+                        {t("common.approve")}
                       </button>
                       <button
                         className="btn secondary"
@@ -314,7 +308,7 @@ export default function ImprovementsPage() {
                           act(() => rejectApproval(pendingApprovalFor(selected.id)!.id))
                         }
                       >
-                        Reject
+                        {t("common.reject")}
                       </button>
                     </>
                   )}
@@ -324,17 +318,17 @@ export default function ImprovementsPage() {
                     <button
                       className="btn"
                       disabled={busy}
-                      title="Roll out to a watched canary, then promote or auto-rollback"
+                      title={t("ap.canaryHint")}
                       onClick={() => act(() => startCanary(selected.id))}
                     >
-                      Start canary
+                      {t("ap.startCanary")}
                     </button>
                     <button
                       className="btn secondary"
                       disabled={busy}
                       onClick={() => act(() => applyProposal(selected.id))}
                     >
-                      Apply directly
+                      {t("imp.applyDirect")}
                     </button>
                   </>
                 )}
@@ -343,36 +337,35 @@ export default function ImprovementsPage() {
                   <button
                     className="btn"
                     disabled={busy}
-                    title="Run the health gate: promote if healthy, else auto-rollback"
+                    title={t("ap.evaluateHint")}
                     onClick={() => act(() => evaluateCanary(selected.id))}
                   >
-                    Evaluate canary (health gate)
+                    {t("imp.evaluate")}
                   </button>
                 )}
 
                 {selected.status === "APPLIED" && (
-                  <span className="queue-badge active">✓ applied</span>
+                  <span className="queue-badge active">✓ {t("v.applied")}</span>
                 )}
                 {selected.status === "ROLLED_BACK" && (
-                  <span className="queue-badge">↩ rolled back</span>
+                  <span className="queue-badge">↩ {t("v.rolled_back")}</span>
                 )}
               </div>
 
               {selected.status === "CANARY" && (
                 <p className="muted" style={{ marginTop: 8, fontSize: 12 }}>
-                  🐤 Canary live — the candidate is active. Evaluate to promote it or
-                  automatically roll back on a regression.
+                  🐤 {t("imp.canaryLive")}
                 </p>
               )}
               {selected.comparison?.canary?.reason && (
                 <p className="muted" style={{ marginTop: 4, fontSize: 12 }}>
-                  Health gate: {String(selected.comparison.canary.reason)}
+                  {t("imp.healthGate")}: {String(selected.comparison.canary.reason)}
                 </p>
               )}
 
               {selected.status === "EXPERIMENTED" && !pendingApprovalFor(selected.id) && (
                 <p className="muted" style={{ marginTop: 8, fontSize: 12 }}>
-                  Awaiting a human approval decision.
+                  {t("imp.awaitingHuman")}
                 </p>
               )}
             </div>

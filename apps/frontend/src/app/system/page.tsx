@@ -12,18 +12,19 @@ import {
   fetchSystemMonitor,
   fetchSystemStatus,
 } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 function gb(bytes: number | null | undefined): string {
-  if (bytes == null) return "N/A";
+  if (bytes == null) return "—";
   return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
 }
 
-function dur(seconds: number | null): string {
-  if (seconds == null) return "N/A";
+function dur(seconds: number | null, day: string): string {
+  if (seconds == null) return "—";
   const d = Math.floor(seconds / 86400);
   const h = Math.floor((seconds % 86400) / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  return d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+  return d > 0 ? `${d}${day} ${h}h ${m}m` : h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
 /** One labelled metric with a thin lime bar and a monospace value. */
@@ -56,6 +57,7 @@ function Gauge({
 }
 
 function SystemMonitorCard() {
+  const { t } = useI18n();
   const [m, setM] = useState<SystemMonitorData | null>(null);
   const [err, setErr] = useState(false);
 
@@ -80,26 +82,26 @@ function SystemMonitorCard() {
     };
   }, []);
 
-  if (err && !m) return <p className="muted">System metrics unavailable.</p>;
-  if (!m) return <p className="muted">Loading metrics…</p>;
+  if (err && !m) return <p className="muted">{t("sys.unavailable")}</p>;
+  if (!m) return <p className="muted">{t("common.loading")}</p>;
 
   const load = m.cpu.load_average;
   return (
     <div className="card" style={{ gridColumn: "1 / -1" }}>
-      <h3>System Monitor</h3>
+      <h3>{t("sys.monitor")}</h3>
       <div className="stat-grid">
         <div>
           <Gauge
             label="CPU"
-            value={m.cpu.percent == null ? "N/A" : `${m.cpu.percent}%`}
+            value={m.cpu.percent == null ? "—" : `${m.cpu.percent}%`}
             percent={m.cpu.percent}
           />
           <div className="muted" style={{ fontSize: 11 }}>
-            {m.cpu.cores ?? "N/A"} cores ·{" "}
+            {t("sys.cores", { n: m.cpu.cores ?? "—" })} ·{" "}
             <span className="metric">
-              {load ? load.map((x) => x.toFixed(2)).join(" ") : "N/A"}
+              {load ? load.map((x) => x.toFixed(2)).join(" ") : "—"}
             </span>{" "}
-            load
+            {t("sys.load")}
           </div>
         </div>
         <Gauge
@@ -108,23 +110,23 @@ function SystemMonitorCard() {
           percent={m.memory.percent}
         />
         <Gauge
-          label="Swap"
-          value={m.swap.total ? `${gb(m.swap.used)} / ${gb(m.swap.total)}` : "N/A"}
+          label={t("sys.swap")}
+          value={m.swap.total ? `${gb(m.swap.used)} / ${gb(m.swap.total)}` : "—"}
           percent={m.swap.percent}
         />
         <Gauge
-          label={`Storage (${m.storage.path})`}
+          label={t("sys.storage", { path: m.storage.path })}
           value={`${gb(m.storage.used)} / ${gb(m.storage.total)}`}
           percent={m.storage.percent}
         />
         <div className="status-row">
-          <span className="muted" style={{ fontSize: 12 }}>Uptime</span>
-          <span className="metric" style={{ fontSize: 13 }}>{dur(m.uptime_seconds)}</span>
+          <span className="muted" style={{ fontSize: 12 }}>{t("sys.uptime")}</span>
+          <span className="metric" style={{ fontSize: 13 }}>{dur(m.uptime_seconds, t("common.dayShort"))}</span>
         </div>
         <div className="status-row">
-          <span className="muted" style={{ fontSize: 12 }}>CPU temp</span>
+          <span className="muted" style={{ fontSize: 12 }}>{t("sys.cpuTemp")}</span>
           <span className="metric" style={{ fontSize: 13 }}>
-            {m.cpu_temperature == null ? "N/A" : `${m.cpu_temperature} °C`}
+            {m.cpu_temperature == null ? "—" : `${m.cpu_temperature} °C`}
           </span>
         </div>
       </div>
@@ -134,7 +136,7 @@ function SystemMonitorCard() {
             <div className="status-row" key={i}>
               <span className="muted" style={{ fontSize: 12 }}>GPU · {g.name ?? "—"}</span>
               <span className="metric" style={{ fontSize: 13 }}>
-                {g.temperature != null ? `${g.temperature} °C` : "N/A"}
+                {g.temperature != null ? `${g.temperature} °C` : "—"}
                 {g.vram_total != null ? ` · ${g.vram_total} MB` : ""}
               </span>
             </div>
@@ -150,6 +152,7 @@ function StatusDot({ status }: { status: ComponentStatus["status"] }) {
 }
 
 export default function SystemStatusPage() {
+  const { t, tv } = useI18n();
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
   const [cluster, setCluster] = useState<ClusterStatus | null>(null);
@@ -167,9 +170,9 @@ export default function SystemStatusPage() {
       setCluster(c);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load status");
+      setError(err instanceof Error ? err.message : t("common.failed"));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -179,18 +182,18 @@ export default function SystemStatusPage() {
 
   return (
     <div>
-      <h1 className="page-title">System Status</h1>
+      <h1 className="page-title">{t("nav.system")}</h1>
       <p className="page-subtitle">
-        Live health of the ATLAS control plane and its dependencies.
+        {t("sys.subtitle")}
       </p>
 
-      {error && <p className="error">Unable to reach backend: {error}</p>}
+      {error && <p className="error">{t("common.backendError", { error })}</p>}
 
       <div className="cards">
         <SystemMonitorCard />
         <div className="card">
-          <h3>Components</h3>
-          {!status && !error && <p className="muted">Loading…</p>}
+          <h3>{t("sys.components")}</h3>
+          {!status && !error && <p className="muted">{t("common.loading")}</p>}
           {status &&
             status.components.map((c) => (
               <div className="status-row" key={c.name}>
@@ -200,33 +203,33 @@ export default function SystemStatusPage() {
                     <span className="muted">{c.latency_ms} ms</span>
                   )}
                   <StatusDot status={c.status} />
-                  {c.status}
+                  {tv(c.status)}
                 </span>
               </div>
             ))}
         </div>
 
         <div className="card">
-          <h3>Overview</h3>
+          <h3>{t("sys.overview")}</h3>
           {status && (
             <>
               <div className="status-row">
-                <span>Overall</span>
+                <span>{t("sys.overall")}</span>
                 <span className="badge">
                   <span
                     className={`dot ${
                       status.status === "healthy" ? "ok" : "warn"
                     }`}
                   />
-                  {status.status}
+                  {tv(status.status)}
                 </span>
               </div>
               <div className="status-row">
-                <span>Version</span>
+                <span>{t("sys.version")}</span>
                 <span className="pill">{status.version}</span>
               </div>
               <div className="status-row">
-                <span>Environment</span>
+                <span>{t("sys.environment")}</span>
                 <span className="pill">{status.environment}</span>
               </div>
             </>
@@ -234,57 +237,57 @@ export default function SystemStatusPage() {
         </div>
 
         <div className="card">
-          <h3>Tasks</h3>
+          <h3>{t("nav.tasks")}</h3>
           {metrics && Object.keys(metrics.tasks_by_status).length === 0 && (
-            <p className="muted">No tasks yet.</p>
+            <p className="muted">{t("sys.noTasks")}</p>
           )}
           {metrics &&
             Object.entries(metrics.tasks_by_status).map(([k, v]) => (
               <div className="status-row" key={k}>
-                <span>{k}</span>
+                <span>{tv(k)}</span>
                 <span className="pill">{v}</span>
               </div>
             ))}
           {metrics && (
             <div className="status-row">
-              <span>Nodes online</span>
+              <span>{t("dash.nodesOnline")}</span>
               <span className="pill">{metrics.nodes_online}</span>
             </div>
           )}
           {metrics && (
             <div className="status-row">
-              <span>Approvals pending</span>
+              <span>{t("dash.approvals")}</span>
               <span className="pill">{metrics.approvals_pending}</span>
             </div>
           )}
         </div>
 
         <div className="card">
-          <h3>Cluster (HA)</h3>
+          <h3>{t("sys.cluster")}</h3>
           {cluster && (
             <>
               <div className="status-row">
-                <span>Mode</span>
+                <span>{t("sys.mode")}</span>
                 <span className="pill">
-                  {cluster.ha_enabled ? "HA (leader election)" : "single-node"}
+                  {cluster.ha_enabled ? t("sys.ha") : t("sys.single")}
                 </span>
               </div>
               <div className="status-row">
-                <span>This instance</span>
+                <span>{t("sys.thisInstance")}</span>
                 <span className="badge">
                   {cluster.instance_id}
                   {cluster.is_leader && (
                     <span className="queue-badge active" style={{ marginLeft: 6 }}>
-                      leader
+                      {t("sys.leader")}
                     </span>
                   )}
                 </span>
               </div>
               {cluster.members.map((m) => (
                 <div className="status-row" key={m.id}>
-                  <span>{m.id}{m.self ? " (you)" : ""}</span>
+                  <span>{m.id}{m.self ? ` (${t("sys.you")})` : ""}</span>
                   <span className={`queue-badge ${m.leader ? "active" : "idle"}`}>
-                    {m.leader ? "leader" : "follower"}
+                    {m.leader ? t("sys.leader") : t("sys.follower")}
                   </span>
                 </div>
               ))}

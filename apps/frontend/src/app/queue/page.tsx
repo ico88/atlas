@@ -7,8 +7,10 @@ import {
   enqueueMessage,
   fetchQueue,
 } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 export default function QueuePage() {
+  const { t } = useI18n();
   const [cid, setCid] = useState("demo");
   const [content, setContent] = useState("");
   const [status, setStatus] = useState<QueueStatus | null>(null);
@@ -21,14 +23,14 @@ export default function QueuePage() {
       setStatus(await fetchQueue(id.trim()));
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to load queue");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     refresh(cid);
-    const t = setInterval(() => refresh(cid), 2000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => refresh(cid), 2000);
+    return () => clearInterval(timer);
   }, [cid, refresh]);
 
   const enqueue = async () => {
@@ -39,7 +41,7 @@ export default function QueuePage() {
       setContent("");
       await refresh(cid);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "enqueue failed");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     } finally {
       setBusy(false);
     }
@@ -51,7 +53,7 @@ export default function QueuePage() {
       await completeTurn(cid.trim());
       await refresh(cid);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "complete failed");
+      setError(e instanceof Error ? e.message : t("common.failed"));
     } finally {
       setBusy(false);
     }
@@ -59,14 +61,13 @@ export default function QueuePage() {
 
   return (
     <div>
-      <h1 className="page-title">Conversation Queue</h1>
+      <h1 className="page-title">{t("queue.title")}</h1>
       <p className="page-subtitle">
-        Per-conversation back-pressure (ROADMAP PR 11): immediate send when idle,
-        queueing when busy, merge of consecutive messages, and bounded parallelism.
+        {t("queue.subtitle")}
       </p>
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <label className="muted" style={{ fontSize: 13 }}>Conversation id</label>
+        <label className="muted" style={{ fontSize: 13 }}>{t("queue.cid")}</label>
         <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
           <input
             value={cid}
@@ -74,7 +75,7 @@ export default function QueuePage() {
             style={{ flex: 1, padding: "8px 10px", borderRadius: 8 }}
           />
           <button className="btn secondary" onClick={() => refresh(cid)}>
-            Refresh
+            {t("common.refresh")}
           </button>
         </div>
       </div>
@@ -83,7 +84,7 @@ export default function QueuePage() {
         <div style={{ display: "flex", gap: 8 }}>
           <input
             value={content}
-            placeholder="Message to enqueue…"
+            placeholder={t("queue.msgPh")}
             onChange={(e) => setContent(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") enqueue();
@@ -91,34 +92,34 @@ export default function QueuePage() {
             style={{ flex: 1, padding: "8px 10px", borderRadius: 8 }}
           />
           <button className="btn" onClick={enqueue} disabled={busy || !content.trim()}>
-            Enqueue
+            {t("queue.enqueue")}
           </button>
           <button className="btn secondary" onClick={complete} disabled={busy}>
-            Complete turn
+            {t("queue.complete")}
           </button>
         </div>
       </div>
 
-      {error && <p className="error">Error: {error}</p>}
+      {error && <p className="error">{t("common.errorMsg", { error })}</p>}
 
       {status && (
         <div className="card">
           <div style={{ marginBottom: 10 }}>
             <span className={`queue-badge ${status.active ? "active" : "idle"}`}>
-              {status.active ? "● active" : "○ idle"}
+              {status.active ? `● ${t("v.active")}` : `○ ${t("v.idle")}`}
             </span>
             <span className="muted" style={{ marginLeft: 12 }}>
-              pending: {status.pending} · active conversations: {status.active_total}
+              {t("queue.stats", { pending: status.pending, active: status.active_total })}
             </span>
           </div>
           {status.items.length === 0 ? (
-            <p className="muted">No pending messages.</p>
+            <p className="muted">{t("queue.none")}</p>
           ) : (
             status.items.map((m, i) => (
               <div key={m.id} className="queue-item">
                 <strong>#{i + 1}</strong> {m.content}
                 {m.merged_count && m.merged_count > 1 && (
-                  <span className="meta"> merged ×{m.merged_count}</span>
+                  <span className="meta"> {t("queue.merged", { n: m.merged_count })}</span>
                 )}
               </div>
             ))
