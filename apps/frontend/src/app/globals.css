@@ -1488,69 +1488,6 @@ pre {
   color: var(--muted);
 }
 
-/* ALMA welcome screen — shown when no conversations exist */
-.alma-welcome {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  padding: 40px 24px;
-  max-width: 600px;
-  margin: 0 auto;
-  animation: fadeIn 0.3s ease;
-}
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-.welcome-header {
-  text-align: center;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 20px;
-}
-.welcome-status {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  font-size: 13px;
-  font-weight: 600;
-}
-.status-text {
-  color: var(--text);
-}
-.status-version {
-  color: var(--muted);
-  font-size: 11px;
-  margin-left: auto;
-}
-.welcome-actions {
-  /* grid of quick-action cards */
-}
-.action-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 16px 12px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--panel);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  text-align: center;
-}
-.action-card:hover {
-  border-color: var(--border-light);
-  background: var(--panel-2);
-  box-shadow: var(--shadow);
-}
-.welcome-help {
-  /* command reference */
-}
 .cmdk-foot {
   padding: 8px 16px;
   border-top: 1px solid var(--border);
@@ -1581,4 +1518,493 @@ pre {
 }
 .alma-back:hover {
   color: var(--accent);
+}
+
+/* ===================================================================== */
+/* ALMA chat shell: history sidebar on the left, conversation centred.    */
+/* ===================================================================== */
+.layout:has(.alma-shell) {
+  display: block;
+}
+.main:has(.alma-shell) {
+  padding: 0;
+}
+.alma-shell {
+  display: flex;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.alma-side {
+  flex: 0 0 264px;
+  width: 264px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 10px;
+  background: var(--panel-2);
+  border-right: 1px solid var(--border);
+  min-height: 0;
+}
+.alma-shell.side-collapsed .alma-side {
+  display: none;
+}
+.alma-side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 4px 6px;
+}
+.alma-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  font-size: 16px;
+}
+.alma-icon-btn {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 17px;
+  cursor: pointer;
+}
+.alma-icon-btn:hover:not(:disabled) {
+  background: var(--panel-3);
+  color: var(--text);
+}
+.alma-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.alma-new {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.alma-new:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+.alma-new:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.alma-search {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--panel-3);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+.alma-search:focus {
+  outline: none;
+  border-color: var(--border-light);
+  background: var(--panel);
+}
+.alma-history {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 4px -4px 0;
+  padding: 0 4px;
+}
+.alma-history-empty {
+  color: var(--muted);
+  font-size: 13px;
+  padding: 8px;
+}
+.alma-group {
+  margin-bottom: 10px;
+}
+.alma-group-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  padding: 8px 8px 4px;
+}
+.alma-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
+}
+.alma-item:hover,
+.alma-item.active {
+  background: var(--panel-3);
+}
+.alma-item.active .alma-item-title {
+  font-weight: 600;
+}
+.alma-item-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.alma-item-actions {
+  display: none;
+  gap: 2px;
+  padding-right: 4px;
+}
+.alma-item:hover .alma-item-actions,
+.alma-item.active .alma-item-actions,
+.alma-item:focus-within .alma-item-actions {
+  display: flex;
+}
+.alma-item-actions button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 5px;
+  border-radius: 6px;
+  opacity: 0.6;
+}
+.alma-item-actions button:hover {
+  opacity: 1;
+  background: var(--panel);
+}
+.alma-side-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.alma-foot-link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.alma-foot-link:hover {
+  background: var(--panel-3);
+  color: var(--text);
+}
+.alma-foot-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.alma-foot-row select {
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+  padding: 5px 6px;
+}
+.alma-user {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 0 10px 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alma-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.alma-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  min-height: 52px;
+}
+.alma-open-side {
+  display: none;
+}
+.alma-shell.side-collapsed .alma-open-side {
+  display: inline-flex;
+}
+.alma-model {
+  max-width: 240px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+.alma-model:hover {
+  background: var(--panel-2);
+}
+.alma-top-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.alma-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+.alma-thread,
+.alma-bottom {
+  width: 100%;
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+.alma-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding-top: 12px;
+  padding-bottom: 24px;
+}
+.alma-bottom {
+  padding-bottom: 10px;
+}
+.alma-bottom .composer,
+.alma-empty-composer .composer {
+  margin: 0;
+}
+.alma-shell .composer:focus-within {
+  border-color: var(--border-light);
+}
+.alma-shell .composer-text:focus-visible {
+  box-shadow: none;
+}
+.alma-disclaimer {
+  margin: 6px 0 0;
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.msg {
+  font-size: 15px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+.msg-user {
+  align-self: flex-end;
+  max-width: 78%;
+  padding: 10px 16px;
+  border-radius: 20px;
+  background: var(--panel-2);
+  white-space: pre-wrap;
+}
+.msg-assistant {
+  align-self: stretch;
+}
+.msg-assistant .meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+.msg-thinking {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.msg-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-top: 8px;
+}
+.msg-actions button {
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  padding: 3px 7px;
+  font-size: 14px;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0.7;
+}
+.msg-actions button:hover,
+.msg-actions button.on {
+  opacity: 1;
+  background: var(--panel-2);
+  color: var(--text);
+}
+.msg-actions .meta {
+  margin-left: 6px;
+}
+
+.composer-pill {
+  flex: 0 0 auto;
+  height: 32px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.composer-pill:hover:not(:disabled) {
+  background: var(--panel-3);
+}
+.composer-pill.on {
+  background: var(--accent-weak);
+  border-color: var(--accent);
+  color: var(--text);
+}
+.composer-pill:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.alma-empty {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 24px 20px 12vh;
+  text-align: center;
+}
+.alma-empty h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+}
+.alma-health {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.alma-empty-composer {
+  width: 100%;
+  max-width: 740px;
+  margin-top: 8px;
+  text-align: left;
+}
+.alma-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 740px;
+}
+.alma-suggestions button {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.alma-suggestions button:hover {
+  background: var(--panel-2);
+  color: var(--text);
+}
+
+.alma-scrim {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .alma-side {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 280px;
+    max-width: 85vw;
+    z-index: 60;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+  }
+  .alma-shell.side-collapsed .alma-side {
+    display: flex;
+  }
+  .alma-side.open {
+    transform: translateX(0);
+  }
+  .alma-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 50;
+  }
+  .alma-open-side {
+    display: inline-flex;
+  }
+  .alma-top-title {
+    visibility: hidden;
+  }
+  .alma-thread,
+  .alma-bottom {
+    padding: 0 12px;
+  }
+  .alma-thread {
+    padding-bottom: 16px;
+  }
+  .alma-bottom {
+    padding-bottom: 8px;
+  }
+  .msg-user {
+    max-width: 88%;
+  }
+  .alma-empty h1 {
+    font-size: 23px;
+  }
 }

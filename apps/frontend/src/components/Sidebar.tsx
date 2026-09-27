@@ -55,13 +55,16 @@ export default function Sidebar() {
   // ALMA = the clean conversational shell (the chat, `/`); everything else is
   // ATLAS Control, the technical cockpit. The two shells share this component
   // but show completely different chrome (SPEC §2, §3, §25).
-  const isAlma = pathname === "/" || pathname === "/login";
+  const isAlma = pathname === "/login";
   const brand = isAlma ? "ALMA" : "ATLAS Control";
 
   // Close the mobile drawer whenever the route changes.
   useEffect(() => {
     setOpen(false);
   }, [pathname]);
+
+  // The chat renders its own full-screen shell with the conversation sidebar.
+  if (pathname === "/" || pathname === "/chat") return null;
 
   return (
     <>

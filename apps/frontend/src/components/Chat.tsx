@@ -1,14 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Logo from "@/components/Logo";
 import Markdown from "@/components/Markdown";
-import AlmaWelcome from "@/components/AlmaWelcome";
-import { useI18n } from "@/lib/i18n";
+import { Lang, useI18n } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth";
 import {
   AttachmentInfo,
   ConversationSummary,
   Message,
   ModelInfo,
+  SystemStatus,
   WebCitation,
   addMemory,
   archiveConversation,
@@ -30,6 +33,40 @@ import {
 type Phase = "idle" | "waiting" | "streaming";
 type Bubble = Message & { attachments?: string[] };
 
+const MOBILE_QUERY = "(max-width: 900px)";
+
+const HELP = [
+  "Commands you can type here:",
+  "• /web <question> — answer using a web search (cites sources)",
+  "• /search <query> — show web results only",
+  "• /remember <text> — save a memory",
+  "• /recall <query> — recall saved memories",
+  "• /model <name> — pick the model (or /models to list)",
+  "• /task <title> — create a task · /nodes — list nodes · /status — health",
+  "• /help — show this help",
+].join("\n");
+
+const SUGGESTIONS: { icon: string; key: string; prefill: string }[] = [
+  { icon: "🌐", key: "chat.suggest.web", prefill: "/web " },
+  { icon: "🧠", key: "chat.suggest.remember", prefill: "/remember " },
+  { icon: "🔍", key: "chat.suggest.recall", prefill: "/recall " },
+  { icon: "🖥", key: "chat.suggest.status", prefill: "/status" },
+];
+
+type Bucket = "today" | "yesterday" | "week" | "month" | "older";
+const BUCKETS: Bucket[] = ["today", "yesterday", "week", "month", "older"];
+
+function bucketOf(iso: string, now: Date): Bucket {
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const ts = new Date(iso).getTime();
+  const day = 86_400_000;
+  if (ts >= startOfToday) return "today";
+  if (ts >= startOfToday - day) return "yesterday";
+  if (ts >= startOfToday - 7 * day) return "week";
+  if (ts >= startOfToday - 30 * day) return "month";
+  return "older";
+}
+
 function Citations({ items, label }: { items: WebCitation[]; label: string }) {
   if (!items || items.length === 0) return null;
   return (
@@ -48,27 +85,27 @@ function Citations({ items, label }: { items: WebCitation[]; label: string }) {
   );
 }
 
-const HELP = [
-  "Commands you can type here:",
-  "• /web <question> — answer using a web search (cites sources)",
-  "• /search <query> — show web results only",
-  "• /remember <text> — save a memory",
-  "• /recall <query> — recall saved memories",
-  "• /model <name> — pick the model (or /models to list)",
-  "• /task <title> — create a task · /nodes — list nodes · /status — health",
-  "• /help — show this help",
-].join("\n");
+function Typing() {
+  return (
+    <span className="typing">
+      <span></span>
+      <span></span>
+      <span></span>
+    </span>
+  );
+}
 
 export default function Chat() {
-  const { t } = useI18n();
+  const { t, lang, setLang } = useI18n();
+  const { user, logout } = useAuth();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [viewArchived, setViewArchived] = useState(false);
+  const [filter, setFilter] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Bubble[]>([]);
   const [draft, setDraft] = useState("");
   const [attached, setAttached] = useState<AttachmentInfo[]>([]);
   const [uploading, setUploading] = useState(false);
-  const fileRef = useRef<HTMLInputElement | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [live, setLive] = useState("");
   const [liveCitations, setLiveCitations] = useState<WebCitation[]>([]);
@@ -77,11 +114,18 @@ export default function Chat() {
   const [webOn, setWebOn] = useState(false);
   const [anon, setAnon] = useState(false);
   const [models, setModels] = useState<ModelInfo[]>([]);
-  const [model, setModel] = useState("");  // "" = Auto (server default)
+  const [model, setModel] = useState(""); // "" = Auto (server default)
   const [webNote, setWebNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Local echo of ratings the user gave this session, keyed by message id.
+  const [health, setHealth] = useState<SystemStatus | null>(null);
   const [ratings, setRatings] = useState<Record<string, -1 | 1>>({});
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  // Desktop: sidebar can be collapsed. Mobile: sidebar is an off-canvas drawer.
+  const [collapsed, setCollapsed] = useState(false);
+  const [drawer, setDrawer] = useState(false);
+
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -99,7 +143,9 @@ export default function Chat() {
 
   useEffect(() => {
     loadConversations();
-    // Load the model list + current default so the chat can pick a model.
+  }, [loadConversations]);
+
+  useEffect(() => {
     (async () => {
       try {
         const [list, def] = await Promise.all([fetchModels(), fetchDefaultModel()]);
@@ -109,13 +155,26 @@ export default function Chat() {
         /* backend may be starting */
       }
     })();
-  }, [loadConversations]);
+    fetchSystemStatus().then(setHealth).catch(() => {});
+  }, []);
+
+  // Focus the composer on desktop only; on phones it would pop the keyboard.
+  useEffect(() => {
+    if (!window.matchMedia(MOBILE_QUERY).matches) inputRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight);
   }, [messages, live, phase]);
 
-  // Elapsed-time ticker so the user can see the system is working, not stuck.
+  // Grow the composer with its content, up to the CSS max-height.
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [draft]);
+
   const startTimer = useCallback(() => {
     setElapsed(0);
     const started = Date.now();
@@ -130,27 +189,56 @@ export default function Chat() {
   }, []);
   useEffect(() => () => stopTimer(), [stopTimer]);
 
+  // Keep the open conversation in the URL (?c=<id>) so a reload or a shared
+  // link reopens it.
+  const syncUrl = (id: string | null) => {
+    const url = id ? `/?c=${encodeURIComponent(id)}` : "/";
+    window.history.replaceState(null, "", url);
+  };
+
+  const closeDrawer = () => setDrawer(false);
+
   const openConversation = useCallback(async (id: string) => {
     setActiveId(id);
     setError(null);
-    const convo = await fetchConversation(id);
-    setMessages(convo.messages);
+    setLive("");
+    syncUrl(id);
+    setDrawer(false);
+    try {
+      const convo = await fetchConversation(id);
+      setMessages(convo.messages);
+    } catch (e) {
+      setMessages([]);
+      setError(e instanceof Error ? e.message : "load failed");
+    }
   }, []);
 
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("c");
+    if (id) openConversation(id);
+  }, [openConversation]);
+
   const newConversation = () => {
+    if (streaming) return;
     setActiveId(null);
     setMessages([]);
     setLive("");
     setError(null);
+    syncUrl(null);
+    setDrawer(false);
+    inputRef.current?.focus();
+  };
+
+  const toggleSidebar = () => {
+    if (window.matchMedia(MOBILE_QUERY).matches) setDrawer((v) => !v);
+    else setCollapsed((v) => !v);
   };
 
   // Resume an in-flight reply: if the open conversation has a pending assistant
   // message (e.g. after reloading the page), poll until it completes.
   useEffect(() => {
     if (!activeId || phase !== "idle") return;
-    const hasPending = messages.some(
-      (m) => m.role === "assistant" && m.status === "pending",
-    );
+    const hasPending = messages.some((m) => m.role === "assistant" && m.status === "pending");
     if (!hasPending) return;
     const id = setInterval(async () => {
       try {
@@ -174,7 +262,7 @@ export default function Chat() {
   };
 
   const removeConvo = async (id: string) => {
-    if (typeof window !== "undefined" && !window.confirm(t("chat.confirmDelete"))) return;
+    if (!window.confirm(t("chat.confirmDelete"))) return;
     try {
       await deleteConversation(id);
       if (id === activeId) newConversation();
@@ -265,13 +353,16 @@ export default function Chat() {
       pushBubble(
         "assistant",
         models.length
-          ? "Available models:\n" + models.map((m) => `• ${m.name}`).join("\n") + `\n\nCurrent: ${model || "Auto"}`
+          ? "Available models:\n" +
+              models.map((m) => `• ${m.name}`).join("\n") +
+              `\n\nCurrent: ${model || "Auto"}`
           : "No models yet — download one from the Models page.",
       );
       return true;
     }
     if (c === "model") {
-      if (!arg) return pushBubble("assistant", `Current model: ${model || "Auto"}. Usage: /model <name>`), true;
+      if (!arg)
+        return pushBubble("assistant", `Current model: ${model || "Auto"}. Usage: /model <name>`), true;
       setModel(arg);
       pushBubble("assistant", `✅ This chat will use model: ${arg}`);
       return true;
@@ -280,8 +371,8 @@ export default function Chat() {
       if (!arg) return pushBubble("assistant", "Usage: /task <title>"), true;
       pushBubble("user", raw);
       try {
-        const t = await createTask({ title: arg });
-        pushBubble("assistant", `📋 Task created: “${t.title}” (${t.status}).`);
+        const task = await createTask({ title: arg });
+        pushBubble("assistant", `📋 Task created: “${task.title}” (${task.status}).`);
       } catch (e) {
         pushBubble("assistant", `⚠️ ${e instanceof Error ? e.message : "task failed"}`);
       }
@@ -295,7 +386,9 @@ export default function Chat() {
           "assistant",
           n.items.length
             ? `🖥️ ${n.online}/${n.total} online:\n` +
-                n.items.map((x) => `• ${x.label || x.node_id} — ${x.online ? "online" : "offline"}`).join("\n")
+                n.items
+                  .map((x) => `• ${x.label || x.node_id} — ${x.online ? "online" : "offline"}`)
+                  .join("\n")
             : "No nodes registered.",
         );
       } catch (e) {
@@ -315,8 +408,6 @@ export default function Chat() {
       return true;
     }
     if (c === "web") {
-      // Fall through to a normal chat turn, but force web grounding on.
-      setDraft(arg);
       await send(arg, true);
       return true;
     }
@@ -328,7 +419,6 @@ export default function Chat() {
     const content = (text ?? draft).trim();
     if ((!content && attached.length === 0) || streaming) return;
 
-    // Slash command? Handle it and stop.
     if (content.startsWith("/") && text === undefined) {
       setDraft("");
       await handleCommand(content);
@@ -341,7 +431,7 @@ export default function Chat() {
     setLiveCitations([]);
     setWebNote(null);
     setPhase("waiting");
-    setStatusLine((forceWeb || webOn) ? t("chat.searching") : t("chat.thinking"));
+    setStatusLine(forceWeb || webOn ? t("chat.searching") : t("chat.thinking"));
     startTimer();
     const attachmentIds = attached.map((a) => a.id);
     const attachmentNames = attached.map((a) => a.filename);
@@ -370,11 +460,14 @@ export default function Chat() {
           // Anonymous turns have no persisted conversation id.
           if (e.conversation_id) {
             convoId = e.conversation_id;
-            if (!activeId) setActiveId(e.conversation_id);
+            if (!activeId) {
+              setActiveId(e.conversation_id);
+              syncUrl(e.conversation_id);
+            }
           }
         },
-        onToken: (t) => {
-          acc += t;
+        onToken: (tok) => {
+          acc += tok;
           setPhase("streaming");
           setLive(acc);
         },
@@ -390,8 +483,8 @@ export default function Chat() {
           setPhase("idle");
           abortRef.current = null;
           // Reload the persisted conversation so the reply carries its real DB
-          // id — that's what a 👍/👎 attaches to. Fall back to a local bubble
-          // for anonymous turns (which are never persisted).
+          // id — that's what a 👍/👎 attaches to. Anonymous turns are never
+          // persisted, so they keep a local bubble.
           if (!anon && convoId) {
             try {
               const convo = await fetchConversation(convoId);
@@ -416,9 +509,8 @@ export default function Chat() {
     );
   };
 
-  // Give feedback on an assistant reply. A 👍 becomes training data for
-  // fine-tuning and raises the model's quality signal; a 👎 lowers it. Clicking
-  // the same thumb again clears it (rating 0).
+  // A 👍 becomes training data for fine-tuning and raises the model's quality
+  // signal; a 👎 lowers it. Clicking the same thumb again clears it.
   const rate = async (messageId: string, value: -1 | 1) => {
     const next = ratings[messageId] === value ? 0 : value;
     setRatings((prev) => {
@@ -434,6 +526,16 @@ export default function Chat() {
     }
   };
 
+  const copy = async (id: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
+    } catch {
+      /* clipboard unavailable (e.g. insecure context) */
+    }
+  };
+
   const stop = () => {
     abortRef.current?.abort();
     stopTimer();
@@ -443,23 +545,210 @@ export default function Chat() {
     abortRef.current = null;
   };
 
-  return (
-    <div>
-      <h1 className="page-title">{t("chat.title")}</h1>
-      <p className="page-subtitle">{t("chat.subtitle")}</p>
+  const prefill = (text: string) => {
+    setDraft(text);
+    inputRef.current?.focus();
+  };
 
-      <div className="chat-layout chat-fill">
-        <div className="convo-list">
+  const grouped = useMemo(() => {
+    const q = filter.trim().toLowerCase();
+    const now = new Date();
+    const out: Record<Bucket, ConversationSummary[]> = {
+      today: [],
+      yesterday: [],
+      week: [],
+      month: [],
+      older: [],
+    };
+    for (const c of conversations) {
+      if (q && !(c.title ?? "").toLowerCase().includes(q)) continue;
+      out[bucketOf(c.updated_at || c.created_at, now)].push(c);
+    }
+    return out;
+  }, [conversations, filter]);
+
+  const empty = messages.length === 0 && !live && phase === "idle";
+  const activeTitle = conversations.find((c) => c.id === activeId)?.title;
+  const hasAnyConvo = BUCKETS.some((b) => grouped[b].length > 0);
+
+  const composer = (
+    <div className="composer">
+      <input
+        ref={fileRef}
+        type="file"
+        multiple
+        hidden
+        onChange={(e) => onPickFiles(e.target.files)}
+      />
+
+      {attached.length > 0 && (
+        <div className="composer-chips">
+          {attached.map((a) => (
+            <span key={a.id} className="attach-chip">
+              📎 {a.filename}
+              <button
+                className="attach-x"
+                title={t("common.delete")}
+                onClick={() => setAttached((prev) => prev.filter((x) => x.id !== a.id))}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      <textarea
+        ref={inputRef}
+        className="composer-text"
+        value={draft}
+        rows={1}
+        placeholder={webOn ? t("chat.placeholderWeb") : t("chat.placeholder")}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+            e.preventDefault();
+            send();
+          }
+        }}
+        disabled={streaming}
+      />
+
+      <div className="composer-bar">
+        <button
+          className="composer-icon"
+          onClick={() => fileRef.current?.click()}
+          disabled={streaming || uploading}
+          title={t("chat.attach")}
+          aria-label={t("chat.attach")}
+        >
+          {uploading ? "…" : "+"}
+        </button>
+        <button
+          className={`composer-pill${webOn ? " on" : ""}`}
+          onClick={() => setWebOn((v) => !v)}
+          disabled={streaming}
+          aria-pressed={webOn}
+          title={t("chat.web")}
+        >
+          🌐 {t("chat.web")}
+        </button>
+        <button
+          className={`composer-pill${anon ? " on" : ""}`}
+          onClick={() => setAnon((v) => !v)}
+          disabled={streaming}
+          aria-pressed={anon}
+          title={t("chat.anonHint")}
+        >
+          🕶 {t("chat.anon")}
+        </button>
+
+        <div className="composer-spacer" />
+
+        {streaming ? (
           <button
-            className="btn secondary"
-            style={{ width: "100%", marginBottom: 8 }}
-            onClick={newConversation}
+            className="composer-send stop"
+            onClick={stop}
+            title={t("chat.stop")}
+            aria-label={t("chat.stop")}
           >
-            {t("chat.newChat")}
+            <span className="composer-square" />
           </button>
+        ) : (
           <button
-            className="btn secondary convo-toggle"
-            style={{ width: "100%", marginBottom: 8, fontSize: 12 }}
+            className="composer-send"
+            onClick={() => send()}
+            disabled={!draft.trim() && attached.length === 0}
+            title={t("chat.send")}
+            aria-label={t("chat.send")}
+          >
+            ↑
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className={`alma-shell${collapsed ? " side-collapsed" : ""}`}>
+      {drawer && <div className="alma-scrim" onClick={closeDrawer} />}
+
+      <aside className={`alma-side${drawer ? " open" : ""}`} aria-label={t("chat.history")}>
+        <div className="alma-side-head">
+          <span className="alma-brand">
+            <Logo size={26} />
+            ALMA
+          </span>
+          <button
+            className="alma-icon-btn"
+            onClick={toggleSidebar}
+            title={t("chat.toggleSidebar")}
+            aria-label={t("chat.toggleSidebar")}
+          >
+            ⟨
+          </button>
+        </div>
+
+        <button className="alma-new" onClick={newConversation} disabled={streaming}>
+          <span aria-hidden>✎</span> {t("chat.newChatShort")}
+        </button>
+
+        <input
+          className="alma-search"
+          type="search"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder={t("chat.searchChats")}
+          aria-label={t("chat.searchChats")}
+        />
+
+        <nav className="alma-history">
+          {viewArchived && <div className="alma-group-label">{t("chat.showArchived")}</div>}
+          {!hasAnyConvo && (
+            <p className="alma-history-empty">
+              {viewArchived ? t("chat.noArchived") : filter ? t("chat.noMatch") : t("chat.noChats")}
+            </p>
+          )}
+          {BUCKETS.map((b) =>
+            grouped[b].length === 0 ? null : (
+              <div key={b} className="alma-group">
+                {!viewArchived && <div className="alma-group-label">{t(`chat.bucket.${b}`)}</div>}
+                {grouped[b].map((c) => (
+                  <div
+                    key={c.id}
+                    className={`alma-item${c.id === activeId ? " active" : ""}`}
+                    title={c.title ?? c.id}
+                  >
+                    <button className="alma-item-title" onClick={() => openConversation(c.id)}>
+                      {c.title ?? t("chat.untitled")}
+                    </button>
+                    <span className="alma-item-actions">
+                      <button
+                        title={viewArchived ? t("chat.unarchive") : t("chat.archive")}
+                        aria-label={viewArchived ? t("chat.unarchive") : t("chat.archive")}
+                        onClick={() => archiveConvo(c.id, !viewArchived)}
+                      >
+                        {viewArchived ? "↩" : "🗄"}
+                      </button>
+                      <button
+                        className="danger"
+                        title={t("chat.delete")}
+                        aria-label={t("chat.delete")}
+                        onClick={() => removeConvo(c.id)}
+                      >
+                        🗑
+                      </button>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ),
+          )}
+        </nav>
+
+        <div className="alma-side-foot">
+          <button
+            className="alma-foot-link"
             onClick={() => {
               setViewArchived((v) => !v);
               newConversation();
@@ -467,270 +756,201 @@ export default function Chat() {
           >
             {viewArchived ? `← ${t("chat.showActive")}` : `🗄 ${t("chat.showArchived")}`}
           </button>
-          {viewArchived && conversations.length === 0 && (
-            <p className="muted" style={{ fontSize: 12 }}>{t("chat.noArchived")}</p>
-          )}
-          {conversations.map((c) => (
-            <div
-              key={c.id}
-              className={`convo-item ${c.id === activeId ? "active" : ""}`}
-              title={c.title ?? c.id}
+          <Link href="/dashboard" className="alma-foot-link">
+            ⚙ {t("sidebar.openControl")}
+          </Link>
+          <div className="alma-foot-row">
+            <select
+              value={lang}
+              onChange={(e) => setLang(e.target.value as Lang)}
+              aria-label={t("sidebar.language")}
             >
-              <span className="convo-title" onClick={() => openConversation(c.id)}>
-                {c.title ?? t("chat.untitled")}
-              </span>
-              <span className="convo-actions">
-                <button
-                  className="convo-act"
-                  title={viewArchived ? t("chat.unarchive") : t("chat.archive")}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    archiveConvo(c.id, !viewArchived);
-                  }}
-                >
-                  {viewArchived ? "↩" : "🗄"}
-                </button>
-                <button
-                  className="convo-act danger"
-                  title={t("chat.delete")}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeConvo(c.id);
-                  }}
-                >
-                  🗑
-                </button>
-              </span>
-            </div>
-          ))}
-        </div>
-
-        <div className="chat-main">
-          <div className="chat-messages" ref={scrollRef}>
-            {messages.length === 0 && !live && phase === "idle" && (
-              <AlmaWelcome />
+              <option value="it">Italiano</option>
+              <option value="en">English</option>
+            </select>
+            {user ? (
+              <button className="alma-foot-link" onClick={logout} title={user.email}>
+                {t("auth.logout")}
+              </button>
+            ) : (
+              <Link href="/login" className="alma-foot-link">
+                {t("auth.login")}
+              </Link>
             )}
-            {messages.map((m) => {
-              // A reply still generating in the background (e.g. resumed after a
-              // reload): show its partial text + a clear "working" indicator.
-              if (m.role === "assistant" && m.status === "pending") {
-                return (
-                  <div key={m.id} className="bubble assistant">
-                    <Markdown text={m.content} />
+          </div>
+          {user && <div className="alma-user">{user.email}</div>}
+        </div>
+      </aside>
+
+      <section className="alma-main">
+        <header className="alma-top">
+          <button
+            className="alma-icon-btn alma-open-side"
+            onClick={toggleSidebar}
+            title={t("chat.toggleSidebar")}
+            aria-label={t("chat.toggleSidebar")}
+          >
+            ☰
+          </button>
+          <select
+            className="alma-model"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            disabled={streaming}
+            title={t("chat.modelPick")}
+            aria-label={t("chat.modelPick")}
+          >
+            <option value="">{t("chat.auto")}</option>
+            {models.map((m) => (
+              <option key={`${m.provider}:${m.name}`} value={m.name}>
+                {m.name}
+              </option>
+            ))}
+          </select>
+          <span className="alma-top-title">{activeTitle ?? ""}</span>
+          <button
+            className="alma-icon-btn"
+            onClick={newConversation}
+            disabled={streaming}
+            title={t("chat.newChatShort")}
+            aria-label={t("chat.newChatShort")}
+          >
+            ✎
+          </button>
+        </header>
+
+        {empty ? (
+          <div className="alma-empty">
+            <Logo size={44} />
+            <h1>{t("chat.greeting")}</h1>
+            {health && (
+              <p className="alma-health">
+                <span className={`dot ${health.status === "healthy" ? "ok" : "warn"}`} />
+                {health.status === "healthy" ? t("chat.healthy") : t("chat.degraded")} · v
+                {health.version}
+              </p>
+            )}
+            <div className="alma-empty-composer">{composer}</div>
+            <div className="alma-suggestions">
+              {SUGGESTIONS.map((s) => (
+                <button key={s.key} onClick={() => prefill(s.prefill)}>
+                  <span aria-hidden>{s.icon}</span> {t(s.key)}
+                </button>
+              ))}
+            </div>
+            {error && <p className="error">{error}</p>}
+          </div>
+        ) : (
+          <>
+            <div className="alma-scroll" ref={scrollRef}>
+              <div className="alma-thread">
+                {messages.map((m) => {
+                  if (m.role === "user") {
+                    return (
+                      <div key={m.id} className="msg msg-user">
+                        {m.attachments && m.attachments.length > 0 && (
+                          <div className="attach-chips">
+                            {m.attachments.map((name, i) => (
+                              <span key={i} className="attach-chip">
+                                📎 {name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {m.content}
+                      </div>
+                    );
+                  }
+                  const pending = m.status === "pending";
+                  const persisted = !m.id.startsWith("assistant-");
+                  return (
+                    <div key={m.id} className="msg msg-assistant">
+                      <Markdown text={m.content} />
+                      {pending && (
+                        <span className="working-row">
+                          <Typing />
+                          <span className="meta">{t("chat.working")}</span>
+                        </span>
+                      )}
+                      {m.status === "error" && (
+                        <span className="meta" style={{ color: "var(--bad)" }}>
+                          {t("chat.interrupted")}
+                        </span>
+                      )}
+                      {m.citations && <Citations items={m.citations} label={t("chat.sources")} />}
+                      {!pending && (
+                        <div className="msg-actions">
+                          <button
+                            onClick={() => copy(m.id, m.content)}
+                            title={t("chat.copy")}
+                            aria-label={t("chat.copy")}
+                          >
+                            {copiedId === m.id ? "✓" : "⧉"}
+                          </button>
+                          {persisted && m.status !== "error" && (
+                            <>
+                              <button
+                                className={ratings[m.id] === 1 ? "on" : ""}
+                                title={t("chat.feedbackUp")}
+                                aria-label={t("chat.feedbackUp")}
+                                onClick={() => rate(m.id, 1)}
+                              >
+                                👍
+                              </button>
+                              <button
+                                className={ratings[m.id] === -1 ? "on" : ""}
+                                title={t("chat.feedbackDown")}
+                                aria-label={t("chat.feedbackDown")}
+                                onClick={() => rate(m.id, -1)}
+                              >
+                                👎
+                              </button>
+                            </>
+                          )}
+                          {m.model && (
+                            <span className="meta">
+                              {m.model}
+                              {m.latency_ms != null ? ` · ${(m.latency_ms / 1000).toFixed(1)}s` : ""}
+                            </span>
+                          )}
+                          {ratings[m.id] === 1 && (
+                            <span className="meta">{t("chat.feedbackThanks")}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {phase === "streaming" && (
+                  <div className="msg msg-assistant">
+                    <Markdown text={live} />
                     <span className="caret">▌</span>
-                    <span className="working-row">
-                      <span className="typing">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                      </span>
-                      <span className="meta">{t("chat.working")}</span>
+                    <Citations items={liveCitations} label={t("chat.sources")} />
+                  </div>
+                )}
+
+                {phase === "waiting" && (
+                  <div className="msg msg-assistant msg-thinking">
+                    <Typing />
+                    <span className="meta">
+                      {statusLine} {elapsed > 0 ? `· ${elapsed}s` : ""}
+                      {elapsed >= 8 ? ` · ${t("chat.modelLoad")}` : ""}
                     </span>
                   </div>
-                );
-              }
-              return (
-                <div key={m.id} className={`bubble ${m.role}`}>
-                  {m.attachments && m.attachments.length > 0 && (
-                    <div className="attach-chips">
-                      {m.attachments.map((name, i) => (
-                        <span key={i} className="attach-chip">📎 {name}</span>
-                      ))}
-                    </div>
-                  )}
-                  {m.role === "assistant" ? <Markdown text={m.content} /> : m.content}
-                  {m.role === "assistant" && m.status === "error" && (
-                    <span className="meta" style={{ color: "var(--bad)" }}>
-                      {t("chat.interrupted")}
-                    </span>
-                  )}
-                  {m.role === "assistant" && m.citations && (
-                    <Citations items={m.citations} label={t("chat.sources")} />
-                  )}
-                  {m.role === "assistant" && m.model && (
-                    <span className="meta">
-                      {m.provider} · {m.model}
-                      {m.latency_ms != null ? ` · ${m.latency_ms} ms` : ""}
-                    </span>
-                  )}
-                  {/* Feedback on persisted assistant replies (client-side bubbles
-                      from anonymous/streaming fallback have no DB id to rate). */}
-                  {m.role === "assistant" &&
-                    m.status !== "pending" &&
-                    m.status !== "error" &&
-                    !m.id.startsWith("assistant-") && (
-                      <div className="feedback-row">
-                        <button
-                          type="button"
-                          className={`feedback-btn ${ratings[m.id] === 1 ? "on" : ""}`}
-                          title={t("chat.feedbackUp")}
-                          aria-label={t("chat.feedbackUp")}
-                          onClick={() => rate(m.id, 1)}
-                        >
-                          👍
-                        </button>
-                        <button
-                          type="button"
-                          className={`feedback-btn ${ratings[m.id] === -1 ? "on" : ""}`}
-                          title={t("chat.feedbackDown")}
-                          aria-label={t("chat.feedbackDown")}
-                          onClick={() => rate(m.id, -1)}
-                        >
-                          👎
-                        </button>
-                        {ratings[m.id] === 1 && (
-                          <span className="meta">{t("chat.feedbackThanks")}</span>
-                        )}
-                      </div>
-                    )}
-                </div>
-              );
-            })}
+                )}
 
-            {/* Live streaming text once tokens arrive. */}
-            {phase === "streaming" && (
-              <div className="bubble assistant">
-                <Markdown text={live} />
-                <span className="caret">▌</span>
-                <Citations items={liveCitations} label={t("chat.sources")} />
+                {webNote && <p className="muted">🌐 {webNote}</p>}
+                {error && <p className="error">{error}</p>}
               </div>
-            )}
-
-            {/* Processing indicator BEFORE the first token, so it never looks stuck. */}
-            {phase === "waiting" && (
-              <div className="bubble assistant thinking">
-                <span className="typing">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </span>
-                <span className="meta">
-                  {statusLine} {elapsed > 0 ? `· ${elapsed}s` : ""}
-                  {elapsed >= 8 ? ` · ${t("chat.modelLoad")}` : ""}
-                </span>
-              </div>
-            )}
-
-            {webNote && <p className="muted">🌐 {webNote}</p>}
-            {error && <p className="error">Error: {error}</p>}
-          </div>
-
-          {/* Unified composer: text on top, a single toolbar below. */}
-          <div className="composer">
-            <input
-              ref={fileRef}
-              type="file"
-              multiple
-              hidden
-              onChange={(e) => onPickFiles(e.target.files)}
-            />
-
-            {attached.length > 0 && (
-              <div className="composer-chips">
-                {attached.map((a) => (
-                  <span key={a.id} className="attach-chip">
-                    📎 {a.filename}
-                    <button
-                      className="attach-x"
-                      title={t("common.delete")}
-                      onClick={() => setAttached((prev) => prev.filter((x) => x.id !== a.id))}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-
-            <textarea
-              className="composer-text"
-              value={draft}
-              rows={1}
-              placeholder={webOn ? t("chat.placeholderWeb") : t("chat.placeholder")}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  send();
-                }
-              }}
-              disabled={streaming}
-            />
-
-            <div className="composer-bar">
-              <button
-                className="composer-icon"
-                onClick={() => fileRef.current?.click()}
-                disabled={streaming || uploading}
-                title={t("chat.attach")}
-                aria-label={t("chat.attach")}
-              >
-                {uploading ? "…" : "+"}
-              </button>
-
-              <div className="composer-model-wrap" title="Model for this chat">
-                <select
-                  className="composer-model"
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  disabled={streaming}
-                >
-                  <option value="">{t("chat.auto")}</option>
-                  {models.map((m) => (
-                    <option key={`${m.provider}:${m.name}`} value={m.name}>
-                      {m.name} · {m.provider}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="composer-spacer" />
-
-              <button
-                className={`composer-icon toggle${webOn ? " on" : ""}`}
-                onClick={() => setWebOn((v) => !v)}
-                disabled={streaming}
-                title={t("chat.web")}
-                aria-pressed={webOn}
-                aria-label={t("chat.web")}
-              >
-                🌐
-              </button>
-              <button
-                className={`composer-icon toggle${anon ? " on" : ""}`}
-                onClick={() => setAnon((v) => !v)}
-                disabled={streaming}
-                title={t("chat.anonHint")}
-                aria-pressed={anon}
-                aria-label={t("chat.anon")}
-              >
-                🕶
-              </button>
-
-              {streaming ? (
-                <button
-                  className="composer-send stop"
-                  onClick={stop}
-                  title={t("chat.stop")}
-                  aria-label={t("chat.stop")}
-                >
-                  <span className="composer-square" />
-                </button>
-              ) : (
-                <button
-                  className="composer-send"
-                  onClick={() => send()}
-                  disabled={!draft.trim() && attached.length === 0}
-                  title={t("chat.send")}
-                  aria-label={t("chat.send")}
-                >
-                  ↑
-                </button>
-              )}
             </div>
-          </div>
-        </div>
-      </div>
+            <div className="alma-bottom">
+              {composer}
+              <p className="alma-disclaimer">{t("chat.disclaimer")}</p>
+            </div>
+          </>
+        )}
+      </section>
     </div>
   );
 }
